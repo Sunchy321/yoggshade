@@ -93,18 +93,27 @@ function localeAdjustment(fields: Record<string, unknown>): Record<string, numbe
 }
 
 const fmCache = new Map<string, FontMetricsLike>();
+/** 字形后端注入点（实验用）：explore/ 驱动脚本可设 globalThis.__fontBackendFactory
+ * 覆盖光栅化实现（如 text-shaper / freetype-wasm），返回 null 走默认链（缓存→自研）。 */
+type FontBackendFactory = (ttfPath: string, fs: number, fallback: FontMetricsLike) => FontMetricsLike | null;
 function getFontMetrics(pack: AssetPack, ttfPath: string, fs: number): FontMetricsLike {
   const key = `${ttfPath}:${fs}`;
   let fm = fmCache.get(key);
   if (!fm) {
     const raster = new FontMetrics(ttfPath, fs);
-    const stem = ttfPath.split("/").pop()!.replace(/\.(ttf|otf)$/i, "");
-    const glyphDir = join(pack.dir, "glyphs", `${stem}-${fs}`);
-    let hasMeta = false;
-    try {
-      hasMeta = require("node:fs").existsSync(join(glyphDir, "meta.json"));
-    } catch { /* noop */ }
-    fm = hasMeta ? new PackFontMetrics(glyphDir, stem, fs, raster) : raster;
+    const injected = (globalThis as { __fontBackendFactory?: FontBackendFactory }).__fontBackendFactory
+      ?.(ttfPath, fs, raster) ?? null;
+    if (injected) {
+      fm = injected;
+    } else {
+      const stem = ttfPath.split("/").pop()!.replace(/\.(ttf|otf)$/i, "");
+      const glyphDir = join(pack.dir, "glyphs", `${stem}-${fs}`);
+      let hasMeta = false;
+      try {
+        hasMeta = require("node:fs").existsSync(join(glyphDir, "meta.json"));
+      } catch { /* noop */ }
+      fm = hasMeta ? new PackFontMetrics(glyphDir, stem, fs, raster) : raster;
+    }
     fmCache.set(key, fm);
   }
   return fm;
@@ -175,7 +184,8 @@ export function renderText(
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
     for (const g of layout.lines[li]) {
       const { info, mask } = fm.charInfo(g.ch);
-      const g4 = glyphRgba(mask, info, kPx, fill, outline, g.bold ? boldPx : 0);
+      const g4 = glyphRgba(mask, info, kPx, fill, outline, g.bold ? boldPx : 0,
+        outline ? outline.r * ss : 0.0);
       const px = pyRound(pen0 + g.penX * nsScaleS - g4.ox);
       const py = pyRound(baseline - g4.oy);
       composite(buf, W * ss, H * ss, g4.data, g4.w, g4.h, px, py);
@@ -208,6 +218,16 @@ function renderRtt(
   const q = (rtW / wBox) * ns.localScale * rtSs;
   const kRt = q * layout.k;
   const rtw = rtW * rtSs, rth = rtH * rtSs;
+  // 描边半径单位换算：m_OutlineSize = 最终画布 texel；网格画布宽 / (rtW×rtSs) = 画布 px/缓冲 px
+  const Mw = mesh.world;
+  let wxMin = Infinity, wxMax = -Infinity;
+  for (const v of mesh.verts) {
+    const wx = Mw[0][0] * v[0] + Mw[0][1] * v[1] + Mw[0][2] * v[2] + Mw[0][3];
+    if (wx < wxMin) wxMin = wx;
+    if (wx > wxMax) wxMax = wx;
+  }
+  const meshCanvasW = (wxMax - wxMin) * scene.s;
+  const radiusOut = outline ? outline.r * rtW * rtSs / meshCanvasW : 0.0;
   const rt = new Float64Array(rth * rtw * 4);
   const cx = rtw / 2.0, cy = rth / 2.0;
   const pitchC = layout.pitch * q;
@@ -218,7 +238,7 @@ function renderRtt(
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
     for (const g of layout.lines[li]) {
       const { info, mask } = fm.charInfo(g.ch);
-      const g4 = glyphRgba(mask, info, kRt, fill, outline, g.bold ? boldPx : 0);
+      const g4 = glyphRgba(mask, info, kRt, fill, outline, g.bold ? boldPx : 0, radiusOut);
       composite(rt, rtw, rth, g4.data, g4.w, g4.h,
         pyRound(pen0 + g.penX * q - g4.ox), pyRound(baseline - g4.oy));
     }

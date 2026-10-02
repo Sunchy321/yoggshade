@@ -53,7 +53,10 @@ export interface GlyphRGBA {
   oy: number;
 }
 
-/** 单字 → RGBA + 落位偏移（paste 位 = (pen − ox, baseline − oy)）。 */
+/** 单字 → RGBA + 落位偏移（paste 位 = (pen − ox, baseline − oy)）。
+ * radiusOut：描边膨胀半径，单位 = 调用方渲染缓冲 texel（直绘=canvas ss px，RTT=RT ss px）。
+ * 旧语义在字体像素域膨胀，描边被字形放大率放大（数字实测粗 2×）；改为 resample 后膨胀，
+ * m_OutlineSize 按最终画布 texel 解释（与游戏内导出实测一致）。 */
 export function glyphRgba(
   mask: { w: number; h: number; data: Float64Array },
   info: { minX: number; maxY: number },
@@ -61,6 +64,7 @@ export function glyphRgba(
   fill: [number, number, number],
   outline: { r: number; color: [number, number, number] } | null,
   boldPx: number,
+  radiusOut = 0.0,
 ): GlyphRGBA {
   const mh = mask.h, mw = mask.w;
   const r = outline ? outline.r : 0.0;
@@ -71,10 +75,10 @@ export function glyphRgba(
     for (let x = 0; x < mw; x++) big[(y + m) * bw + (x + m)] = mask.data[y * mw + x];
   }
   const aFill = boldPx >= 0.5 ? dilate(big, bw, bh, boldPx) : big;
-  const aOut = outline ? dilate(big, bw, bh, r) : aFill;
   const nwT = Math.max(1, pyRound(bw * scale));
   const nhT = Math.max(1, pyRound(bh * scale));
-  const outS = resampleMask(aOut, bw, bh, nwT, nhT);
+  let outS = resampleMask(aFill, bw, bh, nwT, nhT);
+  if (outline && radiusOut >= 0.5) outS = dilate(outS, nwT, nhT, radiusOut);
   const fillS = resampleMask(aFill, bw, bh, nwT, nhT);
   const rgba = new Float64Array(nhT * nwT * 4);
   for (let i = 0; i < nwT * nhT; i++) {
