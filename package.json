@@ -1,0 +1,17 @@
+{
+  "name": "yoggraph",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "bun src/main.ts",
+    "diff": "bun src/diff.ts"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.9.2"
+  }
+}
