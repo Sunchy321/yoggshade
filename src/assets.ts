@@ -32,12 +32,13 @@ export function loadPack(dir: string): AssetPack {
   const meshes = readJson<AssetPack["meshes"]>(join(dir, "meshes.json"));
   const portrait = readJson<AssetPack["portrait"]>(join(dir, "portrait.json"));
   const materialProps = readJson<AssetPack["materialProps"]>(join(dir, "material_props.json"));
+  const curved = readJson<AssetPack["curved"]>(join(dir, "curved.json"));
 
   // NpzBlankSub0 语义：肖像节点 sub0 清空（肖像走公式模块，不参与帧光栅）
   const pk = manifest.portrait_node_key;
   if (meshes[pk]?.subs?.[0]) meshes[pk].subs[0] = [];
 
-  return { dir, manifest, plan, frameRecon, meshes, portrait, materialProps };
+  return { dir, manifest, plan, frameRecon, meshes, portrait, materialProps, curved };
 }
 
 /** sc._walk_with_key：yield (node, npz_key, prefab_path)。 */

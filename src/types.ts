@@ -39,14 +39,37 @@ export interface PlanSlot {
 
 export interface PlanComponent {
   path: string;
+  node?: string;
   visible?: boolean;
   raster?: boolean;
   material_slots?: PlanSlot[];
 }
 
+export interface StatGem {
+  node: string;
+  path: string;
+  npz_key: string;
+  main_tex_file: string;
+  tint_rgb: number[];
+  intensity: number;
+  speed_xy: number[];
+  scale_xy: number[];
+}
+
+export interface PlanTextEntry {
+  role: string;
+  render?: boolean;
+  text?: string;
+  [k: string]: unknown;
+}
+
 export interface RenderPlan {
   components: PlanComponent[];
   input?: { dbf_id?: string; card_id?: string };
+  rarity_gem?: { visible?: boolean; atlas_offset?: number[]; tint_rgb?: number[] };
+  gem?: { enabled?: boolean; t?: number };
+  stat_gems?: StatGem[];
+  texts?: PlanTextEntry[];
 }
 
 export interface HierarchyNode {
@@ -80,6 +103,8 @@ export interface AssetPack {
     size: [number, number];
     portrait_node_key: string;
     second_tex: string;
+    role_paths?: Record<string, string>;
+    frame_root?: string;
     [k: string]: unknown;
   };
   plan: RenderPlan;
@@ -90,4 +115,7 @@ export interface AssetPack {
     m_Colors: Record<string, { r: number; g: number; b: number; a: number }>;
     m_Floats: Record<string, number>;
   };
+  ubertext?: { nodes: { path: string; fields?: Record<string, unknown>; font_name?: string }[] };
+  curved?: { verts: number[][]; uv0: number[][]; tris: number[][]; world: number[][] };
+  fontdefs?: unknown;
 }

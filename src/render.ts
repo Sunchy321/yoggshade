@@ -3,6 +3,7 @@ import { projectX, projectY, SIZE } from "./camera.js";
 import { rasterZbuf } from "./raster.js";
 import { renderPortraitSubmesh } from "./portrait.js";
 import { walkWithKey, TextureStore } from "./assets.js";
+import { renderStatGems, renderRarityGemWrap } from "./gems.js";
 import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent } from "./types.js";
 
 interface FrameNode {
@@ -168,6 +169,55 @@ export function composeToRgba8(canvas: Float64Array): Uint8Array {
       out[ci + c] = Math.round(rgb * a * 255);
     }
     out[ci + 3] = 255;
+  }
+  return out;
+}
+
+/** canvas RGBA → 直感 RGB（丢 alpha，PIL convert("RGB") 口径）+ uint8 截断量化。 */
+export function canvasToQuantRgb(canvas: Float64Array): Float64Array {
+  const W = SIZE[0], H = SIZE[1];
+  const rgb = new Float64Array(W * H * 3);
+  for (let i = 0; i < W * H; i++) {
+    for (let c = 0; c < 3; c++) {
+      const v = Math.min(Math.max(canvas[i * 4 + c], 0), 1);
+      rgb[i * 3 + c] = Math.trunc(v * 255) / 255;
+    }
+  }
+  return rgb;
+}
+
+/** Image 往返等价的截断量化（np.clip*255 → astype(uint8) → /255）。 */
+export function quantTrunc(buf: Float64Array): Float64Array {
+  for (let i = 0; i < buf.length; i++) {
+    const v = Math.min(Math.max(buf[i], 0), 1);
+    buf[i] = Math.trunc(v * 255) / 255;
+  }
+  return buf;
+}
+
+/** P1：宝石两段（含段间 uint8 量化口径），返回直感 RGB buffer。 */
+export function renderGemsStage(
+  canvas: Float64Array, pack: AssetPack, textures: TextureStore,
+): Float64Array {
+  const rgb = canvasToQuantRgb(canvas);
+  renderStatGems(rgb, pack, textures);
+  quantTrunc(rgb);
+  if (pack.plan.rarity_gem?.visible) {
+    renderRarityGemWrap(rgb, pack, textures);
+    quantTrunc(rgb);
+  }
+  return rgb;
+}
+
+/** RGB float buffer → uint8 RGBA（trunc，对齐 py astype(uint8)）。 */
+export function rgbToRgba8(rgb: Float64Array): Uint8Array {
+  const W = SIZE[0], H = SIZE[1];
+  const out = new Uint8Array(W * H * 4);
+  for (let i = 0; i < W * H; i++) {
+    for (let c = 0; c < 3; c++) {
+      out[i * 4 + c] = Math.trunc(Math.min(Math.max(rgb[i * 3 + c], 0), 1) * 255);
+    }
+    out[i * 4 + 3] = 255;
   }
   return out;
 }

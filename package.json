@@ -7,6 +7,8 @@
     "diff": "bun src/diff.ts"
   },
   "dependencies": {
+    "canvas": "^3.2.3",
+    "opentype.js": "^2.0.0",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {

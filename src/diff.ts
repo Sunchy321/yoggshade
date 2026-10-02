@@ -14,7 +14,7 @@ const A = readU8(aPath);
 const B = readU8(bPath);
 if (A.w !== B.w || A.h !== B.h) throw new Error(`尺寸不一致: ${A.w}x${A.h} vs ${B.w}x${B.h}`);
 
-let se = 0, ae = 0, maxAbs = 0, gt1 = 0, gt2 = 0, gt4 = 0;
+let se = 0, ae = 0, gMax = 0, gt1 = 0, gt2 = 0, gt4 = 0;
 const heat = new Uint8Array(A.w * A.h * 4);
 for (let i = 0; i < A.w * A.h; i++) {
   let dMax = 0;
@@ -22,14 +22,16 @@ for (let i = 0; i < A.w * A.h; i++) {
     const d = Math.abs(A.data[i * 4 + c] - B.data[i * 4 + c]);
     se += d * d;
     ae += d;
-    if (d > maxAbs) maxAbs = d;
+    if (d > dMax) dMax = d;
   }
-  if (maxAbs > 1) gt1++;
-  if (maxAbs > 2) gt2++;
-  if (maxAbs > 4) gt4++;
-  const v = Math.min(255, Math.round(maxAbs * 8));
+  if (dMax > 1) gt1++;
+  if (dMax > 2) gt2++;
+  if (dMax > 4) gt4++;
+  if (dMax > gMax) gMax = dMax;
+  const v = Math.min(255, Math.round(dMax * 8));
   heat[i * 4] = v; heat[i * 4 + 1] = v; heat[i * 4 + 2] = v; heat[i * 4 + 3] = 255;
 }
+const maxAbs = gMax;
 const n = A.w * A.h * 3;
 const mse = se / n, mae = ae / n;
 
