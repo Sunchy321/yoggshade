@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Node
+node_modules/
+dist/
+build/
+.output/
+.nitro/
+.cache/
+coverage/
+*.log
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python (fallback)
+__pycache__/
+.venv/
+
+# Local issue tracking (.scratch/ convention; remove this line to track issues in git)
+.scratch/
+
+# Exploration files (throwaway scripts, experiment output, notes)
+explore/
+
+# Unpacked/decompiled game files (large, never committed)
+unpacked/
+
+# Selected unpacked data feeding the render pipeline (remove this line to commit it)
+assets/
