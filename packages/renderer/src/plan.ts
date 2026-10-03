@@ -230,16 +230,28 @@ export function compilePlan(
 // （explore 快照），逐条带行号见各帧 rule 注释。
 // ============================================================================
 
-/** TAG_CARDTYPE → 手牌帧 slot（actor_names.csv; ActorNames.cs）。 */
+/** TAG_CARDTYPE → 手牌帧 slot（actor_names.csv; ActorNames.cs）。
+ * 英雄技能（10）：GetHandActor 的 HERO_POWER 分支 → ACTOR_ASSET.HISTORY_HERO_POWER
+ * （ActorNames.cs:555-556）= History_HeroPower.prefab —— 既不是法术帧（SPELL=5 的 actor），
+ * 也不是对局区的 Card_Play_HeroPower（那条是 GetPlayActorByTags 的 PLAY_HERO_POWER）。 */
 export const CARD_TYPE_TO_SLOT: Record<number, string> = {
-  4: 'hand-minion', 5: 'hand-spell', 3: 'hand-hero', 7: 'hand-weapon', 39: 'hand-location',
+  4:  'hand-minion',
+  5:  'hand-spell',
+  3:  'hand-hero',
+  7:  'hand-weapon',
+  39: 'hand-location',
+  10: 'hand-heropower',
 };
 
 /** 帧 slot → 该帧的原生卡型（ActorNames 的 actor 归属；4=MINION，47=战棋英雄伙伴同用随从 actor）。
- * 别型卡（佣兵技能/战棋法术/宠物/英雄技能等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
+ * 别型卡（佣兵技能/战棋法术/宠物等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
 export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
-  'hand-minion':   [4, 47], 'hand-spell':    [5], 'hand-hero':     [3],
-  'hand-weapon':   [7], 'hand-location': [39],
+  'hand-minion':    [4, 47],
+  'hand-spell':     [5],
+  'hand-hero':      [3],
+  'hand-weapon':    [7],
+  'hand-location':  [39],
+  'hand-heropower': [10],
 };
 
 /** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）。 */
@@ -303,6 +315,16 @@ const FRAME_RULES: Record<string, FrameRules> = {
     health:       ['Wep_SheildBroken'],
     noGem:        'No_Gem_Mesh', forcedHidden: ['RacePlate_mesh'],
     roles:        ['cost', 'name', 'desc', 'health'],
+  },
+  // 英雄技能（History_HeroPower）：附件层整个不存在（prefab 无 RarityGem/Gem_Attack/Gem_Health/
+  // RacePlate/Unique_*/RuneBanner/MulticlassRibbon 节点，非隐藏——RARITY=FREE 与结构双证），
+  // 且本帧是唯一无类色写点的手牌帧（Actor.SetMaterialNormal 的 HERO_POWER 分支 break，
+  // Actor.cs:6709-6725 → 帧保持 prefab 序列化材质；九职业英雄技能框色逐位相同即其证）。
+  // 帧几何 = Mesh（HeroPowerV2 三子网格：框 / 肖像圆窗 / HeroClass 垫板）+ FrameMesh（横幅/描述板/底带）
+  // + Gem_Mana；文字三角色 cost/name/desc（无 attack/health/race 节点）。
+  'hand-heropower': {
+    elite:  [], rarity: [],
+    roles:  ['cost', 'name', 'desc'],
   },
 };
 

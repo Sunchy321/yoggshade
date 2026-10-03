@@ -79,9 +79,10 @@ export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettin
       && !('m_UnderwearLeftBounds' in fields)) {
       fields['m_Underwear'] = 0;
     }
+    const loc = localizedWorldOffset(w, fields);
     out[role] = {
       fields,
-      worldPos:    [w[0][3], w[1][3], w[2][3]],
+      worldPos:    [w[0][3] + loc[0], w[1][3] + loc[1], w[2][3] + loc[2]],
       localScale:  scale,
       fontdefName: node.font_name!,
     };
@@ -95,6 +96,24 @@ function localeAdjustment(fields: Record<string, unknown>): Record<string, numbe
     if (adj?.m_Locale === 9) return adj as Record<string, number>;
   }
   return {};
+}
+
+/** 逐 locale m_PositionOffset：SetupTextMeshAlignment（UB:1936-1937）在设置文本 GO 局部位置后
+ *  `SetTextMeshGameObjectLocalPositionOffset(UberTextLocalization.GetPositionOffset(...))`，
+ *  即 **文本节点局部空间** 的平移量（GetTextCenter() 非 widget 恒 0，故它就是相对节点原点的位移）。
+ *  本链把文本块居中画在节点世界原点上，故需把该局部量经节点世界矩阵变换到世界再加：
+ *  英雄技能 desc（PowersUberText）zhCN 条目 (0,-0.05,0)，经 0.8 缩放 / -90°X 旋转 → 世界 z -0.04
+ *  ≈ 7px 下移（与引擎快照逐块对齐的修正量一致）。其余帧 zhCN 无条目 → 恒 0，不影响既有口径。 */
+function localizedWorldOffset(
+  w: number[][], fields: Record<string, unknown>,
+): [number, number, number] {
+  const adj = localeAdjustment(fields) as unknown as
+    { m_PositionOffset?: { x?: number, y?: number, z?: number } };
+  const o = adj.m_PositionOffset;
+  if (!o || (!o.x && !o.y && !o.z)) return [0, 0, 0];
+  const v = [o.x ?? 0, o.y ?? 0, o.z ?? 0];
+  return [0, 1, 2].map(i => w[i][0] * v[0] + w[i][1] * v[1] + w[i][2] * v[2]) as
+    [number, number, number];
 }
 
 const fmCache = new Map<string, FontMetricsLike>();

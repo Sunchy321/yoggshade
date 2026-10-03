@@ -57,6 +57,10 @@ SLOT_TO_ACTOR_KEY = {
     "hand-weapon": "HAND_WEAPON",
     "hand-hero": "HAND_HERO",
     "hand-location": "HAND_LOCATION",
+    # 英雄技能：ActorNames.GetHandActor(HERO_POWER) → HISTORY_HERO_POWER（ActorNames.cs:555-556）
+    # = History_HeroPower.prefab。不是 Card_Hand_Ability（那是 SPELL=5 的帧），也不是对局区的
+    # Card_Play_HeroPower（GetPlayActorByTags 才走那条；exporter docs/decompile-notes.md 已记）。
+    "hand-heropower": "HAND_HERO_POWER",
 }
 
 # UberText 节点名 → 物理角色（TS plan 编译按卡型决定渲染与否与文本来源）

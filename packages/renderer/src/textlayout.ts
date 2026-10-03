@@ -195,15 +195,10 @@ export function layoutText(inp: LayoutInputs): Layout {
   if (wordWrap && f('m_Underwear')) {
     underwear = { w: f('m_UnderwearWidth') ?? 0, h: f('m_UnderwearHeight') ?? 0 };
   }
-  let lineTexts: string[];
-  let spEff: number;
-  if (wordWrap) {
-    lineTexts = wrapLines(plainBold.plain, fm, k, width, height, spMulti, underwear);
-    spEff = spMulti;
-  } else {
-    lineTexts = plainBold.plain.split('\n');
-    spEff = lineTexts.length === 1 ? spSingle : spMulti;
-  }
+  const nHard = plainBold.plain.split('\n').length;
+  const spEff = wordWrap ? spMulti : (nHard === 1 ? spSingle : spMulti);
+  const wrap = () => hardBreakWrap(plainBold, wordWrap, fm, k, width, height, spEff, underwear);
+  let { texts: lineTexts, bolds: lineBolds } = wrap();
 
   if (f('m_ResizeToFit')) {
     for (let it = 0; it < RESIZE_MAX_ITERS; it++) {
@@ -217,28 +212,62 @@ export function layoutText(inp: LayoutInputs): Layout {
       if (cs <= floorCs) {
         cs = floorCs;
         k = cs * 0.1;
-        if (wordWrap) lineTexts = wrapLines(plainBold.plain, fm, k, width, height, spEff, underwear);
+        if (wordWrap) ({ texts: lineTexts, bolds: lineBolds } = wrap());
         break;
       }
       k = cs * 0.1;
-      if (wordWrap) lineTexts = wrapLines(plainBold.plain, fm, k, width, height, spEff, underwear);
+      if (wordWrap) ({ texts: lineTexts, bolds: lineBolds } = wrap());
     }
   }
 
   const pitch = fm.lineHeight * k * spEff;
   const lines: LaidGlyph[][] = [];
   const lineWidths: number[] = [];
-  let gi = 0;
-  for (const lt of lineTexts) {
+  for (let li = 0; li < lineTexts.length; li++) {
+    const lt = lineTexts[li];
+    const lb = lineBolds[li];
     const row: LaidGlyph[] = [];
     let pen = 0;
-    for (const ch of lt) {
-      row.push({ ch, penX: pen, bold: gi < plainBold.bold.length ? plainBold.bold[gi] : false });
-      pen += fm.advance(ch) * k;
-      gi++;
+    for (let ci = 0; ci < lt.length; ci++) {
+      row.push({ ch: lt[ci], penX: pen, bold: lb[ci] ?? false });
+      pen += fm.advance(lt[ci]) * k;
     }
     lines.push(row);
     lineWidths.push(lineAdvanceWidth(lt, fm, k));
   }
   return { lines, lineWidths, pitch, boxH: lineTexts.length * pitch, fs, k, lineHeightPx: fm.lineHeight };
+}
+
+/** 硬换行 + 行内 word wrap（TextMesh 语义）：`UberTextRendering.SetText` 直接把字符串赋给
+ * `m_textMesh.text`（UB:6397），Unity TextMesh 原生把 '\n' 当**硬换行**，word wrap 只在硬行内生效；
+ * 空段（如 "a\n\nb" 的中段）占一个空行槽、不产出字形。此前整串直接丢给 wrapLines，'\n' 既不断行
+ * 又被算进 advance，英雄技能描述（`<b>英雄技能</b>\n…`）会整块错行。
+ * 返回逐行文本 + 逐行逐字符 bold（行内顺序 == plain 顺序；'\n' 本身不占字形槽故不带走 bold）。 */
+function hardBreakWrap(
+  plainBold: { plain: string, bold: boolean[] },
+  wordWrap: boolean, fm: FontMetricsLike, k: number, width: number, height: number,
+  spEff: number, underwear: { w: number, h: number } | null,
+): { texts: string[], bolds: boolean[][] } {
+  const texts: string[] = [];
+  const bolds: boolean[][] = [];
+  let cursor = 0;
+  for (const seg of plainBold.plain.split('\n')) {
+    const segBold = plainBold.bold.slice(cursor, cursor + seg.length);
+    cursor += seg.length + 1; // +1 = 跳过分隔用 '\n' 自身
+    let segLines: string[];
+    if (seg === '') {
+      segLines = ['']; // 空段 = 空行占槽（不产出字形）
+    } else if (wordWrap) {
+      segLines = wrapLines(seg, fm, k, width, height, spEff, underwear);
+    } else {
+      segLines = [seg];
+    }
+    let c = 0;
+    for (const line of segLines) {
+      texts.push(line);
+      bolds.push(segBold.slice(c, c + line.length));
+      c += line.length;
+    }
+  }
+  return { texts, bolds };
 }
