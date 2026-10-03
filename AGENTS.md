@@ -73,18 +73,22 @@ Before committing a change classified as a rendering bug fix:
 
 ## Verification and baselines
 
-- **L1** = py golden chain in `explore/hs-render/` (`dz_render` → `render_dbf9_zfix.png`); run via `bun src/main.ts` + `bun src/diff.ts`. Any rendering change must be L1-diffed before claiming success.
+- **L1** = py golden chain in `explore/hs-render/` (`dz_render` → `render_dbf9_zfix.png`); run via `bun run render` + `bun run diff`. Py chain is a reference, not a sync target: TS-side changes do not need mirroring into the py scripts, but a rendering change should still be sanity-checked here while the golden is in range.
 - **L2** = in-game-rendered benchmark images for the frozen pivot set (`data/pivot.md`, ADR-0001). The pivot set is the acceptance anchor: acceptance for ported behavior = L2 diff against the in-game image for the same request.
 - **Baseline artifacts are provenance.** Never overwrite a previous render/diff under `explore/**/output/`; comparisons are written into the current experiment's own output. Quote baseline numbers from findings docs (committed), not from mutable files.
-- Parity invariants discovered the hard way live in code comments (`src/resize.ts` Pillow 8bpc semantics, `src/glyph.ts` outline units, `src/font.ts` FreeType getmask2 semantics). When you fight a parity battle, leave the evidence where the next person will look.
+- Parity invariants discovered the hard way live in code comments (`packages/renderer/src/resize.ts` Pillow 8bpc semantics, `packages/renderer/src/glyph.ts` outline shader units, `packages/renderer/src/font.ts` FreeType getmask2 semantics). When you fight a parity battle, leave the evidence where the next person will look.
 
 ## Workspace layout
 
-- `src/` — tracked TS renderer (bun, `tsc` strict).
+Bun workspaces monorepo: renderer and web app are separate packages; shared frozen data, extraction tools and the unpacked asset pack live at the root.
+
+- `packages/renderer/` — tracked TS renderer (`bun`, `tsc` strict). CLI: `bun run render` / `bun run pivots` from the repo root; asset pack and frozen-data paths are injectable via `--pack`/`--data` or `YOGGRAPH_PACK`/`YOGGRAPH_DATA` (defaults: `assets/card-render-v1`, `data`, relative to CWD).
+- `apps/web/` — card-site package (skeleton; framework TBD). Consumes the renderer as `@yoggraph/renderer` (workspace dependency) or over protocol v1 as a separate Worker.
 - `scripts/` — tracked long-term extraction tools (uv + PEP 723 headers, `uv run scripts/<tool>.py`).
 - `data/` — tracked frozen data (e.g. `data/pivots/`); `data/pivot.md` is the single editing point for pivot membership.
 - `assets/` — unpacked asset pack (gitignored, reproducible via scripts); raw Blizzard assets never leave this boundary into any distribution path.
 - `explore/` — gitignored experiments and the py golden chain. Game install at `/Applications/Hearthstone` is read-only; extraction scripts must never write into it.
+- Cross-package imports use the package name (`@yoggraph/renderer/...`), never a relative path into another package's source.
 
 ## Decompile and extract discipline
 

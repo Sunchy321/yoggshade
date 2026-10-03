@@ -9,6 +9,6 @@ const m = require("./data/pivots/manifest.json");
 console.log(m.presets.map((p) => p.cardId).join("\n"));
 '); do
   echo "=== $id ==="
-  bun src/main.ts --card "$id" --out "out/pivots/$id.png" || echo "[fail] $id"
+  bun packages/renderer/src/main.ts --card "$id" --out "out/pivots/$id.png" || echo "[fail] $id"
 done
 echo "[done] out/pivots/"

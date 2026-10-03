@@ -1,9 +1,10 @@
 /** 渲染 CLI：
  *  bun src/main.ts [packDir] [outPng] [stage]           —— 资产包内嵌 plan（EX1_350 基线）
  *  bun src/main.ts --card CARD_ID [--out out.png]       —— pivot 卡编译渲染（data/pivots + data/tables）
- * stage: p0 = 帧+肖像；p1 = +宝石；p2 = +文字（全链，默认） */
+ * stage: p0 = 帧+肖像；p1 = +宝石；p2 = +文字（全链，默认）
+ * 路径注入：--pack/--data 或 YOGGRAPH_PACK/YOGGRAPH_DATA（默认相对 CWD：assets/card-render-v1、data）。 */
 import { mkdirSync, readFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { loadPack, TextureStore } from './assets.js';
 import { SIZE } from './camera.js';
 import {
@@ -19,7 +20,9 @@ function arg(flag: string): string | undefined {
 }
 
 const hasFlags = process.argv.slice(2).some(a => a.startsWith('--'));
-const packDir = arg('--pack') ?? (hasFlags ? 'assets/card-render-v1' : process.argv[2] ?? 'assets/card-render-v1');
+const packDefault = process.env.YOGGRAPH_PACK ?? 'assets/card-render-v1';
+const dataDir = arg('--data') ?? process.env.YOGGRAPH_DATA ?? 'data';
+const packDir = arg('--pack') ?? (hasFlags ? packDefault : process.argv[2] ?? packDefault);
 const cardId = arg('--card');
 const outPng = arg('--out') ?? (cardId ? `out/ts_${cardId}.png` : hasFlags ? 'out/ts_p2.png' : process.argv[3] ?? 'out/ts_p2.png');
 const stage = arg('--stage') ?? (hasFlags ? 'p2' : process.argv[4] ?? 'p2');
@@ -29,9 +32,9 @@ const pack = loadPack(packDir);
 const pivotFile = arg('--pivot-file');
 if (cardId || pivotFile) {
   const pivot = JSON.parse(
-    readFileSync(pivotFile ?? `data/pivots/${cardId}.json`, 'utf-8'),
+    readFileSync(pivotFile ?? join(dataDir, 'pivots', `${cardId}.json`), 'utf-8'),
   ) as PivotCard;
-  const tables = JSON.parse(readFileSync('data/tables.json', 'utf-8')) as StaticTables;
+  const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as StaticTables;
   pack.plan = compilePlan(pivot, tables, pack, packDir);
 }
 const textures = new TextureStore(packDir);

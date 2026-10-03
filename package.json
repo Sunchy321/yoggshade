@@ -2,15 +2,19 @@
   "name": "yoggraph",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "render": "bun src/main.ts",
-    "diff": "bun src/diff.ts",
-    "lint": "eslint ."
+    "render": "bun packages/renderer/src/main.ts",
+    "diff": "bun packages/renderer/src/diff.ts",
+    "pivots": "bash scripts/render_pivots.sh",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "canvas": "^3.2.3",
-    "opentype.js": "^2.0.0",
-    "pngjs": "^7.0.0"
+    "canvas": "^3.2.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
