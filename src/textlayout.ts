@@ -1,10 +1,10 @@
 /** UberText 布局引擎（uber_text.py 布局段逐行对译；纯逻辑，无字体依赖之外的 IO）。 */
-import type { FontMetricsLike } from "./font.js";
+import type { FontMetricsLike } from './font.js';
 
-export const CHARACTER_SIZE_SCALE = 0.01;   // UB:109
-export const RESIZE_SHRINK = 0.95;          // UB ReduceText_CharSize:2423
-export const RESIZE_MAX_ITERS = 40;         // UB:2421
-export const BOLD_SIZE_CAP = 10.0;          // UB Bold():2690
+export const CHARACTER_SIZE_SCALE = 0.01; // UB:109
+export const RESIZE_SHRINK = 0.95; // UB ReduceText_CharSize:2423
+export const RESIZE_MAX_ITERS = 40; // UB:2421
+export const BOLD_SIZE_CAP = 10.0; // UB Bold():2690
 
 // CanWrapBetween（UB:3949-4107）zhCN 生效分支
 const WRAP_AFTER_FORBIDDEN = new Set([
@@ -28,7 +28,7 @@ function isCjk(cp: number): boolean {
   return WRAP_CJK_RANGES.some(([lo, hi]) => lo <= cp && cp <= hi);
 }
 
-export function canWrapBetween(lastCp: number, wideCp: number, nextCp: number): boolean {
+export function canWrapBetween(lastCp: number, wideCp: number, _nextCp: number): boolean {
   if (lastCp === 45) return !(48 <= wideCp && wideCp <= 57);
   if (lastCp === 59) return true;
   if (wideCp === 124) return true;
@@ -40,43 +40,54 @@ export function canWrapBetween(lastCp: number, wideCp: number, nextCp: number): 
   return isCjk(wideCp);
 }
 
-export function splitRich(text: string): { plain: string; bold: boolean[] } {
+export function splitRich(text: string): { plain: string, bold: boolean[] } {
   const chars: string[] = [];
   const bold: boolean[] = [];
   let cur = false;
   let i = 0;
   while (i < text.length) {
-    if (text.startsWith("<b>", i)) { cur = true; i += 3; continue; }
-    if (text.startsWith("</b>", i)) { cur = false; i += 4; continue; }
-    if (text[i] === "<") {
-      const j = text.indexOf(">", i);
-      if (j !== -1) { i = j + 1; continue; }
+    if (text.startsWith('<b>', i)) {
+      cur = true;
+      i += 3;
+      continue;
+    }
+    if (text.startsWith('</b>', i)) {
+      cur = false;
+      i += 4;
+      continue;
+    }
+    if (text[i] === '<') {
+      const j = text.indexOf('>', i);
+      if (j !== -1) {
+        i = j + 1;
+        continue;
+      }
     }
     chars.push(text[i]);
     bold.push(cur);
     i++;
   }
-  return { plain: chars.join(""), bold };
+  return { plain: chars.join(''), bold };
 }
 
 export function breakIntoWords(
-  text: string, fm: FontMetricsLike, k: number, container: number,
+  text: string, fm: FontMetricsLike, k: number, _container: number,
 ): string[] {
   const words: string[] = [];
   let buf = text[0];
-  let num = fm.advance(text[0]) * k;
+  let _num = fm.advance(text[0]) * k;
   for (let i = 1; i < text.length; i++) {
     const c = text[i];
-    num += fm.advance(c) * k;
+    _num += fm.advance(c) * k;
     const lastCp = text.codePointAt(i - 1)!;
     const wideCp = c.codePointAt(0)!;
     const nextCp = i < text.length - 1 ? text.codePointAt(i + 1)! : 0;
     if (canWrapBetween(lastCp, wideCp, nextCp)) {
       words.push(buf);
       buf = c;
-      num = fm.advance(c) * k;
+      _num = fm.advance(c) * k;
     } else {
-      buf += c;   // m_ForceWrapLargeWords=0（zhCN）：num 与 container 不比较，继续粘
+      buf += c; // m_ForceWrapLargeWords=0（zhCN）：num 与 container 不比较，继续粘
     }
   }
   words.push(buf);
@@ -101,13 +112,13 @@ export function lineAdvanceWidth(line: string, fm: FontMetricsLike, k: number): 
 
 export function wrapLines(
   text: string, fm: FontMetricsLike, k: number, width: number, height: number,
-  lineSpacing: number, underwear: { w: number; h: number } | null,
+  lineSpacing: number, underwear: { w: number, h: number } | null,
 ): string[] {
   const words = breakIntoWords(text, fm, k, width);
   const underW = underwear ? width * (1.0 - underwear.w) : null;
   const underH = underwear ? height * underwear.h : null;
   const lines: string[] = [];
-  let cur = "";
+  let cur = '';
   for (const w of words) {
     const cand = cur + w;
     const x = lineMeshWidth(cand, fm, k);
@@ -130,14 +141,14 @@ export function wrapLines(
   return lines;
 }
 
-export interface LaidGlyph { ch: string; penX: number; bold: boolean }
+export interface LaidGlyph { ch: string, penX: number, bold: boolean }
 export interface Layout {
-  lines: LaidGlyph[][];
-  lineWidths: number[];
-  pitch: number;
-  boxH: number;
-  fs: number;
-  k: number;
+  lines:        LaidGlyph[][];
+  lineWidths:   number[];
+  pitch:        number;
+  boxH:         number;
+  fs:           number;
+  k:            number;
   lineHeightPx: number;
 }
 
@@ -150,16 +161,16 @@ export interface TextFields {
 export function fieldGetter(fields: Record<string, unknown>) {
   return (key: string, d: number | null = null): number | null => {
     const v = fields[key];
-    return typeof v === "number" ? v : d;
+    return typeof v === 'number' ? v : d;
   };
 }
 
 export interface LayoutInputs {
-  fields: Record<string, unknown>;
-  locale: Record<string, number>;
+  fields:  Record<string, unknown>;
+  locale:  Record<string, number>;
   fontdef: Record<string, number>;
-  fm: FontMetricsLike;
-  text: string;
+  fm:      FontMetricsLike;
+  text:    string;
 }
 
 export function layoutText(inp: LayoutInputs): Layout {
@@ -167,22 +178,22 @@ export function layoutText(inp: LayoutInputs): Layout {
   const f = fieldGetter(fields) as (key: string, d?: number | null) => number | null;
   const plainBold = splitRich(inp.text);
   const fs = Math.trunc(
-    (fd["m_FontSizeModifier"] ?? 1) * (locale["m_FontSizeModifier"] ?? 1) * (f("m_FontSize") ?? 0));
-  let cs = (f("m_CharacterSize") ?? 1) * (fd["m_CharacterSizeModifier"] ?? 1) * CHARACTER_SIZE_SCALE;
-  cs *= (fd["m_UnboundCharacterSizeModifier"] ?? 1) * (locale["m_UnboundCharacterSizeModifier"] ?? 1);
+    (fd['m_FontSizeModifier'] ?? 1) * (locale['m_FontSizeModifier'] ?? 1) * (f('m_FontSize') ?? 0));
+  let cs = (f('m_CharacterSize') ?? 1) * (fd['m_CharacterSizeModifier'] ?? 1) * CHARACTER_SIZE_SCALE;
+  cs *= (fd['m_UnboundCharacterSizeModifier'] ?? 1) * (locale['m_UnboundCharacterSizeModifier'] ?? 1);
   let k = cs * 0.1;
-  const width = f("m_Width") ?? 0;
-  const height = f("m_Height") ?? 0;
-  const wordWrap = !!(f("m_WordWrap") ?? 0);
+  const width = f('m_Width') ?? 0;
+  const height = f('m_Height') ?? 0;
+  const wordWrap = !!(f('m_WordWrap') ?? 0);
 
-  const spSingle = (f("m_LineSpacing") ?? 0) + (f("m_SingleLineAdjustment") ?? 0)
-    + (locale["m_SingleLineAdjustment"] ?? 0);
-  const spMulti = (f("m_LineSpacing") ?? 0)
-    * ((fd["m_LineSpaceModifier"] ?? 1) * (locale["m_LineSpaceModifier"] ?? 1));
+  const spSingle = (f('m_LineSpacing') ?? 0) + (f('m_SingleLineAdjustment') ?? 0)
+    + (locale['m_SingleLineAdjustment'] ?? 0);
+  const spMulti = (f('m_LineSpacing') ?? 0)
+    * ((fd['m_LineSpaceModifier'] ?? 1) * (locale['m_LineSpaceModifier'] ?? 1));
 
-  let underwear: { w: number; h: number } | null = null;
-  if (wordWrap && f("m_Underwear")) {
-    underwear = { w: f("m_UnderwearWidth") ?? 0, h: f("m_UnderwearHeight") ?? 0 };
+  let underwear: { w: number, h: number } | null = null;
+  if (wordWrap && f('m_Underwear')) {
+    underwear = { w: f('m_UnderwearWidth') ?? 0, h: f('m_UnderwearHeight') ?? 0 };
   }
   let lineTexts: string[];
   let spEff: number;
@@ -190,19 +201,19 @@ export function layoutText(inp: LayoutInputs): Layout {
     lineTexts = wrapLines(plainBold.plain, fm, k, width, height, spMulti, underwear);
     spEff = spMulti;
   } else {
-    lineTexts = plainBold.plain.split("\n");
+    lineTexts = plainBold.plain.split('\n');
     spEff = lineTexts.length === 1 ? spSingle : spMulti;
   }
 
-  if (f("m_ResizeToFit")) {
+  if (f('m_ResizeToFit')) {
     for (let it = 0; it < RESIZE_MAX_ITERS; it++) {
       const y = lineTexts.length > 1
         ? (lineTexts.length - 2) * fm.lineHeight * k * spEff + 2 * fm.lineHeight * k
         : fm.lineHeight * k;
-      const x = Math.max(...lineTexts.map((t) => lineMeshWidth(t, fm, k)));
+      const x = Math.max(...lineTexts.map(t => lineMeshWidth(t, fm, k)));
       if (y <= height && x <= width) break;
       cs *= RESIZE_SHRINK;
-      const floorCs = (f("m_MinCharacterSize") ?? 0) * CHARACTER_SIZE_SCALE;
+      const floorCs = (f('m_MinCharacterSize') ?? 0) * CHARACTER_SIZE_SCALE;
       if (cs <= floorCs) {
         cs = floorCs;
         k = cs * 0.1;

@@ -1,9 +1,10 @@
 /** PNG 读写与双线性采样（对齐 py 侧两套采样语义）。 */
-import { PNG } from "pngjs";
-import type { RGBAImage } from "./types.js";
+import { readFileSync, writeFileSync } from 'node:fs';
+import { PNG } from 'pngjs';
+import type { RGBAImage } from './types.js';
 
 export function decodePng(path: string): RGBAImage {
-  const png = PNG.sync.read(require("node:fs").readFileSync(path));
+  const png = PNG.sync.read(readFileSync(path));
   const { width: w, height: h, data } = png;
   const out = new Float64Array(w * h * 4);
   for (let i = 0; i < w * h * 4; i++) out[i] = data[i] / 255;
@@ -14,7 +15,7 @@ export function decodePng(path: string): RGBAImage {
 export function encodePng(path: string, w: number, h: number, rgba: Uint8Array): void {
   const png = new PNG({ width: w, height: h });
   png.data.set(rgba);
-  require("node:fs").writeFileSync(path, PNG.sync.write(png));
+  writeFileSync(path, PNG.sync.write(png));
 }
 
 /**

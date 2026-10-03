@@ -10,8 +10,8 @@ type Kernel = (x: number) => number;
 
 const PRECISION_BITS = 32 - 8 - 2;
 
-const bilinear: Kernel = (x) => (Math.abs(x) <= 1 ? 1 - Math.abs(x) : 0);
-const lanczos: Kernel = (x) => {
+const bilinear: Kernel = x => (Math.abs(x) <= 1 ? 1 - Math.abs(x) : 0);
+const lanczos: Kernel = x => {
   if (x === 0) return 1;
   const ax = Math.abs(x);
   if (ax >= 3) return 0;
@@ -20,7 +20,7 @@ const lanczos: Kernel = (x) => {
 };
 const SUPPORT = { bilinear: 1, lanczos: 3 };
 
-interface Coeffs8 { xmin: number; ksize: number; kk: Float64Array }
+interface Coeffs8 { xmin: number, ksize: number, kk: Float64Array }
 
 /** 单轴 8bpc 系数（PIL precompute_coeffs + normalize_coeffs_8bpc）。 */
 function coefficients8(inN: number, outN: number, kernel: Kernel, support: number): Coeffs8[] {
@@ -46,8 +46,9 @@ function coefficients8(inN: number, outN: number, kernel: Kernel, support: numbe
     if (ww !== 0) {
       for (let x = 0; x < xsize; x++) {
         const n = pre[x] / ww;
-        kk[x] = n < 0 ? Math.trunc(-0.5 + n * (1 << PRECISION_BITS))
-                      : Math.trunc(0.5 + n * (1 << PRECISION_BITS));
+        kk[x] = n < 0
+          ? Math.trunc(-0.5 + n * (1 << PRECISION_BITS))
+          : Math.trunc(0.5 + n * (1 << PRECISION_BITS));
       }
     }
     out.push({ xmin, ksize: xsize, kk });
@@ -61,7 +62,7 @@ const clip8 = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v);
  * 输出同口径量化（两轴各自 round 到 8bit）。 */
 export function resampleImage(
   src: Float64Array, sw: number, sh: number, ch: number,
-  dw: number, dh: number, kind: "bilinear" | "lanczos", quantize: boolean,
+  dw: number, dh: number, kind: 'bilinear' | 'lanczos', quantize: boolean,
 ): Float64Array {
   // 4 通道 = RGBA：Pillow 12 的 Image.resize 对 RGBA 走 premultiply 路径
   // （convert("RGBa") → resample → convert("RGBA")），RGBa 转换：
@@ -93,9 +94,9 @@ export function resampleImage(
 /** 8bpc 核心（单通道语义按通道独立，无 alpha 处理）。 */
 function resample8bpc(
   src: Float64Array, sw: number, sh: number, ch: number,
-  dw: number, dh: number, kind: "bilinear" | "lanczos",
+  dw: number, dh: number, kind: 'bilinear' | 'lanczos',
 ): Float64Array {
-  const kernel = kind === "bilinear" ? bilinear : lanczos;
+  const kernel = kind === 'bilinear' ? bilinear : lanczos;
   const roundBias = 1 << (PRECISION_BITS - 1);
 
   // horizontal（8bpc：整数累加 + 舍入移位 + uint8 量化）

@@ -1,6 +1,6 @@
 /** z-buffer 三角光栅化（dz_render.raster_zbuf 逐行对译）。 */
-import type { RGBAImage } from "./types.js";
-import { sampleBilinearClamp } from "./image.js";
+import type { RGBAImage } from './types.js';
+import { sampleBilinearClamp } from './image.js';
 
 const scratch = new Float64Array(4);
 
@@ -14,20 +14,20 @@ export function rasterZbuf(
   zbuf: Float64Array,
   W: number,
   H: number,
-  tri2d: number[][],   // [3][2] 屏幕坐标
-  triZ: number[],      // [3] 世界 Y 深度
-  triUv: number[][],   // [3][2] UV
+  tri2d: number[][], // [3][2] 屏幕坐标
+  triZ: number[], // [3] 世界 Y 深度
+  triUv: number[][], // [3][2] UV
   tex: RGBAImage,
-  tint: number[],      // [4]
+  tint: number[], // [4]
   uvOffset: [number, number],
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
   const x2s = tri2d[2][0], y2s = tri2d[2][1];
-  let xmin = Math.max(Math.floor(Math.min(x0s, x1s, x2s)), 0);
-  let xmax = Math.min(Math.ceil(Math.max(x0s, x1s, x2s)), W - 1);
-  let ymin = Math.max(Math.floor(Math.min(y0s, y1s, y2s)), 0);
-  let ymax = Math.min(Math.ceil(Math.max(y0s, y1s, y2s)), H - 1);
+  const xmin = Math.max(Math.floor(Math.min(x0s, x1s, x2s)), 0);
+  const xmax = Math.min(Math.ceil(Math.max(x0s, x1s, x2s)), W - 1);
+  const ymin = Math.max(Math.floor(Math.min(y0s, y1s, y2s)), 0);
+  const ymax = Math.min(Math.ceil(Math.max(y0s, y1s, y2s)), H - 1);
   if (xmin > xmax || ymin > ymax) return;
 
   const d = (x1s - x0s) * (y2s - y0s) - (x2s - x0s) * (y1s - y0s);

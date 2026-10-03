@@ -1,12 +1,13 @@
 /** UberText 渲染主流程（uber_text.render_text / _render_rtt + ally 版装载器对译）。 */
-import { join } from "node:path";
-import { PX_PER_UNIT, HALF_W, HALF_H, SIZE } from "./camera.js";
-import { FontMetrics, PackFontMetrics, type FontMetricsLike } from "./font.js";
-import { glyphRgba, composite, pyRound } from "./glyph.js";
-import { resampleImage } from "./resize.js";
-import { layoutText, BOLD_SIZE_CAP, type Layout } from "./textlayout.js";
-import { walkWithKey } from "./assets.js";
-import type { AssetPack, HierarchyNode } from "./types.js";
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { PX_PER_UNIT, HALF_W, HALF_H, SIZE } from './camera.js';
+import { FontMetrics, PackFontMetrics, type FontMetricsLike } from './font.js';
+import { glyphRgba, composite, pyRound } from './glyph.js';
+import { resampleImage } from './resize.js';
+import { layoutText, BOLD_SIZE_CAP, type Layout } from './textlayout.js';
+import { walkWithKey } from './assets.js';
+import type { AssetPack, HierarchyNode } from './types.js';
 
 export interface Scene {
   s: number; wx0: number; wz1: number; ox: number; oy: number;
@@ -22,29 +23,29 @@ function project(scene: Scene, wx: number, wz: number): [number, number] {
 }
 
 export interface NodeSettings {
-  fields: Record<string, unknown>;
-  worldPos: [number, number, number];
-  localScale: number;
+  fields:      Record<string, unknown>;
+  worldPos:    [number, number, number];
+  localScale:  number;
   fontdefName: string;
 }
 
 export interface FontDef {
-  fields: Record<string, number>;
+  fields:  Record<string, number>;
   ttfPath: string;
 }
 
-interface UberTextNode { path: string; fields?: Record<string, unknown>; font_name?: string }
+interface UberTextNode { path: string, fields?: Record<string, unknown>, font_name?: string }
 
 function loadUberTextNodes(pack: AssetPack): UberTextNode[] {
-  const p = join(pack.dir, "prefab_ubertext_ally.json");
-  const data = JSON.parse(require("node:fs").readFileSync(p, "utf-8")) as { nodes: UberTextNode[] };
+  const p = join(pack.dir, 'prefab_ubertext_ally.json');
+  const data = JSON.parse(readFileSync(p, 'utf-8')) as { nodes: UberTextNode[] };
   return data.nodes;
 }
 
 export function loadFontdef(pack: AssetPack, name: string): FontDef {
-  const data = JSON.parse(require("node:fs").readFileSync(join(pack.dir, "fontdefs.json"), "utf-8"));
-  const side = data["fontdefs"][name]["zhcn"];
-  return { fields: side["fontdef"], ttfPath: join(pack.dir, side["font_object"]["saved_to"]) };
+  const data = JSON.parse(readFileSync(join(pack.dir, 'fontdefs.json'), 'utf-8'));
+  const side = data['fontdefs'][name]['zhcn'];
+  return { fields: side['fontdef'], ttfPath: join(pack.dir, side['font_object']['saved_to']) };
 }
 
 /** Ally 版节点装载：Underwear Flip=0 且 Left/RightBounds 未序列化 → 置 0（UB:2589-2602 推导）。 */
@@ -56,28 +57,31 @@ export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettin
     const w = n.world;
     if (w) yield [p, w];
     let i = 0;
-    for (const c of n.children ?? []) { yield* rec(c, `${key}.${i}`, p); i++; }
+    for (const c of n.children ?? []) {
+      yield* rec(c, `${key}.${i}`, p);
+      i++;
+    }
   };
-  for (const [p, w] of rec(pack.frameRecon.hierarchy, "root", "")) worldByPath.set(p, w);
+  for (const [p, w] of rec(pack.frameRecon.hierarchy, 'root', '')) worldByPath.set(p, w);
 
   const out: Record<string, NodeSettings> = {};
   const rolePaths = pack.manifest.role_paths!;
   const frameRoot = pack.manifest.frame_root as string;
   for (const [role, suffix] of Object.entries(rolePaths)) {
-    const node = nodes.find((n) => n.path.endsWith(suffix))!;
+    const node = nodes.find(n => n.path.endsWith(suffix))!;
     const w = worldByPath.get(`${frameRoot}/${suffix}`)!;
     const colNorm = (j: number) =>
       Math.hypot(w[0][j], w[1][j], w[2][j]);
     const scale = (colNorm(0) + colNorm(1) + colNorm(2)) / 3;
     const fields: Record<string, unknown> = { ...node.fields };
-    if (fields["m_Underwear"] && !fields["m_UnderwearFlip"]
-        && !("m_UnderwearLeftBounds" in fields)) {
-      fields["m_Underwear"] = 0;
+    if (fields['m_Underwear'] && !fields['m_UnderwearFlip']
+      && !('m_UnderwearLeftBounds' in fields)) {
+      fields['m_Underwear'] = 0;
     }
     out[role] = {
       fields,
-      worldPos: [w[0][3], w[1][3], w[2][3]],
-      localScale: scale,
+      worldPos:    [w[0][3], w[1][3], w[2][3]],
+      localScale:  scale,
       fontdefName: node.font_name!,
     };
   }
@@ -85,7 +89,7 @@ export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettin
 }
 
 function localeAdjustment(fields: Record<string, unknown>): Record<string, number> {
-  const ls = fields["m_LocalizedSettings"] as { m_LocaleAdjustments?: { m_Locale?: number }[] } | undefined;
+  const ls = fields['m_LocalizedSettings'] as { m_LocaleAdjustments?: { m_Locale?: number }[] } | undefined;
   for (const adj of ls?.m_LocaleAdjustments ?? []) {
     if (adj?.m_Locale === 9) return adj as Record<string, number>;
   }
@@ -106,12 +110,9 @@ function getFontMetrics(pack: AssetPack, ttfPath: string, fs: number): FontMetri
     if (injected) {
       fm = injected;
     } else {
-      const stem = ttfPath.split("/").pop()!.replace(/\.(ttf|otf)$/i, "");
-      const glyphDir = join(pack.dir, "glyphs", `${stem}-${fs}`);
-      let hasMeta = false;
-      try {
-        hasMeta = require("node:fs").existsSync(join(glyphDir, "meta.json"));
-      } catch { /* noop */ }
+      const stem = ttfPath.split('/').pop()!.replace(/\.(ttf|otf)$/i, '');
+      const glyphDir = join(pack.dir, 'glyphs', `${stem}-${fs}`);
+      const hasMeta = existsSync(join(glyphDir, 'meta.json'));
       fm = hasMeta ? new PackFontMetrics(glyphDir, stem, fs, raster) : raster;
     }
     fmCache.set(key, fm);
@@ -125,12 +126,12 @@ function quantTruncBuf(buf: Float64Array): void {
   }
 }
 
-interface RGBAImage { w: number; h: number; data: Float64Array }
+interface RGBAImage { w: number, h: number, data: Float64Array }
 type Fill = [number, number, number];
-type Outline = { r: number; color: Fill } | null;
+type Outline = { r: number, color: Fill } | null;
 
 function color3(c: unknown): Fill {
-  const o = c as { r: number; g: number; b: number };
+  const o = c as { r: number, g: number, b: number };
   return [o.r, o.g, o.b];
 }
 
@@ -141,30 +142,30 @@ export function renderText(
   ns: NodeSettings,
   scene: Scene,
   offset: [number, number],
-  curved: AssetPack["curved"],
+  curved: AssetPack['curved'],
   supersample = 4,
 ): RGBAImage {
   const f = (key: string, d: number | null = null): number | null =>
-    typeof ns.fields[key] === "number" ? (ns.fields[key] as number) : d;
+    typeof ns.fields[key] === 'number' ? (ns.fields[key] as number) : d;
   const locale = localeAdjustment(ns.fields);
   const fd = loadFontdef(pack, ns.fontdefName);
-  const fs = Math.trunc((fd.fields["m_FontSizeModifier"] ?? 1)
-    * (locale["m_FontSizeModifier"] ?? 1) * (f("m_FontSize") ?? 0));
+  const fs = Math.trunc((fd.fields['m_FontSizeModifier'] ?? 1)
+    * (locale['m_FontSizeModifier'] ?? 1) * (f('m_FontSize') ?? 0));
   const fm = getFontMetrics(pack, fd.ttfPath, fs);
   const layout: Layout = layoutText({ fields: ns.fields, locale, fontdef: fd.fields, fm, text });
 
-  const fill = color3(ns.fields["m_TextColor"]);
+  const fill = color3(ns.fields['m_TextColor']);
   let outline: Outline = null;
-  if (f("m_Outline")) {
-    const r = (f("m_OutlineSize") ?? 0) * (fd.fields["m_OutlineModifier"] ?? 1)
-      * (locale["m_OutlineModifier"] ?? 1);
-    outline = { r, color: color3(ns.fields["m_OutlineColor"]) };
+  if (f('m_Outline')) {
+    const r = (f('m_OutlineSize') ?? 0) * (fd.fields['m_OutlineModifier'] ?? 1)
+      * (locale['m_OutlineModifier'] ?? 1);
+    outline = { r, color: color3(ns.fields['m_OutlineColor']) };
   }
-  const hasBold = layout.lines.some((row) => row.some((g) => g.bold));
-  const boldPx = hasBold ? Math.min(f("m_BoldSize") ?? 0, BOLD_SIZE_CAP) : 0;
+  const hasBold = layout.lines.some(row => row.some(g => g.bold));
+  const boldPx = hasBold ? Math.min(f('m_BoldSize') ?? 0, BOLD_SIZE_CAP) : 0;
 
-  if (f("m_RenderToTexture")) {
-    if (!curved) throw new Error("m_RenderToTexture=1 需要 curved mesh");
+  if (f('m_RenderToTexture')) {
+    if (!curved) throw new Error('m_RenderToTexture=1 需要 curved mesh');
     return renderRtt(layout, fm, ns, scene, fill, outline, boldPx, curved, offset);
   }
 
@@ -192,7 +193,7 @@ export function renderText(
     }
   }
   quantTruncBuf(buf);
-  const out = resampleImage(buf, W * ss, H * ss, 4, W, H, "lanczos", true);
+  const out = resampleImage(buf, W * ss, H * ss, 4, W, H, 'lanczos', true);
   return { w: W, h: H, data: out };
 }
 
@@ -200,12 +201,12 @@ export function renderText(
 function renderRtt(
   layout: Layout, fm: FontMetricsLike, ns: NodeSettings, scene: Scene,
   fill: Fill, outline: Outline, boldPx: number,
-  mesh: NonNullable<AssetPack["curved"]>, off: [number, number],
+  mesh: NonNullable<AssetPack['curved']>, off: [number, number],
 ): RGBAImage {
   const f = (key: string, d: number | null = null): number | null =>
-    typeof ns.fields[key] === "number" ? (ns.fields[key] as number) : d;
-  const res = f("m_Resolution") ?? 0;
-  const wBox = f("m_Width") ?? 0, hBox = f("m_Height") ?? 0;
+    typeof ns.fields[key] === 'number' ? (ns.fields[key] as number) : d;
+  const res = f('m_Resolution') ?? 0;
+  const wBox = f('m_Width') ?? 0, hBox = f('m_Height') ?? 0;
   let rtW: number, rtH: number;
   if (wBox > hBox) {
     rtW = Math.trunc(res);
@@ -244,7 +245,7 @@ function renderRtt(
     }
   }
   quantTruncBuf(rt);
-  const rtArr = resampleImage(rt, rtw, rth, 4, rtW, rtH, "lanczos", true);
+  const rtArr = resampleImage(rt, rtw, rth, 4, rtW, rtH, 'lanczos', true);
 
   const W = SIZE[0], H = SIZE[1];
   const layer = new Float64Array(H * W * 4);

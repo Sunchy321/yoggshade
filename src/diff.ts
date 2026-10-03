@@ -1,8 +1,8 @@
 /** 像素 diff CLI：bun src/diff.ts <a.png> <b.png> [outPrefix]
  * 输出 mse/mae/maxAbs/超阈值像素计数 + 热区图（|d|×8）与并排对照图。 */
-import { readFileSync } from "node:fs";
-import { PNG } from "pngjs";
-import { encodePng } from "./image.js";
+import { readFileSync } from 'node:fs';
+import { PNG } from 'pngjs';
+import { encodePng } from './image.js';
 
 function readU8(p: string) {
   const png = PNG.sync.read(readFileSync(p));
@@ -29,7 +29,10 @@ for (let i = 0; i < A.w * A.h; i++) {
   if (dMax > 4) gt4++;
   if (dMax > gMax) gMax = dMax;
   const v = Math.min(255, Math.round(dMax * 8));
-  heat[i * 4] = v; heat[i * 4 + 1] = v; heat[i * 4 + 2] = v; heat[i * 4 + 3] = 255;
+  heat[i * 4] = v;
+  heat[i * 4 + 1] = v;
+  heat[i * 4 + 2] = v;
+  heat[i * 4 + 3] = 255;
 }
 const maxAbs = gMax;
 const n = A.w * A.h * 3;
@@ -46,8 +49,8 @@ if (prefix) {
 }
 
 console.log(JSON.stringify({
-  a: aPath, b: bPath,
-  mse: Math.round(mse * 100) / 100,
-  mae: Math.round(mae * 1000) / 1000,
-  maxAbs, px_gt1: gt1, px_gt2: gt2, px_gt4: gt4, px_total: A.w * A.h,
+  a:        aPath, b:        bPath,
+  mse:      Math.round(mse * 100) / 100,
+  mae:      Math.round(mae * 1000) / 1000,
+  maxAbs, px_gt1:   gt1, px_gt2:   gt2, px_gt4:   gt4, px_total: A.w * A.h,
 }, null, 1));

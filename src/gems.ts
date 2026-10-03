@@ -1,9 +1,9 @@
 /** 宝石族 shader 公式层（_render_stat_gems / _composite_rarity_gem_wrap 对译）。
  * rgb = clouds(uv+t·speed).r · tint.rgb · main.a · 1.5 · intensity + main.rgb，不透明覆盖。 */
-import { projectX, projectY, SIZE } from "./camera.js";
-import { walkWithKey, TextureStore } from "./assets.js";
-import { sampleBilinearClamp } from "./image.js";
-import type { AssetPack, RGBAImage } from "./types.js";
+import { projectX, projectY, SIZE } from './camera.js';
+import { walkWithKey, TextureStore } from './assets.js';
+import { sampleBilinearClamp } from './image.js';
+import type { AssetPack, RGBAImage } from './types.js';
 
 const mainS = new Float64Array(4);
 const cloudS = new Float64Array(4);
@@ -66,7 +66,7 @@ export function renderStatGems(
   const plan = pack.plan;
   if (!plan.gem?.enabled || !plan.stat_gems?.length) return;
   const t = plan.gem.t!;
-  const clouds = textures.get("GenFX_clouds03.png");
+  const clouds = textures.get('GenFX_clouds03.png');
   for (const g of plan.stat_gems) {
     const main = textures.get(g.main_tex_file);
     const [tR, tG, tB] = g.tint_rgb;
@@ -131,15 +131,15 @@ export function renderRarityGemWrap(
   rgb: Float64Array, pack: AssetPack, textures: TextureStore,
 ): void {
   const plan = pack.plan;
-  const main = textures.get("GenFX_RarityGems.png");
-  const clouds = textures.get("GenFX_clouds03.png");
+  const main = textures.get('GenFX_RarityGems.png');
+  const clouds = textures.get('GenFX_clouds03.png');
   const tint = plan.rarity_gem!.tint_rgb!;
   const [offU, offV] = plan.rarity_gem!.atlas_offset!;
   const t = plan.gem!.t!;
   const du = posmod(t * SPEED_XY[0], 1.0);
   const dv = posmod(t * SPEED_XY[1], 1.0);
 
-  const comp = plan.components.find((c) => c.node === "RarityGem" && c.visible);
+  const comp = plan.components.find(c => c.node === 'RarityGem' && c.visible);
   if (!comp) return;
   const hit = nodeByKeyPath(pack, comp.path);
   if (!hit) return;

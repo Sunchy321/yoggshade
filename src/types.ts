@@ -2,120 +2,120 @@
 
 /** RGBA 浮点图像（0..1，行主序 h×w×4）。 */
 export interface RGBAImage {
-  w: number;
-  h: number;
+  w:    number;
+  h:    number;
   data: Float64Array;
 }
 
 /** mesh_data.npz 的单键：顶点 / uv0 / 各 submesh 三角形索引。 */
 export interface MeshEntry {
   verts: number[][];
-  uv0: number[][];
-  subs: number[][][];
+  uv0:   number[][];
+  subs:  number[][][];
 }
 
 /** frame_recon 材质（renderers[].materials[] 元素；null = 空槽）。 */
 export interface FrameMaterial {
   name?: string | null;
   tex?: Record<string, {
-    scale?: number[];
-    offset?: number[];
-    texture?: { name?: string; bundle?: string; file?: string } | null;
-    error?: string;
+    scale?:   number[];
+    offset?:  number[];
+    texture?: { name?: string, bundle?: string, file?: string } | null;
+    error?:   string;
   }>;
   colors?: Record<string, number[]>;
   floats?: Record<string, number>;
 }
 
 export interface PlanSlot {
-  slot: number;
-  empty?: boolean;
-  _MainTex_runtime?: { file: string };
+  slot:               number;
+  empty?:             boolean;
+  _MainTex_runtime?:  { file: string };
   material_override?: {
-    _tint_rgb?: number[];
-    "_MainTex.offset"?: number[];
+    '_tint_rgb'?:       number[];
+    '_MainTex.offset'?: number[];
   };
 }
 
 export interface PlanComponent {
-  path: string;
-  node?: string;
-  visible?: boolean;
-  raster?: boolean;
+  path:            string;
+  node?:           string;
+  visible?:        boolean;
+  raster?:         boolean;
   material_slots?: PlanSlot[];
 }
 
 export interface StatGem {
-  node: string;
-  path: string;
-  npz_key: string;
+  node:          string;
+  path:          string;
+  npz_key:       string;
   main_tex_file: string;
-  tint_rgb: number[];
-  intensity: number;
-  speed_xy: number[];
-  scale_xy: number[];
+  tint_rgb:      number[];
+  intensity:     number;
+  speed_xy:      number[];
+  scale_xy:      number[];
 }
 
 export interface PlanTextEntry {
-  role: string;
-  render?: boolean;
-  text?: string;
+  role:        string;
+  render?:     boolean;
+  text?:       string;
   [k: string]: unknown;
 }
 
 export interface RenderPlan {
-  components: PlanComponent[];
-  input?: { dbf_id?: string; card_id?: string };
-  rarity_gem?: { visible?: boolean; atlas_offset?: number[]; tint_rgb?: number[] };
-  gem?: { enabled?: boolean; t?: number };
-  stat_gems?: StatGem[];
-  texts?: PlanTextEntry[];
+  components:  PlanComponent[];
+  input?:      { dbf_id?: string, card_id?: string };
+  rarity_gem?: { visible?: boolean, atlas_offset?: number[], tint_rgb?: number[] };
+  gem?:        { enabled?: boolean, t?: number };
+  stat_gems?:  StatGem[];
+  texts?:      PlanTextEntry[];
 }
 
 export interface HierarchyNode {
-  name: string;
-  path?: string;
-  npz_key: string;
+  name:        string;
+  path?:       string;
+  npz_key:     string;
   go_path_id?: number;
-  local?: { pos: number[]; rot: number[]; scale: number[] } | null;
-  world?: number[][] | null;
+  local?:      { pos: number[], rot: number[], scale: number[] } | null;
+  world?:      number[][] | null;
   mesh_stats?: {
-    name: string;
-    verts: number;
+    name:         string;
+    verts:        number;
     submesh_tris: number[];
   } | null;
-  renderers?: { enabled?: number; materials: (FrameMaterial | null)[] }[];
-  children?: HierarchyNode[];
+  renderers?: { enabled?: number, materials: (FrameMaterial | null)[] }[];
+  children?:  HierarchyNode[];
 }
 
 /** 肖像网格通道（portrait_mesh_channels.npz）。 */
 export interface PortraitChannels {
   verts: number[][];
-  uv0: number[][];
-  uv1: number[][];
-  sub0: number[][];
-  sub1: number[][];
+  uv0:   number[][];
+  uv1:   number[][];
+  sub0:  number[][];
+  sub1:  number[][];
 }
 
 export interface AssetPack {
-  dir: string;
+  dir:      string;
   manifest: {
-    size: [number, number];
+    size:              [number, number];
     portrait_node_key: string;
-    second_tex: string;
-    role_paths?: Record<string, string>;
-    frame_root?: string;
-    [k: string]: unknown;
+    second_tex:        string;
+    role_paths?:       Record<string, string>;
+    frame_root?:       string;
+    [k: string]:       unknown;
   };
-  plan: RenderPlan;
-  frameRecon: { hierarchy: HierarchyNode; [k: string]: unknown };
-  meshes: Record<string, MeshEntry>;
-  portrait: PortraitChannels;
+  plan:          RenderPlan;
+  frameRecon:    { hierarchy: HierarchyNode, [k: string]: unknown };
+  meshes:        Record<string, MeshEntry>;
+  portrait:      PortraitChannels;
   materialProps: {
-    m_Colors: Record<string, { r: number; g: number; b: number; a: number }>;
+    m_Colors: Record<string, { r: number, g: number, b: number, a: number }>;
     m_Floats: Record<string, number>;
   };
-  ubertext?: { nodes: { path: string; fields?: Record<string, unknown>; font_name?: string }[] };
-  curved?: { verts: number[][]; uv0: number[][]; tris: number[][]; world: number[][] };
+  ubertext?: { nodes: { path: string, fields?: Record<string, unknown>, font_name?: string }[] };
+  curved?:   { verts: number[][], uv0: number[][], tris: number[][], world: number[][] };
   fontdefs?: unknown;
 }

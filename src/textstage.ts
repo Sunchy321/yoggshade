@@ -1,7 +1,7 @@
 /** 文字层装配：plan.texts → uber_text 层 → PIL alpha_composite 口径合成到 RGB buffer。 */
-import { SIZE } from "./camera.js";
-import { makeScene, loadNodeSettingsAlly, renderText } from "./ubertext.js";
-import type { AssetPack } from "./types.js";
+import { SIZE } from './camera.js';
+import { makeScene, loadNodeSettingsAlly, renderText } from './ubertext.js';
+import type { AssetPack } from './types.js';
 
 export async function renderTextStage(rgb: Float64Array, pack: AssetPack): Promise<void> {
   const scene = makeScene();
@@ -13,11 +13,11 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack): Promi
     const ns = settings[entry.role];
     if (!ns) continue;
     const layer = renderText(pack, entry.text, ns, scene, [0.0, 0.0],
-      entry.role === "name" ? pack.curved : undefined);
+      entry.role === 'name' ? pack.curved : undefined);
     if (process.env.DEBUG_LAYER === entry.role) {
-      const { encodePng } = await import("./image.js");
-      const { mkdirSync } = await import("node:fs");
-      mkdirSync("out", { recursive: true });
+      const { encodePng } = await import('./image.js');
+      const { mkdirSync } = await import('node:fs');
+      mkdirSync('out', { recursive: true });
       const u8 = new Uint8Array(layer.w * layer.h * 4);
       for (let i = 0; i < u8.length; i++) u8[i] = Math.trunc(layer.data[i] * 255);
       encodePng(`out/layer_${entry.role}_ts.png`, layer.w, layer.h, u8);

@@ -1,5 +1,5 @@
 /** 字形合成：8 向膨胀（描边/粗体）+ 双线性重采样 + 双 pass 颜色（uber_text._dilate/_resample/glyph_rgba 对译）。 */
-import { resampleImage } from "./resize.js";
+import { resampleImage } from './resize.js';
 
 /** Python round() 语义（银行家舍入：.5 → 偶数）。 */
 export function pyRound(v: number): number {
@@ -42,15 +42,15 @@ function resampleMask(a: Float64Array, w: number, h: number, nw: number, nh: num
   for (let i = 0; i < a.length; i++) {
     q[i] = Math.round(Math.min(Math.max(a[i], 0), 1) * 255) / 255;
   }
-  return resampleImage(q, w, h, 1, nw, nh, "bilinear", true);
+  return resampleImage(q, w, h, 1, nw, nh, 'bilinear', true);
 }
 
 export interface GlyphRGBA {
-  data: Float64Array;   // nh_t × nw_t × 4
-  w: number;
-  h: number;
-  ox: number;
-  oy: number;
+  data: Float64Array; // nh_t × nw_t × 4
+  w:    number;
+  h:    number;
+  ox:   number;
+  oy:   number;
 }
 
 /** 单字 → RGBA + 落位偏移（paste 位 = (pen − ox, baseline − oy)）。
@@ -58,11 +58,11 @@ export interface GlyphRGBA {
  * 旧语义在字体像素域膨胀，描边被字形放大率放大（数字实测粗 2×）；改为 resample 后膨胀，
  * m_OutlineSize 按最终画布 texel 解释（与游戏内导出实测一致）。 */
 export function glyphRgba(
-  mask: { w: number; h: number; data: Float64Array },
-  info: { minX: number; maxY: number },
+  mask: { w: number, h: number, data: Float64Array },
+  info: { minX: number, maxY: number },
   scale: number,
   fill: [number, number, number],
-  outline: { r: number; color: [number, number, number] } | null,
+  outline: { r: number, color: [number, number, number] } | null,
   boldPx: number,
   radiusOut = 0.0,
 ): GlyphRGBA {
@@ -94,9 +94,9 @@ export function glyphRgba(
     }
   }
   return {
-    data: rgba, w: nwT, h: nhT,
-    ox: (m - info.minX) * scale,
-    oy: (m + info.maxY) * scale,
+    data: rgba, w:    nwT, h:    nhT,
+    ox:   (m - info.minX) * scale,
+    oy:   (m + info.maxY) * scale,
   };
 }
 

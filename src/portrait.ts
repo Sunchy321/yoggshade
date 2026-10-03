@@ -1,6 +1,6 @@
 /** 肖像层引擎公式（dz_portrait_layer.render_portrait_submesh 逐行对译）。 */
-import type { RGBAImage } from "./types.js";
-import { sampleBilinearClamp001 } from "./image.js";
+import type { RGBAImage } from './types.js';
+import { sampleBilinearClamp001 } from './image.js';
 
 const mainS = new Float64Array(4);
 const secS = new Float64Array(4);
@@ -15,9 +15,9 @@ export function renderPortraitSubmesh(
   zbuf: Float64Array,
   W: number,
   H: number,
-  depth: number[],      // 顶点世界 Y
-  px: number[],         // 顶点屏幕 x
-  py: number[],         // 顶点屏幕 y
+  depth: number[], // 顶点世界 Y
+  px: number[], // 顶点屏幕 x
+  py: number[], // 顶点屏幕 y
   uv0: number[][],
   uv1: number[][],
   tris: number[][],
