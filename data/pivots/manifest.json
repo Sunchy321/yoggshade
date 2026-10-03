@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-03T01:05:52.589206+00:00",
+ "generatedAt": "2026-10-03T01:23:05.040529+00:00",
  "source": {
   "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
   "gameVersion": "36.6.253216",
@@ -422,6 +422,6 @@
    "runeOverride": null
   }
  ],
- "pivotMd": "data/pivots/pivot.md",
+ "pivotMd": "data/pivot.md",
  "gameVersion": "36.6.253216"
 }

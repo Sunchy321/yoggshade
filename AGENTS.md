@@ -74,7 +74,7 @@ Before committing a change classified as a rendering bug fix:
 ## Verification and baselines
 
 - **L1** = py golden chain in `explore/hs-render/` (`dz_render` → `render_dbf9_zfix.png`); run via `bun src/main.ts` + `bun src/diff.ts`. Any rendering change must be L1-diffed before claiming success.
-- **L2** = in-game-rendered benchmark images for the frozen pivot set (`data/pivots/pivot.md`, ADR-0001). The pivot set is the acceptance anchor: acceptance for ported behavior = L2 diff against the in-game image for the same request.
+- **L2** = in-game-rendered benchmark images for the frozen pivot set (`data/pivot.md`, ADR-0001). The pivot set is the acceptance anchor: acceptance for ported behavior = L2 diff against the in-game image for the same request.
 - **Baseline artifacts are provenance.** Never overwrite a previous render/diff under `explore/**/output/`; comparisons are written into the current experiment's own output. Quote baseline numbers from findings docs (committed), not from mutable files.
 - Parity invariants discovered the hard way live in code comments (`src/resize.ts` Pillow 8bpc semantics, `src/glyph.ts` outline units, `src/font.ts` FreeType getmask2 semantics). When you fight a parity battle, leave the evidence where the next person will look.
 
@@ -82,7 +82,7 @@ Before committing a change classified as a rendering bug fix:
 
 - `src/` — tracked TS renderer (bun, `tsc` strict).
 - `scripts/` — tracked long-term extraction tools (uv + PEP 723 headers, `uv run scripts/<tool>.py`).
-- `data/` — tracked frozen data (e.g. `data/pivots/`); `data/pivots/pivot.md` is the single editing point for pivot membership.
+- `data/` — tracked frozen data (e.g. `data/pivots/`); `data/pivot.md` is the single editing point for pivot membership.
 - `assets/` — unpacked asset pack (gitignored, reproducible via scripts); raw Blizzard assets never leave this boundary into any distribution path.
 - `explore/` — gitignored experiments and the py golden chain. Game install at `/Applications/Hearthstone` is read-only; extraction scripts must never write into it.
 

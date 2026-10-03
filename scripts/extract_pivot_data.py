@@ -37,7 +37,7 @@ LOCALES = ["enUS", "deDE", "esES", "esMX", "frFR", "itIT", "jaJP", "koKR", "plPL
 
 # exporter bepinex/plugin/CardPresets.md（30 行，逐行照抄；Reason 字段锚定渲染行为）
 # exporter docs/custom-glow-benchmark-plan.md（12 卡型 token；卡 ID 全部 ⊆ PRESETS）
-# ↑ 两表均已外置到 data/pivots/pivot.md（唯一编辑入口），本脚本只读不定义。
+# ↑ 两表均已外置到 data/pivot.md（唯一编辑入口），本脚本只读不定义。
 
 
 def game_version() -> str:
@@ -55,7 +55,7 @@ def loc_dict(field: dict) -> dict:
 
 
 def parse_pivot_md(path: Path) -> tuple[list[tuple], list[dict]]:
-    """data/pivots/pivot.md → (presets 行, glow-bench 行)。按表头列名定位，容忍空列。"""
+    """data/pivot.md → (presets 行, glow-bench 行)。按表头列名定位，容忍空列。"""
     lines = path.read_text(encoding="utf-8").splitlines()
     tables: dict[str, list[list[str]]] = {}
     section = None
@@ -92,7 +92,7 @@ def parse_pivot_md(path: Path) -> tuple[list[tuple], list[dict]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(REPO / "data" / "pivots"))
-    ap.add_argument("--pivot-md", default=str(REPO / "data" / "pivots" / "pivot.md"))
+    ap.add_argument("--pivot-md", default=str(REPO / "data" / "pivot.md"))
     args = ap.parse_args()
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
