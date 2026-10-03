@@ -143,7 +143,8 @@ export function renderPortraitLayer(
 
   const portraitFile = pack.plan.components
     .find(c => c.path.endsWith('PortraitFrame_mesh'))!
-    .material_slots![0]._MainTex_runtime!.file;
+    .material_slots![0]._MainTex_runtime?.file;
+  if (!portraitFile) return; // PET 类无原画（引擎 PET 卡型 SetMaterialNormal no-op 同语义）
   const mainRgba = textures.get(portraitFile);
   const secondRgba = textures.get(pack.manifest.second_tex as string);
   const st = pack.materialProps.m_Colors._SecondTint;

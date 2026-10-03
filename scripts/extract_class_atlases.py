@@ -48,8 +48,14 @@ def main() -> int:
             stem, guid = ref.rsplit(":", 1)
             res = r.resolve(ref)
             if not res["ok"]:
-                print(f"[miss] {ref}: {res['checks']}")
-                continue
+                # 容忍仅 name-consistency 失败（序列化表存在缩写引用，如 Ability_DK →
+                # 对象 Ability_DeathKnight）；registration（GUID→bundle 登记一致）必须过
+                checks = res.get("checks") or []
+                hard_fail = [c for c in checks if c["check"] != "name-consistency" and not c["pass"]]
+                if hard_fail or not res.get("resolved"):
+                    print(f"[miss] {ref}: {res['checks']}")
+                    continue
+                print(f"[name-tolerated] {stem}")
             obj, _ = r.container_get(res["resolved"]["bundle"], res["resolved"]["guid"])
             out_png = out_dir / f"{Path(stem).stem}_{guid[:8]}.png"
             obj.read().image.save(out_png)

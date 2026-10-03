@@ -100,10 +100,13 @@ export function compilePlan(
     atlasFile = `textures/${stem.replace(/\.tif$/, '')}_${guid.slice(0, 8)}.png`;
   }
 
-  // ---- 原画（pivot 提取的新路径优先，EX1_350 时代的旧布局兜底）----
+  // ---- 原画（pivot 提取的新路径优先，EX1_350 时代的旧布局兜底；PET 类无原画 → 置空槽，
+  //      对应引擎 PET 卡型 SetMaterialNormal 的 no-op 分支 Actor.cs SetMaterial switch）----
   const portraitFile = existsSync(join(packDir, 'portraits', `${pivot.cardId}.png`))
     ? `portraits/${pivot.cardId}.png`
-    : `textures/portrait_${pivot.cardId}.png`;
+    : existsSync(join(packDir, 'textures', `portrait_${pivot.cardId}.png`))
+      ? `textures/portrait_${pivot.cardId}.png`
+      : null;
 
   // ---- 稀有度宝石（RARITY∈四象限 → 显 + 偏移/着色；FREE/INVALID → 隐）----
   const rarityName = RARITY_NAMES[tags[TAG.RARITY] ?? 0] ?? 'INVALID';
