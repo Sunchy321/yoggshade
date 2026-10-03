@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["unitypy"]
 # ///
 """extract_static_tables — 渲染计划用的静态枚举/查名表冻结（data/tables.json）。
 
@@ -8,8 +8,10 @@
 - class:      TAG_CLASS 枚举值 → 英文名（DLL 反射导出 tag_enum.csv，TAG_CLASS/s_classNames）
 - raceZh:     TAG_RACE 枚举值 → zhCN 种族名（TAG_RACE.cs 反编译枚举序 + 游戏 Strings/zhCN/GLOBAL.txt
               的 GLOBAL_RACE_*；同 GameStrings.GetRaceName 链）
-- colorSwitcher: CardColorSwitcher 单例序列化表（colorswitcher 探针冻结，family → ColorType 下标 →
-              图集 AssetReference）——图集本体由 scripts/extract_class_atlases.py 提取
+- colorSwitcher: CardColorSwitcher 单例序列化列表本体（essential_base_global-prefab-0 内
+              MonoBehaviour，含 GENERIC/双职业/佣兵/战棋全部槽位）——图集本体由
+              scripts/extract_class_atlases.py 提取。注：旧 colorswitcher 探针按职业名扫描
+              重建，漏掉无后缀的 Card_Inhand_Generic（槽 0），导致中立卡缺框，已弃用。
 - hideTags:   HIDE 族 GAME_TAG id（game_tag.csv，DLL 反射）
 
 用法：uv run scripts/extract_static_tables.py [--out data/tables.json]
@@ -20,6 +22,10 @@ import argparse
 import json
 import re
 import sys
+
+import UnityPy
+
+UnityPy.config.FALLBACK_UNITY_VERSION = "6000.3.11f1"
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,7 +36,7 @@ EXPLORE_DATA = REPO / "explore" / "hs-render" / "data"
 TAG_ENUM = EXPLORE_DATA / "card_tags" / "tag_enum.csv"
 GAME_TAG = EXPLORE_DATA / "game_tag.csv"
 TAG_RACE_CS = REPO / "explore" / "hs-render" / "lab" / "2026-09-30-mana-gem-locator" / "output" / "decomp-gem" / "full" / "TAG_RACE.cs"
-PROBE = REPO / "explore" / "hs-render" / "lab" / "2026-09-30-render-chain-correspondence" / "output" / "colorswitcher_probe.json"
+SWITCHER_BUNDLE = HS_DATA / "essential_base_global-prefab-0.unity3d"
 
 
 def parse_enum_csv() -> dict[str, str]:
@@ -89,6 +95,19 @@ def hide_tags() -> dict[str, int]:
     return out
 
 
+def switcher_lists() -> dict[str, list[str | None]]:
+    """CardColorSwitcher 单例序列化列表本体（字符串列表字段全量导出）。"""
+    env = UnityPy.load(str(SWITCHER_BUNDLE))
+    for o in env.objects:
+        if o.type.name != "MonoBehaviour":
+            continue
+        t = o.read_typetree()
+        if isinstance(t, dict) and "minionCardTextures" in t:
+            return {k: v for k, v in t.items()
+                    if isinstance(v, list) and v and isinstance(v[0], str)}
+    raise SystemExit(f"{SWITCHER_BUNDLE}: 未找到 CardColorSwitcher 序列化（minionCardTextures）")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(REPO / "data" / "tables.json"))
@@ -101,12 +120,12 @@ def main() -> int:
         "sources": {
             "class": str(TAG_ENUM.relative_to(REPO)),
             "raceZh": f"{TAG_RACE_CS.relative_to(REPO)} + {GAMESTRINGS_CS.relative_to(REPO)} + Strings/zhCN/GLOBAL.txt",
-            "colorSwitcher": str(PROBE.relative_to(REPO)),
+            "colorSwitcher": str(SWITCHER_BUNDLE.relative_to("/Applications/Hearthstone")),
             "hideTags": str(GAME_TAG.relative_to(REPO)),
         },
         "class": parse_enum_csv(),
         "raceZh": race_zh,
-        "colorSwitcher": json.loads(PROBE.read_text(encoding="utf-8"))["switcher"]["data"],
+        "colorSwitcher": switcher_lists(),
         "hideTags": hide_tags(),
     }
     out = Path(args.out)

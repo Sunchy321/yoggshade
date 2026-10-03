@@ -25,23 +25,25 @@ sys.path.insert(0, str(HERE))
 from resolve_asset_ref import Resolver  # noqa: E402
 
 HS_DATA = Path("/Applications/Hearthstone/Data/OSX")
-PROBE_DEFAULT = REPO / "explore" / "hs-render" / "lab" / "2026-09-30-render-chain-correspondence" / "output" / "colorswitcher_probe.json"
+
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--probe", default=str(PROBE_DEFAULT))
+    ap.add_argument("--tables", default=str(REPO / "data" / "tables.json"))
     ap.add_argument("--textures", default=str(REPO / "assets" / "card-render-v1" / "textures"))
     args = ap.parse_args()
-    probe = json.loads(Path(args.probe).read_text(encoding="utf-8"))
+    probe = {"switcher": {"data": json.loads(Path(args.tables).read_text(encoding="utf-8"))["colorSwitcher"]}}
     out_dir = Path(args.textures)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     r = Resolver(HS_DATA)
     n = 0
     for family, slots in probe["switcher"]["data"].items():
+        if not family.endswith("CardTextures"):
+            continue
         for color_type, ref in enumerate(slots):
-            if not ref:
+            if not ref or not ref.endswith(".tif") and ":" not in ref:
                 continue
             stem, guid = ref.rsplit(":", 1)
             res = r.resolve(ref)

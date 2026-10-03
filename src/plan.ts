@@ -48,9 +48,22 @@ const GEM_COLOR: Record<string, [number, number, number]> = {
 /** TAG_RARITY 枚举值 → 名（0=INVALID 2=FREE 不显示宝石）。 */
 const RARITY_NAMES: Record<number, string> = { 1: 'Common', 3: 'Rare', 4: 'Epic', 5: 'Legendary' };
 
-/** TAG_CARDTYPE → switcher 族（CARDTYPE 非法值兜底 minion）。 */
+/** TAG_CARDTYPE → switcher 族（Actor.cs SetMaterialWithTexture + CardColorSwitcher.GetTexture
+ * 的 switch 对译；INVALID/QUEST_REWARD → 空串 = 不覆写）。 */
 function textureFamily(cardType: number): string {
-  return cardType === 5 ? 'spellCardTextures' : 'minionCardTextures';
+  switch (cardType) {
+    case 4: return 'minionCardTextures';          // MINION（含 BATTLEGROUND_HERO_BUDDY=47）
+    case 47: return 'minionCardTextures';
+    case 5: return 'spellCardTextures';           // SPELL
+    case 3: return 'heroCardTextures';            // HERO
+    case 7: return 'weaponCardTextures';          // WEAPON
+    case 39: return 'locationCardTextures';       // LOCATION
+    case 42: return 'battlegroundsSpellCardTextures';
+    case 44: return 'battlegroundsTrinketCardTextures';
+    case 43: return 'battlegroundsAnomalyCardTextures';
+    case 23: return 'mercenariesAbilityCardTextures';  // LETTUCE_ABILITY
+    default: return '';
+  }
 }
 
 function clone<T>(v: T): T {
