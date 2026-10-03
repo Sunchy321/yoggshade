@@ -1,0 +1,59 @@
+{
+ "cardId": "CFM_637",
+ "dbfId": 40465,
+ "preset": {
+  "label": "双种族随从",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "双种族随从样例，用于验证多种族文本布局与换行。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Patches the Pirate",
+  "deDE": "Käpt’n Glubschauge",
+  "esES": "Parches el Pirata",
+  "esMX": "Parches el Pirata",
+  "frFR": "Neunœil le pirate",
+  "itIT": "Sghigno il Pirata",
+  "jaJP": "海賊パッチーズ",
+  "koKR": "해적 패치스",
+  "plPL": "Kaprawe Oczko",
+  "ptBR": "Remendo, o Pirata",
+  "ruRU": "Пират Глазастик",
+  "thTH": "แพทเชสจอมสลัด",
+  "zhCN": "海盗帕奇斯",
+  "zhTW": "海盜派奇"
+ },
+ "textInHand": {
+  "enUS": "[x]After you play a Pirate,\nsummon this minion\nfrom your deck.",
+  "deDE": "[x]Ruft diesen Diener\naus Eurem Deck herbei,\nnachdem Ihr einen Piraten\nausgespielt habt.",
+  "esES": "Después de que juegues un pirata, invoca a este esbirro desde tu mazo.",
+  "esMX": "Después de jugar un Pirata, invoca a este esbirro de tu mazo.",
+  "frFR": "Une fois que vous avez joué un Pirate, invoque ce serviteur de votre deck.",
+  "itIT": "Dopo che hai giocato\nun Pirata, evoca\nquesto servitore\ndal tuo mazzo.",
+  "jaJP": "[x]自分が海賊を\n手札から使用した後\n自分のデッキからこの\n____ミニオンを召喚する。",
+  "koKR": "내가 해적을 낸 후에,\n이 하수인을 내 덱에서\n소환합니다.",
+  "plPL": "Gdy zagrasz Pirata, przyzwij tego stronnika z_twojej talii.",
+  "ptBR": "Depois que você jogar um Pirata, evoque este lacaio do seu deck.",
+  "ruRU": "После того как вы\nразыгрываете пирата,\nвы призываете это\nсущество из колоды.",
+  "thTH": "หลังจากคุณเล่น[b]โจรสลัด_เรียกมินเนี่ยน[b]ตัวนี้จากเด็คคุณ",
+  "zhCN": "在你使用一张海盗牌后，从你的牌库中召唤本随从。",
+  "zhTW": "在你打出海盜\n後，從你的牌堆召喚這個手下"
+ },
+ "tags": {
+  "203": 5,
+  "199": 12,
+  "321": 1,
+  "114": 1,
+  "48": 1,
+  "45": 1,
+  "47": 1,
+  "202": 4,
+  "200": 23,
+  "2537": 1,
+  "1932": 1,
+  "2589": 1
+ }
+}

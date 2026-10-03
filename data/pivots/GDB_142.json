@@ -1,0 +1,57 @@
+{
+ "cardId": "GDB_142",
+ "dbfId": 111914,
+ "preset": {
+  "label": "默认烟测卡",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "当前导出器默认卡，用于验证普通手牌渲染基线。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "The Ceaseless Expanse",
+  "deDE": "Die Unendliche Weite",
+  "esES": "Inmensidad incesante",
+  "esMX": "La expansión incesante",
+  "frFR": "L’Étendue infinie",
+  "itIT": "L'Eterno Infinito",
+  "jaJP": "無窮無辺",
+  "koKR": "끝없는 공간",
+  "plPL": "Wiekuisty Przestwór",
+  "ptBR": "A Expansão Incessante",
+  "ruRU": "Бескрайний простор",
+  "thTH": "ขอบเขตไร้สิ้นสุด",
+  "zhCN": "无界空宇",
+  "zhTW": "無垠邊際"
+ },
+ "textInHand": {
+  "enUS": "[x]Costs (1) less for each time\na card was drawn, played, or\ndestroyed. <b>Battlecry:</b> Destroy\nall other minions.",
+  "deDE": "Kostet für jede gezogene, ausgespielte oder vernichtete Karte (1) weniger.\n<b>Kampfschrei:</b> Vernichtet alle anderen Diener.",
+  "esES": "Cuesta (1) cristal menos por cada_vez_que una carta se haya robado,_jugado_o destruido.\n<b>Grito de batalla:</b> Destruye a todos los demás esbirros.",
+  "esMX": "Cuesta (1) menos por cada vez que se roba, juega o destruye una carta. <b>Grito de batalla:</b> destruye a todos_los_demás_esbirros.",
+  "frFR": "Coûte (1)_|4(cristal,cristaux) de moins\nchaque fois qu’une carte est piochée, jouée ou détruite.\n<b>Cri de guerre_:</b> détruit tous les autres serviteurs. ",
+  "itIT": "Costa (1) in meno per ogni carta pescata, giocata o distrutta. <b>Grido di Battaglia:</b> distrugge TUTTI gli altri servitori.",
+  "jaJP": "[x]カードが引かれるか、手札から\n使用されるか、破壊される度\nコストが（1）減る。\n<b>雄叫び:</b>_自身を除く全ての\nミニオンを破壊する。",
+  "koKR": "카드를 뽑거나 내거나 파괴할 때마다 비용이 (1) 감소합니다. <b>전투의 함성:</b> 다른 모든 하수인을 처치합니다.",
+  "plPL": "Kosztuje (1)_mniej za każdą dobraną, zagraną lub zniszczoną kartę.\n<b>Okrzyk bojowy:</b> Zniszcz wszystkich pozostałych stronników.",
+  "ptBR": "Custa (1) a menos para cada card comprado, jogado ou destruído. <b>Grito de Guerra:</b> Destrua todos os outros lacaios.",
+  "ruRU": "Стоит на (1) меньше за каждую взятую, разыгранную или уничтоженную карту.\n <b>Боевой клич:</b> уничтожает всех других существ.",
+  "thTH": "ค่าร่ายลดลง_(1)_ทุกครั้งที่[b]มีการจั่ว_เล่น_หรือทำลายการ์ด <b>คำรามสู้ศึก:</b>_ทำลาย[b]มินเนี่ยนตัวอื่นทั้งหมด",
+  "zhCN": "每当一张牌被抽到，使用或摧毁时，本牌的法力值消耗便减少（1）点。<b>战吼：</b>消灭所有其他随从。",
+  "zhTW": "每次抽出、打出或摧毀卡牌時，其消耗減少(1)。<b>戰吼：</b>摧毀全部其他手下"
+ },
+ "tags": {
+  "199": 12,
+  "48": 100,
+  "47": 10,
+  "45": 10,
+  "114": 1,
+  "203": 5,
+  "321": 1,
+  "202": 4,
+  "218": 1,
+  "2589": 1
+ }
+}

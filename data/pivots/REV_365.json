@@ -1,0 +1,53 @@
+{
+ "cardId": "REV_365",
+ "dbfId": 78509,
+ "preset": {
+  "label": "派系法术",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "派系法术基线，用于验证派系法术版式与 spell-school 光效。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Convoke the Spirits",
+  "deDE": "Konvokation der Geister",
+  "esES": "Convocar a los espíritus",
+  "esMX": "Convocar los espíritus",
+  "frFR": "Appel des esprits",
+  "itIT": "Convocazione degli Spiriti",
+  "jaJP": "精霊総動員",
+  "koKR": "영혼 소집",
+  "plPL": "Zwołanie duchów",
+  "ptBR": "Convocar Espíritos",
+  "ruRU": "Созыв духов",
+  "thTH": "เชิญวิญญาณชุมนุม",
+  "zhCN": "万灵之召",
+  "zhTW": "召集靈魂"
+ },
+ "textInHand": {
+  "enUS": "[x]Cast 8 random\nDruid spells <i>(targets\nchosen randomly)</i>.",
+  "deDE": "Wirkt 8 zufällige Druidenzauber.\n<i>(Zufällige Zielauswahl)</i>",
+  "esES": "[x]Lanza 8 hechizos\naleatorios de druida\n<i>(objetivos elegidos al azar)</i>.",
+  "esMX": "Lanza 8 hechizos de Druida aleatorios. <i>(Objetivos elegidos al_azar)</i>.",
+  "frFR": "Lance 8_sorts de druide aléatoires.\n<i>(Cibles choisies au_hasard.)</i>",
+  "itIT": "Lancia 8 Magie casuali del Druido su bersagli casuali.",
+  "jaJP": "[x]ランダムなドルイド呪文を\n8回使用する。\n<i>（対象はランダムに選択）</i>",
+  "koKR": "무작위 드루이드 주문들을 8회 시전합니다.\n<i>(대상은 무작위로 선택)</i>",
+  "plPL": "Rzuć 8 losowych zaklęć_druida <i>(cele_wybrane_losowo)</i>.",
+  "ptBR": "Lance 8 feitiços aleatórios de Druida <i>(alvos escolhidos aleatoriamente)</i>.",
+  "ruRU": "Разыгрывает 8 случайных заклинаний друида <i>(цели выбираются случайно)</i>.",
+  "thTH": "สุ่มร่ายเวทมนตร์[b]ดรูอิด_8_ใบ <i>(สุ่มเลือกเป้าหมาย)</i>",
+  "zhCN": "随机施放8个德鲁伊法术<i>（目标随机而定）</i>。",
+  "zhTW": "施放8個\n隨機德魯伊法術\n<i>(隨機選擇目標)</i>"
+ },
+ "tags": {
+  "199": 2,
+  "203": 4,
+  "202": 5,
+  "48": 10,
+  "321": 1,
+  "1635": 4
+ }
+}

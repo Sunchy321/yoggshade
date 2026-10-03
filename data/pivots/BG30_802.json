@@ -1,0 +1,62 @@
+{
+ "cardId": "BG30_802",
+ "dbfId": 113902,
+ "preset": {
+  "label": "酒馆法术基线",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "酒馆法术样例，用于验证 BaconSpell 手牌样式和法术框体。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Knockoff Wisdomball",
+  "deDE": "Billiges Weisheitsballimitat",
+  "esES": "Esfera sabia de palo",
+  "esMX": "Bola de sabiduría falsa",
+  "frFR": "Sphère de sagesse de pacotille",
+  "itIT": "Globo della Saggezza Falso",
+  "jaJP": "模倣の教育球",
+  "koKR": "짝퉁 지혜의 공",
+  "plPL": "Podrobiona kula mądrości",
+  "ptBR": "Sabedobola Fajuta",
+  "ruRU": "Поддельная сфера мудрости",
+  "thTH": "ลูกแก้วมหาปราชญ์เก๊",
+  "zhCN": "冒牌的智慧之球",
+  "zhTW": "冒牌智慧球"
+ },
+ "textInHand": {
+  "enUS": "Your next 2 <b>Refreshes</b> are helpful! <i>(@ left!)</i>",
+  "deDE": "Eure nächsten 2_<b>Aktualisierungen</b>_sind hilfreich! <i>(Noch @!)</i>",
+  "esES": "¡Tus siguientes 2_<b>Refrescares</b> resultan_útiles!\n<i>(¡@ más!)</i>.",
+  "esMX": "¡Tus próximos 2 <b>Renovar</b> son útiles! <i>(¡Solo_@_más!)</i>",
+  "frFR": "Vos 2_prochaines <b>actualisations</b> sont utiles_! <i>(Encore_@_!)</i>",
+  "itIT": "Le tue 2 prossime <b>Ricariche</b> sono utili! <i>(Ancora @!)</i>",
+  "jaJP": "[x]自分の次2回\nの<b>入替</b>は、役立つ\nものになる！\n<i>（残り@回！）</i>",
+  "koKR": "내 다음 2번의 <b>새로고침</b>이 도움이 됩니다! <i>(@번 남음!)</i>",
+  "plPL": "Twoje 2 następne <b>Odświeżenia</b> są pomocne! <i>(Jeszcze_@!)</i>",
+  "ptBR": "Suas próximas 2 <b>Atualizações</b> são úteis! <i>(Resta: @!)</i>",
+  "ruRU": "Следующие два\n<b>обновления</b> будут полезными! <i>(Еще @!)</i>",
+  "thTH": "<b>รีเฟรช</b>_2_ครั้งถัดไป[b]ของคุณมีประโยชน์แน่! <i>(อีก_@_ครั้ง!)</i>",
+  "zhCN": "你的下2次<b>刷新</b>均为有用的刷新！ <i>（还剩@次！）</i>",
+  "zhTW": "你的下2次\n<b>重置</b>會很有幫助！\n<i>(還剩@次！)</i>"
+ },
+ "tags": {
+  "199": 12,
+  "202": 42,
+  "201": 3,
+  "2104": 1,
+  "32": 1,
+  "535": 2,
+  "2329": 1,
+  "3081": 0,
+  "48": 4,
+  "1440": 6,
+  "1868": 1,
+  "2311": 1,
+  "1635": 9,
+  "2": 2,
+  "3982": 1
+ }
+}

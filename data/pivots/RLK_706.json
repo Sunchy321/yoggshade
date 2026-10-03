@@ -1,0 +1,59 @@
+{
+ "cardId": "RLK_706",
+ "dbfId": 80644,
+ "preset": {
+  "label": "异画1基线",
+  "premium": "SIGNATURE",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "异画样例 1，用于验证异画导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Alexandros Mograine",
+  "deDE": "Alexandros Mograine",
+  "esES": "Alexandros Mograine",
+  "esMX": "Alexandros Mograine",
+  "frFR": "Alexandros Mograine",
+  "itIT": "Alexandros Mograine",
+  "jaJP": "アレクサンドロス・モグレイン",
+  "koKR": "알렉산드로스 모그레인",
+  "plPL": "Aleksandros Mograine",
+  "ptBR": "Alexandros Mograine",
+  "ruRU": "Александрос Могрейн",
+  "thTH": "อเล็กซานดรอส โมเกรน",
+  "zhCN": "亚历山德罗斯·莫格莱尼",
+  "zhTW": "亞歷山卓斯‧莫格萊尼"
+ },
+ "textInHand": {
+  "enUS": "<b>Battlecry:</b> For the rest of the game, deal 3 damage to your opponent at the end of your turns.",
+  "deDE": "<b>Kampfschrei:</b> Fügt Eurem Gegner für den Rest des Spiels am Ende Eurer Züge 3 Schaden zu.",
+  "esES": "[x]<b>Grito de batalla:</b> Durante\nel resto de la partida, inflige\n3 p. de daño a tu oponente\nal final de tus turnos.",
+  "esMX": "<b>Grito de batalla:</b> durante el resto de la partida, inflige 3 de daño a tu adversario al final de tus turnos.",
+  "frFR": "<b>Cri de guerre_:</b> pendant le reste de la partie, inflige 3_points de_dégâts à votre adversaire à la fin de vos tours.",
+  "itIT": "<b>Grido di Battaglia:</b> per il resto della partita, infligge 3 danni all'avversario alla fine di ogni tuo turno.",
+  "jaJP": "[x]<b>雄叫び:</b>\nこの対戦中\n自分のターンの終了時\n相手に\n___3ダメージを与える。",
+  "koKR": "<b>전투의 함성:</b> 이번 게임 동안 내 턴이 끝날 때, 적 영웅에게 피해를 3 줍니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> Przez resztę gry zadaj przeciwnikowi 3_pkt. obrażeń na koniec twojej każdej tury.",
+  "ptBR": "<b>Grito de Guerra:</b> Pelo resto da partida, cause 3 de dano ao seu oponente no final dos seus turnos.",
+  "ruRU": "<b>Боевой клич:</b> до конца матча вы наносите противнику 3 ед. урона в конце вашего хода.",
+  "thTH": "<b>คำรามสู้ศึก:</b> จากนี้ไปจนจบเกม สร้างความเสียหาย 3 แต้มให้[b]คู่ต่อสู้เมื่อจบเทิร์นของคุณ",
+  "zhCN": "<b>战吼：</b>在本局对战的剩余时间内，在你的回合结束时，对你的对手造成3点伤害。",
+  "zhTW": "<b>戰吼：</b>在本賽局中，在你的回合結束時，對你的對手造成3點\n傷害"
+ },
+ "tags": {
+  "199": 1,
+  "203": 5,
+  "202": 4,
+  "48": 7,
+  "47": 7,
+  "45": 7,
+  "114": 1,
+  "321": 1,
+  "2196": 3,
+  "200": 11,
+  "218": 1,
+  "2589": 1
+ }
+}

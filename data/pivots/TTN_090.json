@@ -1,0 +1,54 @@
+{
+ "cardId": "TTN_090",
+ "dbfId": 97406,
+ "preset": {
+  "label": "地标基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "地标样例，用于验证地标手牌框体与耐久区域渲染。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Prison of Yogg-Saron",
+  "deDE": "Gefängnis von Yogg-Saron",
+  "esES": "Prisión de Yogg-Saron",
+  "esMX": "Prisión de Yogg-Saron",
+  "frFR": "Prison de Yogg-Saron",
+  "itIT": "Prigione di Yogg-Saron",
+  "jaJP": "ヨグ＝サロンの牢獄",
+  "koKR": "요그사론의 감옥",
+  "plPL": "Więzienie Yogg-Sarona",
+  "ptBR": "Prisão de Yogg-Saron",
+  "ruRU": "Темница Йогг-Сарона",
+  "thTH": "คุกขังย็อกก์-ซารอน",
+  "zhCN": "尤格-萨隆的监狱",
+  "zhTW": "尤格薩倫的監牢"
+ },
+ "textInHand": {
+  "enUS": "[x]Choose a character.\nCast 4 random spells\n<i>(targeting it if possible)</i>.",
+  "deDE": "Wählt einen Charakter. Wirkt 4 zufällige Zauber <i>(zielt darauf,\nwenn möglich)</i>.",
+  "esES": "[x]Elige a un personaje.\nLanza 4 hechizos aleatorios.\n<i>(Dirigidos a este\nsi es posible)</i>.",
+  "esMX": "Elige un personaje. Lanza 4 hechizos aleatorios <i>(haciéndolo objetivo si es posible)</i>.",
+  "frFR": "Choisissez un personnage. Lance 4_sorts aléatoires <i>(en_ciblant ce_personnage, si_possible)</i>.",
+  "itIT": "Seleziona un personaggio. Lancia 4 Magie casuali <i>(prendendolo di mira, se possibile)</i>.",
+  "jaJP": "[x]キャラクター1体を選択。\nランダムな呪文を\n4回使用する。\n<i>（可能ならそれを対象にする）</i>",
+  "koKR": "캐릭터를 선택합니다. 무작위 주문 넷을 시전합니다. <i>(가능하다면 선택한\n캐릭터를 대상으로)</i>",
+  "plPL": "Wybierz postać. Rzuć 4_losowe zaklęcia <i>(ta postać jest ich celem, jeśli to możliwe)</i>.",
+  "ptBR": "Escolha um personagem. Lance 4 feitiços aleatórios <i>(alvejando-o se possível)</i>.",
+  "ruRU": "Выберите цель. Вы применяете 4 случайных заклинания <i>(к цели, если это возможно)</i>.",
+  "thTH": "เลือกตัวละครหนึ่งตัว_สุ่มร่าย[b]เวทมนตร์_4_ใบ <i>(เลือกมัน[b]เป็นเป้าหมายถ้าเป็นไปได้)</i>",
+  "zhCN": "选择一个角色。随机施放4个法术<i>（尽可能以其为目标）</i>。",
+  "zhTW": "[x]選擇一個角色，\n施放4個隨機法術\n<i>(如果能以其為目標)</i>"
+ },
+ "tags": {
+  "199": 12,
+  "203": 5,
+  "202": 39,
+  "48": 7,
+  "45": 3,
+  "321": 1,
+  "114": 1
+ }
+}

@@ -1,0 +1,59 @@
+{
+ "cardId": "GDB_477",
+ "dbfId": 112048,
+ "preset": {
+  "label": "异画3基线",
+  "premium": "SIGNATURE",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "异画样例 3，用于验证异画导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "The 8 Hands From Beyond",
+  "deDE": "Die 8 Hände der Dunklen Weiten",
+  "esES": "8 Manos del Más Allá",
+  "esMX": "Las 8 manos del más allá",
+  "frFR": "Les 8 mains de l’Au-delà",
+  "itIT": "Le 8 Braccia dell'Oscurità",
+  "jaJP": "彼方よりの8本触手",
+  "koKR": "저 너머의 팔손이",
+  "plPL": "8 Dłoni z Bezkresu",
+  "ptBR": "As 8 Mãos do Além",
+  "ruRU": "Потусторонний осьмищуп",
+  "thTH": "อัฏฐหัตถ์จากห้วงลึก",
+  "zhCN": "深暗八爪怪",
+  "zhTW": "來自異界的8隻手"
+ },
+ "textInHand": {
+  "enUS": "<b>Battlecry:</b> Destroy both players' decks EXCEPT\nthe 8 highest Cost cards in each.",
+  "deDE": "<b>Kampfschrei:</b> Zerstört die Decks beider Spieler außer den jeweils 8 Karten mit den höchsten Kosten.",
+  "esES": "<b>Grito de batalla:</b> Destruye los mazos de ambos jugadores excepto las 8 cartas de mayor coste de cada uno.",
+  "esMX": "<b>Grito de batalla:</b> destruye los mazos de ambos jugadores, excepto las 8 cartas de mayor costo en cada uno.",
+  "frFR": "<b>Cri de guerre_:</b> détruit les decks de chaque adversaire, à_l’exception des 8_cartes au coût le plus élevé.",
+  "itIT": "<b>Grido di Battaglia:</b> distrugge i mazzi di entrambi i giocatori, TRANNE le 8 carte con il costo più alto di ciascuno.",
+  "jaJP": "[x]<b>雄叫び:</b>\n両プレイヤーのデッキを\n破壊する。ただしそれぞれ\nコストが高い順に\nカード8枚を残す。",
+  "koKR": "<b>전투의 함성:</b> 각 플레이어의 덱에서 비용이 가장 높은 카드 8장을 제외하고 모든 카드를 파괴합니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> Zniszcz talie obu graczy Z_WYJĄTKIEM 8_kart z_najwyższym kosztem w_każdej z_nich.",
+  "ptBR": "<b>Grito de Guerra:</b> Destrua os decks dos dois jogadores, EXCETO os 8 cards de maior Custo de cada deck.",
+  "ruRU": "[x]<b>Боевой клич:</b> уничтожает\nколоды игроков, оставляя\nТОЛЬКО 8 самых дорогих\nкарт из каждой.",
+  "thTH": "<b>คำรามสู้ศึก:</b>_ทำลายเด็คผู้เล่น[b]ทั้งสองฝ่ายยกเว้นการ์ด_8_ใบ[b]ที่มีค่าร่ายสูงที่สุดในแต่ละเด็ค_",
+  "zhCN": "<b>战吼：</b>摧毁双方玩家牌库中除各自法力值消耗最高的8张牌之外的牌。",
+  "zhTW": "<b>戰吼：</b>摧毀雙方的牌堆，除了雙方消耗最多的8張卡牌"
+ },
+ "tags": {
+  "199": 1,
+  "114": 1,
+  "48": 8,
+  "45": 8,
+  "202": 4,
+  "203": 5,
+  "321": 1,
+  "47": 8,
+  "2196": 2,
+  "200": 20,
+  "2589": 1,
+  "218": 1
+ }
+}

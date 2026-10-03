@@ -1,0 +1,56 @@
+{
+ "cardId": "DMF_709",
+ "dbfId": 61663,
+ "preset": {
+  "label": "单种族随从",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "单种族随从样例，用于验证单行种族栏布局。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Grand Totem Eys'or",
+  "deDE": "Totemfürst Eys’or",
+  "esES": "Gran tótem Espantojo",
+  "esMX": "Gran tótem Anti'stétiko",
+  "frFR": "Grand Totem Œild’or",
+  "itIT": "Gran Totem Occh'ior",
+  "jaJP": "大トーテム・アイソア",
+  "koKR": "거대한 토템 아이스오르",
+  "plPL": "Wielki Totem Ok’ko",
+  "ptBR": "Grão-Totem Olh'Gord",
+  "ruRU": "Великий тотем Глаз'ор",
+  "thTH": "แกรนด์โทเท็มอายซอร์",
+  "zhCN": "巨型图腾埃索尔",
+  "zhTW": "大圖騰埃索"
+ },
+ "textInHand": {
+  "enUS": "At the end of your turn,\ngive +1/+1 to all other Totems in your hand, deck and battlefield.",
+  "deDE": "[x]Verleiht allen anderen Totems\nin Eurem Deck, auf Eurer Hand\nund dem Schlachtfeld am Ende\nEures Zuges +1/+1.",
+  "esES": "Al final de tu turno, otorga +1/+1 a todos los demás tótems de tu mano, mazo y tablero.",
+  "esMX": "Al final de tu turno, otorga +1/+1 a todos los demás Tótems de tu mano, mazo y campo de batalla.",
+  "frFR": "À la fin de votre tour, donne_+1/+1 à tous les autres Totems de votre main, deck et champ de bataille.",
+  "itIT": "[x]Alla fine del tuo turno,\n+1/+1 agli altri Totem nella\ntua mano, nel tuo mazzo e\n__sul tuo lato del campo.",
+  "jaJP": "[x]自分のターンの終了時\n自分の手札、デッキ、陣地の\n自身を除くトーテム全てに\n+1/+1を付与する。",
+  "koKR": "내 턴이 끝날 때, 내 손, 덱, 전장에 있는 다른 모든 토템에게 +1/+1을 부여합니다.",
+  "plPL": "Na koniec twojej tury daj wszystkim pozostałym Totemom w twojej ręce, talii i na polu bitwy +1/+1.",
+  "ptBR": "No final do seu turno, conceda +1/+1 a todos os outros Totens na sua mão, deck e campo de_batalha.",
+  "ruRU": "В конце вашего хода все другие тотемы в вашей колоде, в руке и в игре получают +1/+1.",
+  "thTH": "เมื่อจบเทิร์นของคุณ มอบ_+1/+1_ให้โทเท็มตัวอื่น[b]ทั้งหมดในมือคุณ_เด็คคุณ และสนามฝั่งคุณ",
+  "zhCN": "在你的回合结束时，使你手牌，牌库和战场上的所有其他图腾获得+1/+1。",
+  "zhTW": "在你的回合結束時，賦予你手中、牌堆和戰場上的其他圖騰+1/+1"
+ },
+ "tags": {
+  "199": 8,
+  "321": 1,
+  "114": 1,
+  "203": 5,
+  "202": 4,
+  "48": 3,
+  "45": 4,
+  "200": 21,
+  "32": 1
+ }
+}

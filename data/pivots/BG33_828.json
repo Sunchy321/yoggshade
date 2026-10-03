@@ -1,0 +1,61 @@
+{
+ "cardId": "BG33_828",
+ "dbfId": 123595,
+ "preset": {
+  "label": "战棋等级随从",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "六星酒馆战棋随从，用于验证酒馆等级图标和战棋手牌样式。"
+ },
+ "textBuilderType": 26,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Ship Master Eudora",
+  "deDE": "Schiffsführerin Eudora",
+  "esES": "Contramaestre Eudora",
+  "esMX": "Maestra de barcos Eudora",
+  "frFR": "Eudora, maîtresse d’équipage",
+  "itIT": "Eudora Capitana della Nave",
+  "jaJP": "船旅の達人ユードラ",
+  "koKR": "함선의 지배자 유도라",
+  "plPL": "Pierwsza oficer Eudora",
+  "ptBR": "Capitã-do-mar Eudora",
+  "ruRU": "Шкипер Юдора",
+  "thTH": "กัปตันเรือยูโดร่า",
+  "zhCN": "舰长尤朵拉",
+  "zhTW": "船艦大師尤多拉"
+ },
+ "textInHand": {
+  "enUS": "<b>Deathrattle:</b> Give your\nminions +{0}/+{1}.\nGolden ones keep it permanently.",
+  "deDE": "<b>Todesröcheln:</b>\nVerleiht Euren Dienern +{0}/+{1}.\nGoldene Diener behalten dies_dauerhaft.",
+  "esES": "<b>Último aliento:</b> Otorga +{0}/+{1} a_tus esbirros. Los que sean dorados conservan esto de forma permanente.",
+  "esMX": "<b>Estertor:</b> otorga +{0}/+{1} a tus esbirros. El efecto es permanente para los esbirros dorados.",
+  "frFR": "<b>Râle d’agonie_:</b> donne_+{0}/+{1} à_vos serviteurs. Les serviteurs dorés gardent définitivement cet_effet.",
+  "itIT": "<b>Rantolo di Morte:</b> +{0}/+{1}\nai tuoi servitori. Quelli Dorati mantengono questo effetto permanentemente.",
+  "jaJP": "[x]<b>断末魔:</b>\n味方のミニオン全てに\n+{0}/+{1}を付与する。\nゴールデンミニオンは\n________それを永続的に維持する。",
+  "koKR": "<b>죽음의 메아리:</b> 내 하수인들에게 +{0}/+{1}|1(을,를) 부여합니다. 황금 하수인은 능력치를 영구히 얻습니다.",
+  "plPL": "<b>Agonia:</b> Daj twoim stronnikom_+{0}/+{1}. Złoci_stronnicy otrzymują premię na stałe.",
+  "ptBR": "<b>Último Suspiro:</b> Conceda +{0}/+{1} aos seus lacaios. Dourados mantêm o efeito permanentemente.",
+  "ruRU": "<b>Предсмертный хрип:</b> ваши существа получают +{0}/+{1}. Золотые существа сохраняют\n[x]этот бонус навсегда.",
+  "thTH": "<b>เสียงสุดท้าย:</b>_มอบ_+{0}/+{1} ให้มินเนี่ยนของคุณทั้งหมด มินเนี่ยนสีทองเก็บค่าพลังนี้[b]ไว้อย่างถาวร",
+  "zhCN": "<b>亡语：</b>使你的随从获得+{0}/+{1}，金色随从可永久保留此效果。",
+  "zhTW": "<b>死亡之聲：</b>賦予你的手下+{0}/+{1}\n金卡手下永久獲得此加成"
+ },
+ "tags": {
+  "199": 7,
+  "1440": 5,
+  "47": 8,
+  "45": 3,
+  "200": 23,
+  "1596": 1,
+  "202": 4,
+  "1429": 123596,
+  "114": 1,
+  "3": 6,
+  "2": 6,
+  "217": 1,
+  "1724": 1,
+  "1456": 1
+ }
+}

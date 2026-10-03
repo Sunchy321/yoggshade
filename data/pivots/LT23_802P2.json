@@ -1,0 +1,52 @@
+{
+ "cardId": "LT23_802P2",
+ "dbfId": 87351,
+ "preset": {
+  "label": "佣兵技能基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "佣兵技能样例，用于验证 LETTUCE_ABILITY 法术类技能 BigCard 渲染。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Imbued Strike",
+  "deDE": "Verstärkter Stoß",
+  "esES": "Golpe impregnado",
+  "esMX": "Golpe imbuido",
+  "frFR": "Frappe empreinte",
+  "itIT": "Assalto Infuso",
+  "jaJP": "力染の打撃",
+  "koKR": "일격 주입",
+  "plPL": "Przenikające uderzenie",
+  "ptBR": "Ataque Imbuído",
+  "ruRU": "Заряженный удар",
+  "thTH": "โจมตีอาบพลัง",
+  "zhCN": "灌能打击",
+  "zhTW": "充能攻擊"
+ },
+ "textInHand": {
+  "enUS": "Deal double this Merc's Attack to a random enemy. Repeat @  times. After, Siren of the Deep's Attack is reset.",
+  "deDE": "[x]Fügt einem zufälligen Feind Schaden\nzu, der dem doppelten Angriff\ndieses Söldners entspricht. Wird\n@-mal wiederholt. Setzt danach den\nAngriff der Sirene der Tiefe zurück.",
+  "esES": "[x]Inflige el doble de ataque de este\nmercenario a un enemigo aleatorio.\nSe repite @ veces. Después,\nse restablece el ataque de\nSirena de las profundidades.",
+  "esMX": "Inflige el doble del Ataque de este Mercenario a un enemigo aleatorio. Se repite @ veces. Después, el Ataque de Sirena de las profundidades se restablece.",
+  "frFR": "Inflige à un adversaire aléatoire des dégâts équivalents au double de l’ATQ de ce mercenaire. Recommence @_fois. Ensuite, l’ATQ de la sirène des profondeurs est réinitialisée.",
+  "itIT": "[x]Infligge danni pari al doppio\ndell'Attacco di questo Mercenario\na un nemico casuale. Ripete\nl'effetto @ |4(volta,volte). Dopo, l'Attacco\ndella Sirena delle Profondità\nsi azzera.",
+  "jaJP": "[x]ランダムな敵1体に\nこの傭兵の攻撃力の\n2倍のダメージを与える。\n@回繰り返す。\nその後「深淵のセイレーン」の\n攻撃力はリセットされる。",
+  "koKR": "무작위 적에게 이 용병의 공격력의 2배만큼 피해를 줍니다. @번 반복합니다. 심연의 세이렌의 공격력이 원래대로 돌아갑니다.",
+  "plPL": "Zadaj losowemu wrogowi obrażenia równe dwukrotności ataku tego Najemnika. Powtórz @ |4(raz,razy,razy). Następnie atak Syreny z głębin jest resetowany.",
+  "ptBR": "Cause o dobro do Ataque deste Mercenário a um inimigo aleatório. Repita @ vezes. Depois, o Ataque de Sirena das Profundezas é reiniciado.",
+  "ruRU": "Наносит случайному противнику урон, равный удвоенной атаке этого наемника. Эффект повторяется @ |4(раз,раза,раз). Атака сирены глубин возвращается к базовому значению.",
+  "thTH": "สุ่มสร้างความเสียหายสองเท่า[b]ของพลังโจมตีของทหารรับจ้าง[b]ตัวนี้ให้ศัตรูหนึ่งตัว_ทำซ้ำ_@_ครั้ง หลังจากนั้นรีเซ็ตพลังโจมตี[b]ของไซเรนทะเลลึก",
+  "zhCN": "随机对一个敌人造成等同于此佣兵攻击力两倍的伤害。重复@次，然后重置深渊女妖的攻击力。",
+  "zhTW": "對一個隨機敵人造成此傭兵攻擊力兩倍的傷害，重複@次。然後深淵海妖的攻擊力重置"
+ },
+ "tags": {
+  "201": 3,
+  "202": 23,
+  "48": 8,
+  "1635": 4,
+  "2": 2
+ }
+}

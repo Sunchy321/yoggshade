@@ -1,0 +1,57 @@
+{
+ "cardId": "BG32_MagicItem_350",
+ "dbfId": 111387,
+ "preset": {
+  "label": "饰品基线",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "战棋饰品样例，用于验证饰品导出。"
+ },
+ "textBuilderType": 28,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Splinter of Aurum",
+  "deDE": "Aurumsplitter",
+  "esES": "Astilla áurea",
+  "esMX": "Fragmento de aurum",
+  "frFR": "Écharde d’or",
+  "itIT": "Scheggia di Auro",
+  "jaJP": "黄金の破片",
+  "koKR": "황금의 가시",
+  "plPL": "Złoty odłamek",
+  "ptBR": "Lasca de Aurum",
+  "ruRU": "Осколок золота",
+  "thTH": "เศษไม้ทองคำ",
+  "zhCN": "黄金残片",
+  "zhTW": "奧盧姆的碎片"
+ },
+ "textInHand": {
+  "enUS": "[x]When you have {1} Gold,\nget a random Golden\nTier 5 minion.\n<i>(Once per game.)</i>",
+  "deDE": "Erhaltet einen zufälligen goldenen Diener der Stufe 5, wenn Ihr {1} Gold habt. <i>(Einmal pro Spiel.)</i>",
+  "esES": "Cuando tengas {1} de oro, obtienes un esbirro dorado aleatorio de nivel 5. <i>(Una vez por partida)</i>.",
+  "esMX": "Obtienes un esbirro dorado aleatorio de nivel 5 cuando tienes {1} de oro. <i>(Una vez por partida.)</i>",
+  "frFR": "Vous obtenez un serviteur doré aléatoire de niveau_5 quand vous avez {1}_|4(pièce,pièces) d’or. <i>(Une fois par partie_!)</i>",
+  "itIT": "Quando hai {1} Oro,\nottieni un servitore Dorato casuale di Livello 5. <i>(Una volta per partita.)</i>",
+  "jaJP": "[x]自分が{1}ゴールド\n持っている時、ランダムな\nグレード5のゴールデン\nミニオンを1体得る。\n<i>（対戦中1回のみ）</i>",
+  "koKR": "나에게 {1}골드가 있을 때 무작위 황금 5단계 하수인을 얻습니다.\n<i>(게임당 1회만 가능)</i>",
+  "plPL": "Gdy masz {1}_szt._złota, otrzymujesz losowego złotego stronnika z_Poziomu_5. <i>(Raz_na_grę).</i>",
+  "ptBR": "Quando você tiver {1} de Ouro, receba um lacaio Dourado aleatório de Grau 5.\n<i>(Uma vez por partida.)</i>",
+  "ruRU": "Когда вы накапливаете {1}_|4(золотой,золотых,золотых),\nвы получаете случайное\nзолотое существо 5-го уровня.\n<i>(Один_раз_за_матч.)</i>",
+  "thTH": "เมื่อคุณมี_{1}_ทอง_สุ่มรับ[b]มินเนี่ยนขั้น_5_สีทอง[b]หนึ่งใบ_<i>(หนึ่งครั้งต่อเกม)</i>",
+  "zhCN": "当你拥有{1}枚铸币时，随机获取一张等级5的金色随从牌。<i>（每局对战限一次）</i>",
+  "zhTW": "當你擁有{1}枚金幣時，獲得一個隨機的旅店等級5金卡手下<i>(每賽局僅限一次)</i>"
+ },
+ "tags": {
+  "199": 12,
+  "202": 44,
+  "1635": 11,
+  "3407": 1,
+  "32": 1,
+  "1596": 1,
+  "3443": 1,
+  "48": 2,
+  "4701": 1,
+  "3": 15
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "cardId": "LOOT_392",
+ "dbfId": 46107,
+ "preset": {
+  "label": "武器基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "武器框体基线，用于检查攻击、耐久与稀有度渲染。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Twig of the World Tree",
+  "deDE": "Zweig des Weltenbaums",
+  "esES": "Rama del Árbol del Mundo",
+  "esMX": "Rama del Árbol del Mundo",
+  "frFR": "Brindille de l’Arbre-Monde",
+  "itIT": "Ramo dell'Albero del Mondo",
+  "jaJP": "世界樹の小枝",
+  "koKR": "세계수의 가지",
+  "plPL": "Gałązka z Drzewa Życia",
+  "ptBR": "Rama da Árvore do Mundo",
+  "ruRU": "Ветвь Древа Жизни",
+  "thTH": "กิ่งไม้แห่งพิภพ",
+  "zhCN": "世界之树的嫩枝",
+  "zhTW": "世界之樹的嫩枝"
+ },
+ "textInHand": {
+  "enUS": "<b>Deathrattle:</b> Refresh your Mana Crystals.",
+  "deDE": "[x]<b>Todesröcheln:</b> Füllt Eure\nManakristalle auf.",
+  "esES": "<b>Último aliento:</b> Recarga tus cristales de maná.",
+  "esMX": "<b>Estertor:</b> restablece tus Cristales de maná.",
+  "frFR": "<b>Râle d’agonie_:</b> réinitialise vos cristaux de mana.",
+  "itIT": "<b>Rantolo di Morte:</b> ricarica i tuoi Cristalli di Mana.",
+  "jaJP": "[x]<b>断末魔:</b>\n自分の\nマナクリスタルを\n満タンにする。",
+  "koKR": "<b>죽음의 메아리:</b> 내 마나 수정을 모두 회복합니다.",
+  "plPL": "<b>Agonia:</b> Odnawiasz twoje kryształy many.",
+  "ptBR": "<b>Último Suspiro:</b> Restaure seus Cristais de Mana.",
+  "ruRU": "<b>Предсмертный хрип:</b>\nвы полностью восстанавливаете ману.",
+  "thTH": "<b>เสียงสุดท้าย:</b> ฟื้นฟู[b]คริสตัลมานาของคุณ",
+  "zhCN": "<b>亡语：</b>复原你的法力水晶。",
+  "zhTW": "<b>死亡之聲：</b>回滿你的法力水晶"
+ },
+ "tags": {
+  "199": 2,
+  "321": 1,
+  "203": 5,
+  "202": 7,
+  "48": 4,
+  "47": 1,
+  "114": 1,
+  "217": 1,
+  "45": 5
+ }
+}

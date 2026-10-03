@@ -1,0 +1,60 @@
+{
+ "cardId": "WON_332",
+ "dbfId": 103235,
+ "preset": {
+  "label": "带阵营样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "带阵营标识样例，用于验证阵营相关卡面元素渲染。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Lotus Agents",
+  "deDE": "Lotusagenten",
+  "esES": "Agentes del Loto",
+  "esMX": "Agentes del Loto",
+  "frFR": "Agents du Lotus",
+  "itIT": "Agenti del Loto",
+  "jaJP": "蓮華密使",
+  "koKR": "비취 연꽃 요원",
+  "plPL": "Agenci Lotosu",
+  "ptBR": "Agentes do Lótus",
+  "ruRU": "Агенты «Лотоса»",
+  "thTH": "หน่วยรบพิเศษโลตัส",
+  "zhCN": "玉莲帮密探",
+  "zhTW": "玉蓮密探"
+ },
+ "textInHand": {
+  "enUS": "<b>Battlecry:</b> <b>Discover</b>\na Druid, Rogue, or\nShaman card.",
+  "deDE": "<b>Kampfschrei:</b> <b>Entdeckt</b> eine Druiden-, Schurken- oder Schamanenkarte.",
+  "esES": "<b>Grito de batalla:</b>\n<b>Descubre</b> una carta de druida, pícaro o_chamán.",
+  "esMX": "<b>Grito de batalla:</b> <b>Devela</b> una carta de Druida, Pícaro o Chamán.",
+  "frFR": "<b>Cri de guerre_:</b> <b>découvre</b> une carte de druide, voleur ou chaman.",
+  "itIT": "<b>Grido di Battaglia:</b>\n<b>Rinvieni</b> una carta del Druido, del Ladro o dello Sciamano.",
+  "jaJP": "[x]<b>雄叫び:</b>\nドルイド、ローグ\nまたはシャーマンの\n_____カードを1枚<b>発見</b>する。",
+  "koKR": "<b>전투의 함성:</b> 드루이드, 도적, 주술사 카드를 <b>발견</b>합니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> <b>Odkryj</b> kartę druida, łotra lub_szamana.",
+  "ptBR": "<b>Grito de Guerra:</b> <b>Descubra</b> um card de Druida, Ladino ou Xamã.",
+  "ruRU": "<b>Боевой клич:</b> вы_<b>раскапываете</b> карту друида, разбойника или шамана.",
+  "thTH": "<b>คำรามสู้ศึก:</b> <b>ค้นพบ</b>_การ์ดดรูอิด_โร้ก หรือชาแมนหนึ่งใบ",
+  "zhCN": "<b>战吼：</b><b>发现</b>一张德鲁伊、潜行者或萨满祭司卡牌。",
+  "zhTW": "<b>戰吼：</b><b>發現</b>一張盜賊、\n德魯伊或薩滿的牌"
+ },
+ "tags": {
+  "199": 12,
+  "203": 3,
+  "202": 4,
+  "48": 3,
+  "47": 3,
+  "45": 3,
+  "476": 194,
+  "483": 1,
+  "415": 1,
+  "1342": 1,
+  "858": 40742,
+  "218": 1,
+  "321": 1
+ }
+}

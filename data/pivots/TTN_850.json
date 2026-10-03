@@ -1,0 +1,58 @@
+{
+ "cardId": "TTN_850",
+ "dbfId": 97683,
+ "preset": {
+  "label": "钻石基线",
+  "premium": "DIAMOND",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "钻石卡样例，用于验证钻石导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Helya",
+  "deDE": "Helya",
+  "esES": "Helya",
+  "esMX": "Helya",
+  "frFR": "Helya",
+  "itIT": "Helya",
+  "jaJP": "ヘルヤ",
+  "koKR": "헬리아",
+  "plPL": "Helya",
+  "ptBR": "Helya",
+  "ruRU": "Хелия",
+  "thTH": "เฮลยา",
+  "zhCN": "海拉",
+  "zhTW": "黑爾雅"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Battlecry:</b> Shuffle all three\nPlagues into your opponent's\ndeck. Plagues they draw this\ngame are unending.",
+  "deDE": "<b>Kampfschrei:</b> Mischt alle 3 Plagen in das Deck Eures Gegners. Plagen, die er in diesem Spiel zieht, sind endlos.",
+  "esES": "<b>Grito de batalla:</b> Mete\nlas tres pestes en el mazo de tu oponente. Las pestes que robe en esta partida serán interminables.",
+  "esMX": "<b>Grito de batalla:</b> coloca las tres Prestes en el mazo de tu adversario. Las Pestes que se roban en esta partida son_infinitas.",
+  "frFR": "<b>Cri de guerre_:</b> place les trois cartes_Peste dans le deck de votre adversaire. Les cartes_Peste que votre adversaire pioche pendant cette partie sont chroniques.",
+  "itIT": "<b>Grido di Battaglia:</b> mette\ntutte e tre le Piaghe nel mazzo dell'avversario. Le Piaghe che pesca non hanno fine.",
+  "jaJP": "[x]<b>雄叫び:</b>\n3枚全ての「疫病」を\n相手のデッキに混ぜる。\nこの対戦中に引かれた\n____「疫病」は癒えない。____",
+  "koKR": "<b>전투의 함성:</b> 역병 셋을 상대편의 덱에 섞습니다. 이번 게임에서 상대편이 뽑는 역병은 끝나지 않습니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> Wtasuj wszystkie trzy plagi do talii przeciwnika. Plagi wylosowane w tej grze są nieskończone.",
+  "ptBR": "<b>Grito de Guerra:</b> Coloque todas as três Pestes no deck do oponente. Pestes que ele comprar nesta partida não terão fim.",
+  "ruRU": "<b>Боевой клич:</b> замешивает в колоду противника все три карты чумы. Карты чумы, которые противник берет в этом матче, действуют бесконечно.",
+  "thTH": "<b>คำรามสู้ศึก:</b> สับโรคระบาด[b]ทั้งสามแบบเข้าเด็คคู่ต่อสู้ โรคระบาดที่คู่ต่อสู้จั่วได้ใน[b]เกมนี้จะไม่สิ้นสุด",
+  "zhCN": "<b>战吼：</b>将全部三种疫病牌洗入你对手的牌库。在本局对战中，对手抽到的疫病不会终结。",
+  "zhTW": "<b>戰吼：</b>將三種瘟疫牌全部洗入對手的牌堆中。其在本賽局中抽出的瘟疫將永無止盡"
+ },
+ "tags": {
+  "199": 1,
+  "203": 5,
+  "202": 4,
+  "48": 4,
+  "47": 4,
+  "45": 4,
+  "321": 1,
+  "114": 1,
+  "2198": 1,
+  "218": 1,
+  "1932": 1
+ }
+}

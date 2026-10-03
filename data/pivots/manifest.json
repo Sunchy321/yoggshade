@@ -1,0 +1,427 @@
+{
+ "generatedAt": "2026-10-03T01:05:52.589206+00:00",
+ "source": {
+  "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
+  "gameVersion": "36.6.253216",
+  "tables": {
+   "CARD": 36022,
+   "CARD_TAG": 260954
+  }
+ },
+ "adr": "docs/adr/0001-pivot-frozen-benchmark-data.md",
+ "presets": [
+  {
+   "cardId": "GDB_142",
+   "dbfId": 111914,
+   "label": "默认烟测卡",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TOY_519",
+   "dbfId": 104864,
+   "label": "法术基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "REV_365",
+   "dbfId": 78509,
+   "label": "派系法术",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "WON_332",
+   "dbfId": 103235,
+   "label": "带阵营样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "YOG_502",
+   "dbfId": 100875,
+   "label": "锻造样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "LOOT_392",
+   "dbfId": 46107,
+   "label": "武器基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "AV_205",
+   "dbfId": 66953,
+   "label": "英雄基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "CATA_190h",
+   "dbfId": 125467,
+   "label": "多职业英雄基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TTN_090",
+   "dbfId": 97406,
+   "label": "地标基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "DMF_709",
+   "dbfId": 61663,
+   "label": "单种族随从",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "CFM_637",
+   "dbfId": 40465,
+   "label": "双种族随从",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "AV_205p",
+   "dbfId": 66954,
+   "label": "英雄技能基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "ETC_210",
+   "dbfId": 97532,
+   "label": "多符文基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TIME_EVENT_999",
+   "dbfId": 121675,
+   "label": "金卡测试",
+   "premium": "GOLDEN",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TTN_850",
+   "dbfId": 97683,
+   "label": "钻石基线",
+   "premium": "DIAMOND",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "RLK_706",
+   "dbfId": 80644,
+   "label": "异画1基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "WW_373",
+   "dbfId": 101375,
+   "label": "异画2基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "GDB_477",
+   "dbfId": 112048,
+   "label": "异画3基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TLC_433",
+   "dbfId": 117427,
+   "label": "异画4基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "SC_004",
+   "dbfId": 112846,
+   "label": "异画5基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TLC_EVENT_402",
+   "dbfId": 120658,
+   "label": "异画6基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG33_828",
+   "dbfId": 123595,
+   "label": "战棋等级随从",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG30_802",
+   "dbfId": 113902,
+   "label": "酒馆法术基线",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG27_Anomaly_580",
+   "dbfId": 107226,
+   "label": "畸变基线",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG32_MagicItem_350",
+   "dbfId": 111387,
+   "label": "饰品基线",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG34_Giant_072",
+   "dbfId": 127129,
+   "label": "时空扭曲随从",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG34_Treasure_917",
+   "dbfId": 126262,
+   "label": "时空扭曲法术",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "PET_3_1",
+   "dbfId": 122617,
+   "label": "宠物测试",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "LT23_802P2",
+   "dbfId": 87351,
+   "label": "佣兵技能基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "LT23_803P2",
+   "dbfId": 87111,
+   "label": "佣兵技能2",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  }
+ ],
+ "missing": [],
+ "glowBench": [
+  {
+   "token": "minion-single-race",
+   "cardId": "DMF_709",
+   "template": "Normal",
+   "parts": [
+    "cost",
+    "attack",
+    "health",
+    "rarity",
+    "text",
+    "name",
+    "art",
+    "race",
+    "runes"
+   ],
+   "runeOverride": 1
+  },
+  {
+   "token": "minion-dual-race",
+   "cardId": "CFM_637",
+   "template": "Normal",
+   "parts": [
+    "cost",
+    "attack",
+    "health",
+    "rarity",
+    "text",
+    "name",
+    "art",
+    "race",
+    "runes"
+   ],
+   "runeOverride": 1
+  },
+  {
+   "token": "spell-school",
+   "cardId": "REV_365",
+   "template": "Normal",
+   "parts": [
+    "cost",
+    "rarity",
+    "text",
+    "name",
+    "art",
+    "spell-school",
+    "runes"
+   ],
+   "runeOverride": 1
+  },
+  {
+   "token": "weapon",
+   "cardId": "LOOT_392",
+   "template": "Normal",
+   "parts": [
+    "cost",
+    "attack",
+    "durability",
+    "rarity",
+    "text",
+    "name",
+    "art",
+    "runes"
+   ],
+   "runeOverride": 1
+  },
+  {
+   "token": "hero",
+   "cardId": "AV_205",
+   "template": "Normal",
+   "parts": [
+    "cost",
+    "armor",
+    "rarity",
+    "text",
+    "name",
+    "art",
+    "runes"
+   ],
+   "runeOverride": 1
+  },
+  {
+   "token": "location",
+   "cardId": "TTN_090",
+   "template": "Normal",
+   "parts": [
+    "cost",
+    "durability",
+    "rarity",
+    "text",
+    "name",
+    "art",
+    "runes"
+   ],
+   "runeOverride": 1
+  },
+  {
+   "token": "bg-minion",
+   "cardId": "BG33_828",
+   "template": "Battlegrounds",
+   "parts": [
+    "cost",
+    "attack",
+    "health",
+    "text",
+    "name",
+    "art",
+    "tech-level"
+   ],
+   "runeOverride": null
+  },
+  {
+   "token": "tavern-spell",
+   "cardId": "BG30_802",
+   "template": "Battlegrounds",
+   "parts": [
+    "cost-coin",
+    "text",
+    "name",
+    "art",
+    "tech-level",
+    "spell-school"
+   ],
+   "runeOverride": null
+  },
+  {
+   "token": "hero-power",
+   "cardId": "AV_205p",
+   "template": "Normal",
+   "parts": [
+    "cost-relocated",
+    "text-shape"
+   ],
+   "runeOverride": null
+  },
+  {
+   "token": "trinket",
+   "cardId": "BG32_MagicItem_350",
+   "template": "Battlegrounds",
+   "parts": [
+    "cost-coin",
+    "text-shape",
+    "trinket-size"
+   ],
+   "runeOverride": null
+  },
+  {
+   "token": "spell-bg",
+   "cardId": "TOY_519",
+   "template": "Battlegrounds",
+   "parts": [
+    "cost-coin",
+    "rarity",
+    "text",
+    "name",
+    "art"
+   ],
+   "runeOverride": null
+  },
+  {
+   "token": "hero-power-bg",
+   "cardId": "AV_205p",
+   "template": "Battlegrounds",
+   "parts": [
+    "cost-coin",
+    "text-shape"
+   ],
+   "runeOverride": null
+  }
+ ],
+ "pivotMd": "data/pivots/pivot.md",
+ "gameVersion": "36.6.253216"
+}

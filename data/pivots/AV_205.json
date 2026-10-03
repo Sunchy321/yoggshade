@@ -1,0 +1,58 @@
+{
+ "cardId": "AV_205",
+ "dbfId": 66953,
+ "preset": {
+  "label": "英雄基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "英雄样例，用于验证英雄手牌框体、护甲和头像区域渲染。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Wildheart Guff",
+  "deDE": "Guff des Wildherzens",
+  "esES": "Guff Corazón Salvaje",
+  "esMX": "Guff Corazón salvaje",
+  "frFR": "Guff Cœur-Sauvage",
+  "itIT": "Guff Cuorselvaggio",
+  "jaJP": "野生の心のガフ",
+  "koKR": "자연의정수 거프",
+  "plPL": "Guf, Serce Dziczy",
+  "ptBR": "Guff Coração Selvagem",
+  "ruRU": "Гафф Вольное Сердце",
+  "thTH": "ไวลด์ฮาร์ทกัฟ",
+  "zhCN": "野性之心古夫",
+  "zhTW": "野性之心葛夫"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Battlecry:</b> Set your\nmaximum Mana to 20.\nGain an empty Mana\nCrystal. Draw a card.",
+  "deDE": "[x]<b>Kampfschrei:</b> Setzt Euer\nmaximales Mana auf 20.\nErhaltet einen leeren Mana[d]kristall. Zieht eine Karte.",
+  "esES": "[x]<b>Grito de batalla:</b> Establece\ntu máximo de maná en\n(20) cristales. Obtienes\nun cristal de maná vacío.\nRoba una carta.",
+  "esMX": "<b>Grito de batalla:</b> establece tu maná máximo en 20. Obtienes un Cristal de maná vacío. Roba una carta.",
+  "frFR": "<b>Cri de guerre_:</b> fait passer votre maximum de mana à 20. Confère un cristal de mana vide. Vous piochez une carte.",
+  "itIT": "[x]<b>Grido di Battaglia:</b> imposta\nil tuo Mana massimo a 20.\nFornisce 1 Cristallo di Mana\nvuoto. Pesca una carta.",
+  "jaJP": "[x]<b>雄叫び:</b>\n自分のマナの上限を20にする。\n空のマナクリスタルを\n1つ獲得する。\n__カードを1枚引く。",
+  "koKR": "<b>전투의 함성:</b>\n내 최대 마나가 20이 됩니다. 빈 마나 수정을 얻습니다. 카드를 뽑습니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> Ustaw twój limit kryształów many na 20. Otrzymujesz pusty kryształ many. Dobierz kartę.",
+  "ptBR": "<b>Grito de Guerra:</b> Mude seu Mana máximo para 20. Receba um Cristal de Mana vazio. Compre um card.",
+  "ruRU": "<b>Боевой клич:</b>\nповышает максимальный запас маны до 20. Вы получаете пустой кристалл маны. Вы берете карту.",
+  "thTH": "<b>คำรามสู้ศึก:</b> เปลี่ยนมานา[b]สูงสุดของคุณเป็น_20 ได้รับคริสตัลมานาเปล่า[b]หนึ่งอัน_จั่วการ์ดหนึ่งใบ",
+  "zhCN": "<b>战吼：</b>将你的法力值上限变为20。获得一个空的法力水晶。抽一张牌。",
+  "zhTW": "<b>戰吼：</b>將你的法力上限改為20。獲得一顆空的法力水晶。抽一張牌"
+ },
+ "tags": {
+  "199": 2,
+  "114": 1,
+  "203": 5,
+  "321": 1,
+  "202": 3,
+  "45": 30,
+  "292": 5,
+  "380": 66954,
+  "48": 5,
+  "218": 1,
+  "2839": 19
+ }
+}

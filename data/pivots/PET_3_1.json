@@ -1,0 +1,51 @@
+{
+ "cardId": "PET_3_1",
+ "dbfId": 122617,
+ "preset": {
+  "label": "宠物测试",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "宠物样例，用于验证宠物预览导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Classic Krush",
+  "deDE": "Klassischer Knirsch",
+  "esES": "Krush clásico",
+  "esMX": "Krush clásico",
+  "frFR": "Krush classique",
+  "itIT": "Krush Classico",
+  "jaJP": "クラシック・クラッシュ",
+  "koKR": "클래식 크루쉬",
+  "plPL": "Klasyczny Kruszor",
+  "ptBR": "Mó Clássico",
+  "ruRU": "Классический Круш",
+  "thTH": "คลาสสิคครัช",
+  "zhCN": "经典克鲁什",
+  "zhTW": "經典克洛許"
+ },
+ "textInHand": {
+  "enUS": "",
+  "deDE": "",
+  "esES": "",
+  "esMX": "",
+  "frFR": "",
+  "itIT": "",
+  "jaJP": "",
+  "koKR": "",
+  "plPL": "",
+  "ptBR": "",
+  "ruRU": "",
+  "thTH": "",
+  "zhCN": "",
+  "zhTW": ""
+ },
+ "tags": {
+  "199": 12,
+  "202": 45,
+  "4018": 1,
+  "32": 1
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "cardId": "TIME_EVENT_999",
+ "dbfId": 121675,
+ "preset": {
+  "label": "金卡测试",
+  "premium": "GOLDEN",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "金卡样例，用于验证金卡导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Sands of Time",
+  "deDE": "Sande der Zeit",
+  "esES": "Arenas del tiempo",
+  "esMX": "Arenas del tiempo",
+  "frFR": "Sables du temps",
+  "itIT": "Sabbie del Tempo",
+  "jaJP": "時の砂",
+  "koKR": "시간의 모래",
+  "plPL": "Piaski czasu",
+  "ptBR": "Areias do Tempo",
+  "ruRU": "Пески времени",
+  "thTH": "ทรายแห่งเวลา",
+  "zhCN": "时间之沙",
+  "zhTW": "時間之沙"
+ },
+ "textInHand": {
+  "enUS": "<b>Rewind</b>\n<b>Discover</b> a spell from\nANY class. <i>(Or just your class after you <b>Rewind</b>!)</i>",
+  "deDE": "<b>Zurückspulen</b>. <b>Entdeckt</b> einen Zauber einer zufälligen Klasse. <i>(Oder nur Eurer Klasse, nachdem Ihr <b>zurückgespult</b> habt!)</i>",
+  "esES": "<b>Rebobinar</b>\n<b>Descubre</b> un hechizo de cualquier clase. <i>(¡O solo de tu clase después de <b>Rebobinar</b>!)</i>.",
+  "esMX": "<b>Rebobinar</b> <b>Devela</b> un hechizo de CUALQUIER clase. <i>(¡O simplemente de tu clase después de_<b>Rebobinar</b>!)</i>",
+  "frFR": "<b>Rembobinage</b>\n<b>Découvre</b> un sort de n’importe quelle classe. <i>(Ou de votre propre classe une fois que vous_avez <b>rembobiné</b>_!)</i>",
+  "itIT": "[x]<b>Riavvolgimento</b>. <b>Rinvieni</b>\nuna Magia di QUALSIASI\nclasse. <i>(Oppure solo della tua\nclasse dopo che hai effettuato\nun <b>Riavvolgimento</b>!)</i>",
+  "jaJP": "[x]<b>巻き戻し</b>\nあらゆるクラスの\n呪文から1つを<b>発見</b>する。\n<i>（または、<b>巻き戻し</b>の後なら\n自分のクラスのみ！）</i>",
+  "koKR": "<b>되돌리기</b> 무작위 직업의 주문을 <b>발견</b>합니다. <i>(<b>되돌리기</b> 후에는 내 직업의 주문을 발견합니다!)</i>",
+  "plPL": "<b>Cofnięcie</b>\n<b>Odkryj</b> zaklęcie DOWOLNEJ klasy. <i>(Albo, po_użyciu <b>Cofnięcia</b>, tylko_twojej_klasy!)</i>",
+  "ptBR": "<b>Retroceder</b>\n<b>Descubra</b> um feitiço de QUALQUER classe.\n<i>(Ou só da sua classe após <b>Retroceder</b>!)</i>",
+  "ruRU": "[x]<b>Перемотка:</b> вы <b>раскапываете</b>\nзаклинание любого класса.\n<i>(Или только вашего класса\nпосле <b>«Перемотки»</b>!)</i>",
+  "thTH": "<b>ย้อนเวลา</b> <b>ค้นพบ</b>_เวทมนตร์จากคลาสใด[b]ก็ได้หนึ่งใบ_<i>(หรือแค่จากคลาส[b]ของคุณหลังจากคุณ_<b>ย้อนเวลา</b>!)</i>",
+  "zhCN": "<b>回溯</b>。<b>发现</b>一张任意职业的法术牌。<i>（在<b>回溯</b>后改为你的职业！）</i>",
+  "zhTW": "<b>倒轉</b>\n<b>發現</b>一個任何職業的法術<i>(在你<b>倒轉</b>後只會有你職業的法術！)</i>"
+ },
+ "tags": {
+  "199": 12,
+  "321": 1,
+  "203": 4,
+  "202": 5,
+  "48": 1,
+  "415": 1,
+  "1342": 1,
+  "3934": 1,
+  "2589": 1
+ }
+}

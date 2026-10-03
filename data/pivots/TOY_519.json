@@ -1,0 +1,52 @@
+{
+ "cardId": "TOY_519",
+ "dbfId": 104864,
+ "preset": {
+  "label": "法术基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "普通法术基线（有稀有度），用于验证法术版式、稀有度与战棋模板铸币光效。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Everything Must Go!",
+  "deDE": "Alles muss weg!",
+  "esES": "¡Liquidación total!",
+  "esMX": "¡Hoy se vende todo!",
+  "frFR": "Tout doit disparaître !",
+  "itIT": "Fuori Tutto!",
+  "jaJP": "売り尽くしセール！",
+  "koKR": "재고 처분!",
+  "plPL": "Totalna wyprzedaż",
+  "ptBR": "Tudo Tem que Ir Embora!",
+  "ruRU": "Тотальная распродажа!",
+  "thTH": "ลดยกร้าน!",
+  "zhCN": "一件不留",
+  "zhTW": "清倉大拍賣！"
+ },
+ "textInHand": {
+  "enUS": "Summon two random 4-Cost minions. Costs (1) less for each card you've drawn this turn. ",
+  "deDE": "Ruft zwei zufällige Diener herbei, die 4 kosten. Dieser Zauber kostet (1) weniger pro Karte, die Ihr in diesem Zug gezogen habt.",
+  "esES": "Invoca dos esbirros aleatorios de coste 4. Cuesta (1) cristal menos por cada carta que hayas robado este_turno.",
+  "esMX": "Invoca dos esbirros aleatorios de costo 4. Cuesta (1) menos por cada carta que hayas robado en este turno.",
+  "frFR": "Invoque deux serviteurs aléatoires coûtant 4_|4(cristal,cristaux). Coûte (1)_|4(cristal,cristaux) de moins pour chaque carte que vous avez piochée pendant ce tour.",
+  "itIT": "Evoca due servitori casuali da 4 Mana. Costa_(1) in meno per ogni carta che hai\npescato in questo turno.",
+  "jaJP": "[x]ランダムなコスト（4）の\nミニオン2体を召喚する。\nこのターンに自分が\n引いたカード1枚につき\nコストが（1）減る。",
+  "koKR": "비용이 4인 무작위 하수인을 둘 소환합니다. 이번 턴에 뽑은 카드 하나당 비용이 (1)씩 감소합니다.",
+  "plPL": "Przyzwij dwóch losowych stronników o_koszcie_(4). Kosztuje (1)_mniej za każdą kartę dobraną przez ciebie w_tej_turze.",
+  "ptBR": "Evoque dois lacaios aleatórios de Custo 4. Custa (1) a menos para card que você comprou neste turno.",
+  "ruRU": "Призывает двух случайных существ за (4). Стоит на (1) меньше за каждую карту,\n[x]взятую вами на этом ходу.",
+  "thTH": "สุ่มเรียกมินเนี่ยนค่าร่าย 4 สองตัว ค่าร่ายลดลง (1)_ต่อการ์ดแต่ละใบ[b]ที่คุณเคยจั่วในเทิร์นนี้",
+  "zhCN": "随机召唤两个法力值消耗为（4）的随从。在本回合中你每抽过一张牌，本牌的法力值消耗便减少（1）点。",
+  "zhTW": "隨機召喚兩個消耗為4的手下。你在本回合抽出的每張牌使其消耗減少(1)"
+ },
+ "tags": {
+  "199": 7,
+  "203": 4,
+  "202": 5,
+  "48": 8,
+  "321": 1
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "cardId": "WW_373",
+ "dbfId": 101375,
+ "preset": {
+  "label": "异画2基线",
+  "premium": "SIGNATURE",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "异画样例 2，用于验证异画导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Reska, the Pit Boss",
+  "deDE": "Reska, der Grubenboss",
+  "esES": "Reska, jefe de la trifulca",
+  "esMX": "Reska, encargada del foso",
+  "frFR": "Reska, responsable de la fosse",
+  "itIT": "Reska, Boss della Fossa",
+  "jaJP": "鉱山長レスカ",
+  "koKR": "구덩이 두목 레스카",
+  "plPL": "Reska, Postrach Otchłani",
+  "ptBR": "Reska, Chefe do Fosso",
+  "ruRU": "Бригадир Реска",
+  "thTH": "เรสกา หัวหน้าเหมือง",
+  "zhCN": "矿坑老板雷斯卡",
+  "zhTW": "礦坑老大雷斯卡"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Rush</b>. Costs (1) less for each\nminion that died this game.\n<b>Deathrattle:</b> Take control of a\nrandom enemy minion.",
+  "deDE": "<b>Eifer</b>. Kostet (1) weniger für jeden Diener, der in diesem Spiel gestorben_ist.\n<b>Todesröcheln:</b> Übernehmt die Kontrolle_über_einen_zufälligen feindlichen_Diener.",
+  "esES": "<b>Embestir</b>. Cuesta (1) cristal menos por cada esbirro que haya muerto en la partida. <b>Último aliento:</b> Toma el control de un esbirro enemigo aleatorio.",
+  "esMX": "<b>Acometida</b>. Cuesta (1) menos por cada esbirro que haya muerto en esta_partida. <b>Estertor:</b> toma el_control de un esbirro enemigo aleatorio.",
+  "frFR": "<b>Ruée</b>\nCoûte (1)_|4(cristal,cristaux) de moins pour chaque serviteur mort pendant cette partie. <b>Râle d’agonie_:</b> prend le contrôle d’un serviteur adverse aléatoire.",
+  "itIT": "<b>Assalto</b>. Costa (1) in meno per ogni servitore morto in questa partita. <b>Rantolo di Morte:</b> prendi il controllo di un servitore nemico casuale.",
+  "jaJP": "[x]<b>急襲</b>\nこの対戦で死亡した\nミニオン1体につき\nコストが（1）減る。\n<b>断末魔:</b>_ランダムな敵の\n_______ミニオン1体を味方にする。___",
+  "koKR": "<b>속공</b>, 이번 게임에서 죽은 하수인 하나당 비용이 (1) 감소합니다.\n<b>죽음의 메아리:</b> 무작위 적 하수인을 가져옵니다.",
+  "plPL": "<b>Zryw</b>\nKosztuje (1)_mniej za każdego stronnika, który zginął w_tej grze. <b>Agonia:</b> Przejmij kontrolę nad losowym_wrogim_stronnikiem.",
+  "ptBR": "<b>Rapidez</b>. Custa (1) a menos para cada lacaio morto nesta partida. <b>Último Suspiro:</b> Tome controle de um_lacaio_inimigo_aleatório.",
+  "ruRU": "<b>Натиск</b>. Стоит на (1) меньше за каждое существо, погибшее в этом матче. <b>Предсмертный хрип:</b> вы получаете контроль над случайным существом противника.",
+  "thTH": "<b>จู่โจม</b> ค่าร่ายลดลง (1) ต่อ[b]มินเนี่ยนแต่ละตัวที่ตายในเกมนี้ <b>เสียงสุดท้าย:</b>_สุ่มควบคุม[b]มินเนี่ยนศัตรูหนึ่งตัว",
+  "zhCN": "<b>突袭</b>。在本局对战中每有一个随从死亡，本牌的法力值消耗便减少（1）点。<b>亡语：</b>随机夺取一个敌方随从的控制权。",
+  "zhTW": "<b>衝刺</b>\n本賽局死亡的每個手下使消耗減少(1)。<b>死亡之聲：</b>控制一個隨機敵方手下"
+ },
+ "tags": {
+  "199": 1,
+  "321": 1,
+  "114": 1,
+  "203": 5,
+  "202": 4,
+  "48": 20,
+  "47": 6,
+  "45": 3,
+  "200": 11,
+  "2198": 1,
+  "217": 1,
+  "2197": 1,
+  "791": 1,
+  "2589": 1,
+  "4128": 1
+ }
+}

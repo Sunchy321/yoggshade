@@ -1,0 +1,51 @@
+{
+ "cardId": "AV_205p",
+ "dbfId": 66954,
+ "preset": {
+  "label": "英雄技能基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "英雄技能样例，用于验证英雄技能导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Nurture",
+  "deDE": "Hege und Pflege",
+  "esES": "Nutrir",
+  "esMX": "Nutrir",
+  "frFR": "Nourricier",
+  "itIT": "Nutrimento",
+  "jaJP": "はぐくみ",
+  "koKR": "양성",
+  "plPL": "Użyźnienie",
+  "ptBR": "Nutrir",
+  "ruRU": "Забота",
+  "thTH": "อุ้มชู",
+  "zhCN": "培育",
+  "zhTW": "培育"
+ },
+ "textInHand": {
+  "enUS": "<b>Choose One -</b> Draw a card; or Gain an empty Mana Crystal.",
+  "deDE": "[x]<b>Wählt aus:</b> Zieht eine\nKarte; oder erhaltet einen\nleeren Manakristall.",
+  "esES": "<b>Elige una:</b> Roba una carta, o bien obtén un cristal de maná vacío.",
+  "esMX": "<b>Elige una opción:</b> roba una carta u obtienes un Cristal de maná vacío.",
+  "frFR": "<b>Choix des armes_:</b> vous piochez une carte ou vous gagnez un cristal de mana vide.",
+  "itIT": "<b>Scegli:</b> pesca una carta <b>o</b> ottieni un Cristallo di Mana vuoto.",
+  "jaJP": "[x]<b>選択:</b>\nカードを1枚引く。または\n空のマナクリスタルを\n1つ獲得する。",
+  "koKR": "<b>선택 -</b> 카드를 뽑습니다. 또는 빈 마나 수정을 얻습니다.",
+  "plPL": "<b>Wybierz jedno:</b> Dobierz kartę; lub otrzymujesz pusty kryształ many.",
+  "ptBR": "<b>Escolha Um -</b> Compre um card; ou Receba um Cristal de Mana vazio.",
+  "ruRU": "<b>Выберите эффект:</b> вы берете карту или получаете пустой кристалл маны.",
+  "thTH": "<b>เลือกหนึ่งอย่าง_-</b>_จั่วการ์ด[b]หนึ่งใบ_หรือได้รับคริสตัล[b]มานาเปล่าหนึ่งอัน",
+  "zhCN": "<b>抉择：</b>抽一张牌；或者获得一个空的法力水晶。",
+  "zhTW": "<b>二選一：</b>抽一張牌，或是獲得一顆空的法力水晶"
+ },
+ "tags": {
+  "199": 2,
+  "202": 10,
+  "48": 2,
+  "443": 1
+ }
+}

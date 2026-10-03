@@ -1,0 +1,57 @@
+{
+ "cardId": "YOG_502",
+ "dbfId": 100875,
+ "preset": {
+  "label": "锻造样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "锻造机制样例，用于验证锻造相关文本与卡面版式。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "TTNIcon_MiniSet.tif:2e2533b435c9b8a47acd3297128aac57",
+ "name": {
+  "enUS": "Sanitize",
+  "deDE": "Säubern",
+  "esES": "Esterilizar",
+  "esMX": "Desinfectar",
+  "frFR": "Aseptisation",
+  "itIT": "Sanitizzazione",
+  "jaJP": "滅菌",
+  "koKR": "방역",
+  "plPL": "Czystka",
+  "ptBR": "Desinfetar",
+  "ruRU": "Обеззараживание",
+  "thTH": "ฆ่าเชื้อ",
+  "zhCN": "清理污染",
+  "zhTW": "消毒"
+ },
+ "textInHand": {
+  "enUS": "[x]Deal damage equal to\nyour Armor to all minions.\n<b>Forge:</b> Gain 3 Armor first.",
+  "deDE": "Fügt allen Dienern Schaden in Höhe Eurer Rüstung zu. <b>Schmieden:</b> Erhaltet zuerst 3 Rüstung.",
+  "esES": "[x]Inflige daño equivalente a tu\narmadura en todos los esbirros.\n<b>Forja:</b> Primero obtienes\n3 p. de armadura.",
+  "esMX": "Inflige_daño_equivalente a tu Armadura a todos los esbirros. <b>Forjar:</b> Obtén 3 de Armadura primero.",
+  "frFR": "Inflige des dégâts d’un montant égal_à vos points d’armure à chaque_serviteur.\n<b>Forge_:</b> vous gagnez d’abord 3_points d’armure.",
+  "itIT": "Infligge danni pari alla tua Armatura a TUTTI i servitori. <b>Forgia:</b> prima fornisce 3 Armatura.",
+  "jaJP": "[x]全てのミニオンに\n自分の装甲に等しい\nダメージを与える。\n<b>鍛造:</b>\n先に装甲を3獲得する。",
+  "koKR": "<b>모든</b> 하수인에게 내 방어도만큼 피해를 줍니다.\n<b>제련:</b> 먼저 방어도를 3 얻습니다.",
+  "plPL": "Zadaj wszystkim stronnikom obrażenia równe twojemu pancerzowi.\n<b>Wykuj:</b> Najpierw otrzymujesz 3_pkt._pancerza.",
+  "ptBR": "Cause dano igual à sua Armadura a todos os lacaios. <b>Forjar:</b> Receba 3 de Armadura primeiro.",
+  "ruRU": "Вы наносите всем существам урон, равный броне вашего героя.\n<b>Ковка:</b> прежде вы получаете +3_к_броне.",
+  "thTH": "สร้างความเสียหายเท่า[b]จำนวนเกราะของคุณให้[b]มินเนี่ยนทั้งหมด <b>หล่อหลอม:</b> ได้รับเกราะ 3 แต้มก่อน",
+  "zhCN": "对所有随从造成等同于你的护甲值的伤害。<b>锻造：</b>先获得3点护甲值。",
+  "zhTW": "對全部手下造成等同你護甲值的傷害\n<b>鑄造：</b>先獲得3點\n護甲值"
+ },
+ "tags": {
+  "199": 10,
+  "48": 4,
+  "203": 1,
+  "2785": 1,
+  "321": 1,
+  "202": 5,
+  "1743": 2,
+  "1452": 100876,
+  "3074": 100876,
+  "1824": 1
+ }
+}

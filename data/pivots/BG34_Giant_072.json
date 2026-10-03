@@ -1,0 +1,61 @@
+{
+ "cardId": "BG34_Giant_072",
+ "dbfId": 127129,
+ "preset": {
+  "label": "时空扭曲随从",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "时空扭曲随从基线，用于验证时间酒馆随从的 TIME_TAVERN_TIER_ICON 图标渲染。"
+ },
+ "textBuilderType": 28,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Timewarped Skipper",
+  "deDE": "Zeitverzerrter Springer",
+  "esES": "Brincador asíncrono",
+  "esMX": "Saltarríos cronoanómalo",
+  "frFR": "Cavaleur chronodistordu",
+  "itIT": "Saltatore Crono-distorto",
+  "jaJP": "時渡の船頭",
+  "koKR": "시간왜곡의 펄럭이",
+  "plPL": "Czasoskoczny skoczek",
+  "ptBR": "Salta-rios Transtemporal",
+  "ruRU": "Хрономальный скакун",
+  "thTH": "สคิปเปอร์ไทม์วาร์ป",
+  "zhCN": "时空扭曲弹跳鱼",
+  "zhTW": "時光扭曲跳越者"
+ },
+ "textInHand": {
+  "enUS": "[x]After you sell a Tier 2\nminion, get a random\nTier 1 minion.",
+  "deDE": "Erhaltet einen zufälligen Diener der Stufe 1, nachdem Ihr einen Diener der Stufe 2 verkauft habt.",
+  "esES": "Después de que vendas un_esbirro de nivel 2, obtienes un esbirro de nivel 1 aleatorio.",
+  "esMX": "Después de que vendes un_esbirro de nivel 2, obtienes un esbirro de nivel 1 aleatorio.",
+  "frFR": "Une fois que vous avez vendu un serviteur de niveau_2, vous obtenez un serviteur aléatoire de niveau_1.",
+  "itIT": "Quando vendi un servitore\ndi Livello 2, ottieni un servitore casuale di Livello 1.",
+  "jaJP": "[x]自分がグレード2の\nミニオンを売った後\nランダムなグレード1の\n_______ミニオン1体を得る。__",
+  "koKR": "내가 2단계 하수인을 판 후 무작위 1단계 하수인을 얻습니다.",
+  "plPL": "Gdy sprzedasz stronnika z_Poziomu_2, otrzymujesz losowego stronnika z_Poziomu_1.",
+  "ptBR": "Depois que você vender\num lacaio de Grau 2,\nreceba um lacaio aleatório de Grau 1.",
+  "ruRU": "После того как вы продаете существо 2-го уровня, вы_получаете случайное существо 1-го уровня.",
+  "thTH": "หลังจากคุณขาย[b]มินเนี่ยนขั้น_2_สุ่มรับ[b]มินเนี่ยนขั้น_1_หนึ่งใบ",
+  "zhCN": "在你出售一个等级2的随从后，随机获取一张等级1的随从牌。",
+  "zhTW": "當你出售一個旅店等級\n2手下時，獲得一個隨機旅店等級1手下"
+ },
+ "tags": {
+  "199": 8,
+  "1440": 3,
+  "47": 5,
+  "45": 6,
+  "200": 14,
+  "1592": 1,
+  "202": 4,
+  "4408": 1,
+  "4466": 1,
+  "48": 2,
+  "4462": 1,
+  "32": 1,
+  "1429": 127342,
+  "4503": 1
+ }
+}

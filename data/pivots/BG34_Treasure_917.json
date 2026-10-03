@@ -1,0 +1,57 @@
+{
+ "cardId": "BG34_Treasure_917",
+ "dbfId": 126262,
+ "preset": {
+  "label": "时空扭曲法术",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "时空扭曲法术基线，用于验证时间酒馆法术的 TIME_TAVERN_TIER_ICON 图标渲染。"
+ },
+ "textBuilderType": 28,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Timewarped New Recruit",
+  "deDE": "Zeitverzerrter neuer Rekrut",
+  "esES": "Nuevo recluta asíncrono",
+  "esMX": "Nuevo recluta cronoanómalo",
+  "frFR": "Recrue chronodistordue",
+  "itIT": "Nuova Recluta Crono-distorta",
+  "jaJP": "時渡の新顔",
+  "koKR": "시간왜곡의 새로 온 하수인",
+  "plPL": "Czasoskoczny nowy rekrut",
+  "ptBR": "Novo Recruta Transtemporal",
+  "ruRU": "Хрономальный рекрут",
+  "thTH": "นักสู้หน้าใหม่ไทม์วาร์ป",
+  "zhCN": "时空扭曲物色新人",
+  "zhTW": "時光扭曲招募新夥伴"
+ },
+ "textInHand": {
+  "enUS": "Give minions in the Tavern +{0}/+{1} this game. The Tavern always has 7 cards this game.",
+  "deDE": "Verleiht Dienern im Gasthaus in diesem Spiel +{0}/+{1}. Das Gasthaus hat in diesem Spiel immer 7_Karten.",
+  "esES": "Otorga +{0}/+{1} esta partida a los esbirros de la taberna. La taberna siempre tiene 7 cartas esta partida.",
+  "esMX": "Otorga +{0}/+{1} a los esbirros de la Taberna en esta partida. La Taberna siempre tiene 7 cartas en esta partida.",
+  "frFR": "Donne_+{0}/+{1} aux serviteurs dans la_taverne pendant cette_partie. La taverne propose toujours 7_cartes pendant cette_partie.",
+  "itIT": "+{0}/+{1} ai servitori nella\nLocanda in questa partita.\nLa Locanda ha sempre 7 carte\nin questa partita.",
+  "jaJP": "[x]酒場のミニオン全てに\nこの対戦中、+{0}/+{1}を\n付与する。\nこの対戦中、酒場には常に\nカードが7枚並ぶ。",
+  "koKR": "이번 게임 동안 선술집에 있는 하수인들에게 +{0}/+{1}|1(을,를) 부여합니다. 이번 게임 동안 선술집에 카드가 항상 7장 생깁니다.",
+  "plPL": "Daj_stronnikom_w_Karczmie +{0}/+{1}_w_tej_grze. W_tej_grze_w_Karczmie jest zawsze 7_kart.",
+  "ptBR": "Conceda +{0}/+{1} aos lacaios da Taverna nesta partida. A Taverna sempre terá 7 cards nesta partida.",
+  "ruRU": "Существа в таверне получают +{0}/+{1} до конца матча. В таверне всегда 7_карт до конца матча.",
+  "thTH": "มอบ_+{0}/+{1}_ให้มินเนี่ยน[b]ทั้งหมดในโรงเตี๊ยมในเกมนี้ โรงเตี๊ยมมีการ์ด_7_ใบเสมอ[b]ในเกมนี้",
+  "zhCN": "在本局对战中，使酒馆中的随从获得+{0}/+{1}。酒馆中始终会有7张牌。",
+  "zhTW": "在本賽局中旅店永遠有7張卡牌。在本賽局中賦予旅店的手下+{0}/+{1}"
+ },
+ "tags": {
+  "202": 42,
+  "199": 12,
+  "48": 1,
+  "4408": 1,
+  "4463": 1,
+  "4466": 1,
+  "1440": 3,
+  "4503": 1,
+  "2": 2,
+  "3": 2
+ }
+}

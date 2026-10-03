@@ -1,0 +1,53 @@
+{
+ "cardId": "LT23_803P2",
+ "dbfId": 87111,
+ "preset": {
+  "label": "佣兵技能2",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "佣兵技能样例 2，用于验证另一张 LETTUCE_ABILITY 渲染。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "No Negotiation",
+  "deDE": "Keine Verhandlungen",
+  "esES": "Sin negociaciones",
+  "esMX": "No hay trato",
+  "frFR": "Aucune négociation",
+  "itIT": "Nessuna Trattativa",
+  "jaJP": "交渉は死ねェ",
+  "koKR": "협상은 없다",
+  "plPL": "Żadnych negocjacji",
+  "ptBR": "Nada de Negociar",
+  "ruRU": "Переговоры окончены",
+  "thTH": "ไม่เจรจา",
+  "zhCN": "拒绝谈判",
+  "zhTW": "絕不協商"
+ },
+ "textInHand": {
+  "enUS": "Turn a character into a Protector. If they are already a Protector, deal $@ damage to them. ",
+  "deDE": "[x]Verwandelt einen Charakter\nin einen Beschützer. Fügt\nihm $@ Schaden zu, wenn er\nbereits ein Beschützer ist. ",
+  "esES": "Convierte en protector a un personaje. Si ya es protector, le inflige $@ p. de daño.",
+  "esMX": "Transforma un personaje en Protector. Si ya es Protector, le inflige $@ de daño.",
+  "frFR": "Transforme un personnage en Protecteur. S’il est déjà un Protecteur, lui inflige $@_|4(point,points) de dégâts.",
+  "itIT": "Trasforma un personaggio in un Protettore. Se è già un Protettore, gi infligge $@ |4(danno,danni). ",
+  "jaJP": "[x]キャラクター1体の兵種を\n「護衛」に変える。\n既に「護衛」なら\n$@ダメージを与える。",
+  "koKR": "캐릭터를 수호자로 만듭니다. 그 캐릭터가 이미 수호자면, 피해를 $@ 줍니다.",
+  "plPL": "Zamień postać w_Obrońcę. Jeśli jest już Obrońcą, zadaj jej $@_pkt. obrażeń.",
+  "ptBR": "Transforme um personagem em Protetor. Se já for um Protetor, cause $@ de dano a ele. ",
+  "ruRU": "Превращает существо или наемника в защитника. Если цель уже является защитником, наносит ей $@ ед. урона. ",
+  "thTH": "เปลี่ยนตัวละครหนึ่งตัว[b]เป็นนักคุ้มครอง ถ้ามันเป็น[b]นักคุ้มครองอยู่แล้ว_สร้าง[b]ความเสียหาย_$@_แต้มให้มัน",
+  "zhCN": "将一个角色变为护卫。如果目标已经是护卫，则对其造成$@点伤害。",
+  "zhTW": "將一個角色轉換為保護者。若該角色已是保護者，對其造成$@點傷害"
+ },
+ "tags": {
+  "199": 12,
+  "2": 20,
+  "202": 23,
+  "48": 3,
+  "1669": 1,
+  "1672": 1
+ }
+}

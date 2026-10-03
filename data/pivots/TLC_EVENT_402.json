@@ -1,0 +1,58 @@
+{
+ "cardId": "TLC_EVENT_402",
+ "dbfId": 120658,
+ "preset": {
+  "label": "异画6基线",
+  "premium": "SIGNATURE",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "异画样例 6，用于验证异画导出。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Staff of the Endbringer",
+  "deDE": "Stab der Endbringerin",
+  "esES": "Báculo de la Portaextinciones",
+  "esMX": "Báculo de extinción",
+  "frFR": "Bâton de la porte-trépas",
+  "itIT": "Bastone della Portapena",
+  "jaJP": "終焉をもたらす者の杖",
+  "koKR": "최후의 인도자의 지팡이",
+  "plPL": "Kostur Krzewicielki Kresu",
+  "ptBR": "Cajado da Encerra-caso",
+  "ruRU": "Посох Вестницы гибели",
+  "thTH": "ไม้เท้าผู้นำพาหายนะ",
+  "zhCN": "末日使者之杖",
+  "zhTW": "終結者法杖"
+ },
+ "textInHand": {
+  "enUS": "<b>Deathrattle:</b> Destroy all minions.",
+  "deDE": "<b>Todesröcheln:</b> Vernichtet alle Diener.",
+  "esES": "<b>Último aliento:</b> Destruye todos los_esbirros.",
+  "esMX": "<b>Estertor:</b> destruye a todos los esbirros.",
+  "frFR": "<b>Râle d’agonie_:</b> détruit chaque serviteur.",
+  "itIT": "<b>Rantolo di Morte:</b>\ndistrugge TUTTI\ni servitori.",
+  "jaJP": "[x]<b>断末魔:</b>\n全てのミニオンを\n破壊する。",
+  "koKR": "<b>죽음의 메아리:</b> 모든 하수인을 처치합니다.",
+  "plPL": "<b>Agonia:</b> Zniszcz wszystkich stronników.",
+  "ptBR": "<b>Último Suspiro:</b>\nDestrua todos os_lacaios.",
+  "ruRU": "<b>Предсмертный хрип:</b> уничтожает всех существ на поле.",
+  "thTH": "<b>เสียงสุดท้าย:</b>_ทำลาย[b]มินเนี่ยนทั้งหมด",
+  "zhCN": "<b>亡语：</b>消灭所有随从。",
+  "zhTW": "<b>死亡之聲：</b>摧毀全部手下"
+ },
+ "tags": {
+  "203": 5,
+  "199": 1,
+  "48": 3,
+  "47": 1,
+  "202": 7,
+  "201": 3,
+  "45": 6,
+  "114": 1,
+  "321": 1,
+  "217": 1,
+  "2589": 1
+ }
+}
