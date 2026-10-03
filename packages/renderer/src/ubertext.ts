@@ -206,8 +206,14 @@ export function renderText(
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
     for (const g of layout.lines[li]) {
       const { info, mask } = fm.charInfo(g.ch);
+      // 描边半径单位 = **字体/图集 texel**（UberText.UpdateOutlineProperties 2065-2068：
+      // offset = TexelSize(fontTexture) × m_OutlineSize×mods，即图集 texel 空间），
+      // 故 buffer texel 半径 = r × kPx（kPx = 本缓冲每字体 px）。旧口径按「画布 texel × ss」
+      // 传 r×ss，描边比引擎厚 ~1.4×（英雄技能名字 r=4.5 → 等效 6.4 字体 px），
+      // 表现为笔画边缘毛刺、白笔画被啃（对照游戏内快照 MAE 名字区 13.7 → 11.8、
+      // 费用数字 MSE 241 → 159；武器帧第二参照 194 → 76）。
       const g4 = glyphOutlineShader(mask, info, kPx, fill, outline, g.bold ? boldPx : 0,
-        outline ? outline.r * ss : 0.0);
+        outline ? outline.r * kPx : 0.0);
       const px = pyRound(pen0 + g.penX * nsScaleS - g4.ox);
       const py = pyRound(baseline - g4.oy);
       composite(buf, W * ss, H * ss, g4.data, g4.w, g4.h, px, py);
