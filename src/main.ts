@@ -61,7 +61,9 @@ encodePng(outPng, W, H, rgba8);
 
 const ms = Date.now() - t0;
 console.log(JSON.stringify({
-  out: outPng, stage, card: cardId ?? 'EX1_350(plan)',
+  out:         outPng,
+  stage,
+  card:        cardId ?? 'EX1_350(plan)',
   frame_nodes: frameNodes.map(n => n.name),
-  tris: nTris, ms,
+  tris:        nTris, ms,
 }, null, 1));

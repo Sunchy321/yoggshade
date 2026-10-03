@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PX_PER_UNIT, HALF_W, HALF_H, SIZE } from './camera.js';
 import { FontMetrics, PackFontMetrics, type FontMetricsLike } from './font.js';
-import { glyphRgba, composite, pyRound } from './glyph.js';
+import { glyphOutlineShader, composite, pyRound } from './glyph.js';
 import { resampleImage } from './resize.js';
 import { layoutText, BOLD_SIZE_CAP, type Layout } from './textlayout.js';
 import { walkWithKey } from './assets.js';
@@ -185,7 +185,7 @@ export function renderText(
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
     for (const g of layout.lines[li]) {
       const { info, mask } = fm.charInfo(g.ch);
-      const g4 = glyphRgba(mask, info, kPx, fill, outline, g.bold ? boldPx : 0,
+      const g4 = glyphOutlineShader(mask, info, kPx, fill, outline, g.bold ? boldPx : 0,
         outline ? outline.r * ss : 0.0);
       const px = pyRound(pen0 + g.penX * nsScaleS - g4.ox);
       const py = pyRound(baseline - g4.oy);
@@ -230,6 +230,17 @@ function renderRtt(
   const meshCanvasW = (wxMax - wxMin) * scene.s;
   const radiusOut = outline ? outline.r * rtW * rtSs / meshCanvasW : 0.0;
   const rt = new Float64Array(rth * rtw * 4);
+  // SetTargetClearColor（UberText.Runtime.decompiled）：RT 清屏色 = 描边色（无描边=文字色）
+  // 且 alpha=0——网格边缘像素向墨色渐变，避免黑色清屏导致的暗边毛刺
+  {
+    const cc = outline ? outline.color : fill;
+    for (let i = 0; i < rtw * rth; i++) {
+      rt[i * 4] = cc[0];
+      rt[i * 4 + 1] = cc[1];
+      rt[i * 4 + 2] = cc[2];
+      rt[i * 4 + 3] = 0;
+    }
+  }
   const cx = rtw / 2.0, cy = rth / 2.0;
   const pitchC = layout.pitch * q;
   const boxHC = layout.boxH * q;
@@ -238,17 +249,24 @@ function renderRtt(
     const pen0 = cx - (layout.lineWidths[li] * q) / 2.0;
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
     for (const g of layout.lines[li]) {
+      // Hidden/TextOutline_Unlit FS 逐像素语义：alpha = clamp(center + Σ8方向图集采样, 0, 1)，
+      // rgb = mix(描边色, 顶点色, center)；采样偏移 = OutlineSize 个图集 texel（= 字体像素，
+      // 对角 ×0.6）。单 pass 同时产出填充（mix 的 center 项）与描边（饱和求和项）。
       const { info, mask } = fm.charInfo(g.ch);
-      const g4 = glyphRgba(mask, info, kRt, fill, outline, g.bold ? boldPx : 0, radiusOut);
+      const g4 = glyphOutlineShader(mask, info, kRt, fill, outline, g.bold ? boldPx : 0, radiusOut);
       composite(rt, rtw, rth, g4.data, g4.w, g4.h,
         pyRound(pen0 + g.penX * q - g4.ox), pyRound(baseline - g4.oy));
     }
   }
   quantTruncBuf(rt);
-  const rtArr = resampleImage(rt, rtw, rth, 4, rtW, rtH, 'lanczos', true);
+  const rtArr = resampleImage(rt, rtw, rth, 4, rtW, rtH, process.env.RT_BILINEAR ? 'bilinear' : 'lanczos', true);
 
   const W = SIZE[0], H = SIZE[1];
   const layer = new Float64Array(H * W * 4);
+  // 像素所有权：共享边的像素只归属本网格内第一个覆盖它的三角形（GPU top-left fill rule
+  // 的等价语义）。无此规则时共享边像素被相邻三角形各合成一次，半透明边重复混合变暗——
+  // 名牌白字笔画内的黑斑/毛刺即由此而来（RT 中间缓冲无此伪影，网格采样步引入）。
+  const written = new Uint8Array(W * H);
   const M = mesh.world;
   const n = mesh.verts.length;
   const pxs = new Float64Array(n), pys = new Float64Array(n);
@@ -279,6 +297,7 @@ function renderRtt(
         const l2 = ((xs[1] - xs[0]) * (gy - ys[0]) - (ys[1] - ys[0]) * (gx - xs[0])) / d;
         const l0 = 1.0 - l1 - l2;
         if (l0 < -1e-6 || l1 < -1e-6 || l2 < -1e-6) continue;
+        if (written[y * W + x]) continue;
         const u = l0 * uv[ia][0] + l1 * uv[ib][0] + l2 * uv[ic][0];
         const v = l0 * uv[ia][1] + l1 * uv[ib][1] + l2 * uv[ic][1];
         const col = Math.min(Math.max(u * rtW - 0.5, 0), rtW - 1);
@@ -301,6 +320,7 @@ function renderRtt(
           layer[di + c] = (src[c] * sa + layer[di + c] * da * (1 - sa)) / safe;
         }
         layer[di + 3] = outA;
+        written[y * W + x] = 1;
       }
     }
   }
