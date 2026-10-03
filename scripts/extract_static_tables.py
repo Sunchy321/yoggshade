@@ -5,7 +5,14 @@
 """extract_static_tables — 渲染计划用的静态枚举/查名表冻结（data/tables.json）。
 
 内容与来源：
-- class:      TAG_CLASS 枚举值 → 英文名（DLL 反射导出 tag_enum.csv，TAG_CLASS/s_classNames）
+- class:      TAG_CLASS 枚举值 → 枚举名（explore/ilspy/TAG_CLASS.cs 反编译枚举序；
+              CardColorSwitcher.GetColorTypeForClass 的 switch 键即此枚举，见
+              explore/ilspy/CardColorSwitcher.cs:171-189）。注意不能用 tag_enum.csv 的
+              s_classNames 行：那些值是 GameStrings 名称表的下标（Neutral 起头、无 Paladin），
+              与 TAG_CLASS 枚举值不是一回事，按它查表会把德鲁伊/猎人/法师/圣骑士/恶魔猎手
+              错配到别的职业框体（LOOT_392 德鲁伊武器渲染成恶魔猎手深绿框即此因）。
+- schoolZh:   TAG_SPELL_SCHOOL 枚举值 → zhCN 学派名（枚举序 explore/ilspy/TAG_SPELL_SCHOOL.cs +
+              tag_enum.csv 的 label_enUS/label_zhCN 按名对齐；CSV 的 value 列是名称表下标，不可直用）
 - raceZh:     TAG_RACE 枚举值 → zhCN 种族名（TAG_RACE.cs 反编译枚举序 + 游戏 Strings/zhCN/GLOBAL.txt
               的 GLOBAL_RACE_*；同 GameStrings.GetRaceName 链）
 - colorSwitcher: CardColorSwitcher 单例序列化列表本体（essential_base_global-prefab-0 内
@@ -35,13 +42,40 @@ HS_DATA = Path("/Applications/Hearthstone/Data/OSX")
 EXPLORE_DATA = REPO / "explore" / "hs-render" / "data"
 TAG_ENUM = EXPLORE_DATA / "card_tags" / "tag_enum.csv"
 GAME_TAG = EXPLORE_DATA / "game_tag.csv"
+ILSPY = REPO / "explore" / "ilspy"
+TAG_CLASS_CS = ILSPY / "TAG_CLASS.cs"
+TAG_SPELL_SCHOOL_CS = ILSPY / "TAG_SPELL_SCHOOL.cs"
 TAG_RACE_CS = REPO / "explore" / "hs-render" / "lab" / "2026-09-30-mana-gem-locator" / "output" / "decomp-gem" / "full" / "TAG_RACE.cs"
 SWITCHER_BUNDLE = HS_DATA / "essential_base_global-prefab-0.unity3d"
 
 
-def parse_enum_csv() -> dict[str, str]:
-    """tag_enum.csv 的 TAG_CLASS/s_classNames/label_enUS 列 → {value: name}。"""
+def parse_enum_names(path: Path, expect: dict[str, str]) -> dict[str, str]:
+    """反编译枚举 .cs → {值: 枚举名}（隐式序号续排；expect 为抽查断言）。"""
     out: dict[str, str] = {}
+    value = -1
+    for m in re.finditer(r"^\s*([A-Z_]+)\s*(?:=\s*(\d+))?,?", path.read_text(encoding="utf-8"), re.M):
+        name, explicit = m.group(1), m.group(2)
+        value = int(explicit) if explicit is not None else value + 1
+        out[str(value)] = name
+    for k, v in expect.items():
+        if out.get(k) != v:
+            raise SystemExit(f"{path}: 枚举解析结果不合预期（{k}={out.get(k)}，期望 {v}）")
+    return out
+
+
+def parse_tag_class_enum() -> dict[str, str]:
+    """TAG_CLASS.cs 反编译枚举 → {值: 枚举名}（CardColorSwitcher switch 的键）。"""
+    return parse_enum_names(TAG_CLASS_CS, {"2": "DRUID", "14": "DEMONHUNTER", "12": "NEUTRAL"})
+
+
+def parse_school_zh() -> dict[str, str]:
+    """TAG_SPELL_SCHOOL.cs 枚举序 → zhCN 学派名（name 对齐 tag_enum.csv 的 label_enUS/label_zhCN）。
+
+    注意不能用 CSV 的 value 列：那是 GameStrings 名称表下标（冰霜=4、自然=11…），与 TAG_SPELL_SCHOOL
+    枚举值（FROST=3、NATURE=4…）不是一回事——REV_365 的学派 tag=4 是 NATURE(自然)，照 CSV 取值会渲染成
+    "冰霜"（官方卡面为"自然"，2026-10-03 与官方导出图对照发现）。"""
+    enum_names = parse_enum_names(TAG_SPELL_SCHOOL_CS, {"1": "ARCANE", "4": "NATURE", "6": "SHADOW"})
+    zh_by_name: dict[str, str] = {}
     lines = TAG_ENUM.read_text(encoding="utf-8").splitlines()
     header = lines[0].split(",")
     idx = {c: i for i, c in enumerate(header)}
@@ -49,9 +83,9 @@ def parse_enum_csv() -> dict[str, str]:
         parts = ln.split(",")
         if len(parts) < len(header):
             continue
-        if parts[idx["enum_class"]] == "TAG_CLASS" and parts[idx["variant"]] == "s_classNames":
-            out[parts[idx["value"]]] = parts[idx["label_enUS"]]
-    return out
+        if parts[idx["enum_class"]] == "TAG_SPELL_SCHOOL" and parts[idx["variant"]] == "s_spellSchoolNames":
+            zh_by_name[parts[idx["label_enUS"]].replace(" ", "_").upper()] = parts[idx["label_zhCN"]]
+    return {value: zh_by_name[name] for value, name in enum_names.items() if name in zh_by_name}
 
 
 GAMESTRINGS_CS = TAG_RACE_CS.parent / "GameStrings.cs"
@@ -118,13 +152,15 @@ def main() -> int:
     tables = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "sources": {
-            "class": str(TAG_ENUM.relative_to(REPO)),
+            "class": str(TAG_CLASS_CS.relative_to(REPO)),
+            "schoolZh": f"{TAG_SPELL_SCHOOL_CS.relative_to(REPO)} + {TAG_ENUM.relative_to(REPO)}",
             "raceZh": f"{TAG_RACE_CS.relative_to(REPO)} + {GAMESTRINGS_CS.relative_to(REPO)} + Strings/zhCN/GLOBAL.txt",
             "colorSwitcher": str(SWITCHER_BUNDLE.relative_to("/Applications/Hearthstone")),
             "hideTags": str(GAME_TAG.relative_to(REPO)),
         },
-        "class": parse_enum_csv(),
+        "class": parse_tag_class_enum(),
         "raceZh": race_zh,
+        "schoolZh": parse_school_zh(),
         "colorSwitcher": switcher_lists(),
         "hideTags": hide_tags(),
     }

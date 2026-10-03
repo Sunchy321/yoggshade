@@ -63,7 +63,7 @@ function nodeByKeyPath(pack: AssetPack, path: string) {
 export function renderStatGems(
   rgb: Float64Array, pack: AssetPack, textures: TextureStore,
 ): void {
-  const plan = pack.plan;
+  const plan = pack.plan!;
   if (!plan.gem?.enabled || !plan.stat_gems?.length) return;
   const t = plan.gem.t!;
   const clouds = textures.get('GenFX_clouds03.png');
@@ -130,7 +130,7 @@ function rasterGemTri(
 export function renderRarityGemWrap(
   rgb: Float64Array, pack: AssetPack, textures: TextureStore,
 ): void {
-  const plan = pack.plan;
+  const plan = pack.plan!;
   const main = textures.get('GenFX_RarityGems.png');
   const clouds = textures.get('GenFX_clouds03.png');
   const tint = plan.rarity_gem!.tint_rgb!;

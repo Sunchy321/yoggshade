@@ -12,7 +12,7 @@ import {
   renderGemsStage, rgbToRgba8,
 } from './render.js';
 import { encodePng } from './image.js';
-import { compilePlan, type PivotCard, type StaticTables } from './plan.js';
+import { compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT, type PivotCard, type StaticTables } from './plan.js';
 
 function arg(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);
@@ -28,19 +28,27 @@ const outPng = arg('--out') ?? (cardId ? `out/ts_${cardId}.png` : hasFlags ? 'ou
 const stage = arg('--stage') ?? (hasFlags ? 'p2' : process.argv[4] ?? 'p2');
 
 const t0 = Date.now();
-const pack = loadPack(packDir);
 const pivotFile = arg('--pivot-file');
+const slotOverride = arg('--slot');
+let pack;
 if (cardId || pivotFile) {
   const pivot = JSON.parse(
     readFileSync(pivotFile ?? join(dataDir, 'pivots', `${cardId}.json`), 'utf-8'),
   ) as PivotCard;
   const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as StaticTables;
-  pack.plan = compilePlan(pivot, tables, pack, packDir);
+  // 卡型 → 手牌帧 slot（TAG_CARDTYPE；actor_names.csv/ActorNames.cs）；未知卡型回落随从帧
+  const slot = slotOverride ?? CARD_TYPE_TO_SLOT[pivot.tags['202'] ?? 4] ?? 'hand-minion';
+  pack = loadPack(packDir, slot);
+  pack.plan = pack.prefabReport
+    ? compileFramePlan(pivot, tables, pack, packDir, slot)
+    : compilePlan(pivot, tables, pack, packDir);
+} else {
+  pack = loadPack(packDir);
 }
 const textures = new TextureStore(packDir);
 const W = SIZE[0], H = SIZE[1];
 
-const frameNodes = buildRenderList(pack.frameRecon.hierarchy, pack.plan);
+const frameNodes = buildRenderList(pack.frameRecon.hierarchy, pack.plan!);
 const canvas = new Float64Array(W * H * 4);
 const zbuf = new Float64Array(W * H).fill(-Infinity);
 

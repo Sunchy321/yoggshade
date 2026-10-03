@@ -8,7 +8,7 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack): Promi
   const settings = loadNodeSettingsAlly(pack);
   const W = SIZE[0], H = SIZE[1];
 
-  for (const entry of pack.plan.texts ?? []) {
+  for (const entry of pack.plan!.texts ?? []) {
     if (!entry.render || !entry.text) continue;
     const ns = settings[entry.role];
     if (!ns) continue;

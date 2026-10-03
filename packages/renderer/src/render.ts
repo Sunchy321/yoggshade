@@ -4,7 +4,7 @@ import { rasterZbuf } from './raster.js';
 import { renderPortraitSubmesh } from './portrait.js';
 import { walkWithKey, TextureStore } from './assets.js';
 import { renderStatGems, renderRarityGemWrap } from './gems.js';
-import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent } from './types.js';
+import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent, RenderPlan } from './types.js';
 
 interface FrameNode {
   name:      string;
@@ -15,7 +15,7 @@ interface FrameNode {
 }
 
 /** build_render_list_ally：计划可见性过滤 + 宝石三兄弟排除（→ shader 公式层，P1）。 */
-export function buildRenderList(hierarchy: HierarchyNode, plan: AssetPack['plan']): FrameNode[] {
+export function buildRenderList(hierarchy: HierarchyNode, plan: RenderPlan): FrameNode[] {
   const visible = new Map<string, PlanComponent>();
   for (const c of plan.components) if (c.visible) visible.set(c.path, c);
 
@@ -42,6 +42,8 @@ interface BucketTri {
   texKey:   string;
   tint:     number[];
   uvOffset: [number, number];
+  opaque:   boolean;
+  multiply: boolean;
 }
 
 /** raster_bucket_zbuf：收集全部三角形 → (mean 世界 Y, DFS 序) 排序 → z-buffer 光栅。 */
@@ -57,7 +59,9 @@ export function rasterBucketZbuf(
   let seq = 0;
 
   for (const { key, materials: mats, world: M, comp } of bucket) {
-    const mesh = pack.meshes[key];
+    // 网格覆写：Actor 运行期 MeshFilter.sharedMesh 替换（法术学派板 Actor.cs:6174-6185；
+    // plan 编译器写入 comp.mesh，键为资产包 meshes 表的 extra/{actor字段}）。
+    const mesh = pack.meshes[comp.mesh ?? key];
     if (!mesh) continue;
     const R = M;
     const verts = mesh.verts;
@@ -94,12 +98,14 @@ export function rasterBucketZbuf(
       for (const t of tris) {
         const a = t[0], b = t[1], c = t[2];
         trisOut.push({
-          depth: (depth[a] + depth[b] + depth[c]) / 3,
-          seq:   seq++,
-          tri2d: [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
-          triUv: [uv0[a], uv0[b], uv0[c]],
-          triZ:  [depth[a], depth[b], depth[c]],
+          depth:    (depth[a] + depth[b] + depth[c]) / 3,
+          seq:      seq++,
+          tri2d:    [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
+          triUv:    [uv0[a], uv0[b], uv0[c]],
+          triZ:     [depth[a], depth[b], depth[c]],
           texKey, tint, uvOffset,
+          opaque:   slotPlan?.opaque ?? false,
+          multiply: slotPlan?.blend === 'multiply',
         });
       }
     }
@@ -108,12 +114,14 @@ export function rasterBucketZbuf(
   trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
   for (const e of trisOut) {
     rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
-      textures.get(e.texKey), e.tint, e.uvOffset);
+      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply);
   }
   return trisOut.length;
 }
 
-/** 肖像层：portrait_mesh_channels + frame_recon 肖像节点世界矩阵 + 引擎公式。 */
+/** 肖像层：portrait_mesh_channels + frame_recon 肖像节点世界矩阵 + 引擎公式。
+ * 取件口径与 Actor 写点一致：肖像材质/子网格下标 = m_portraitMatIdx（随从/地标=0，法术/英雄/武器=1）。
+ * 写死 0 会把肖像框（环，sub0）当肖像画，并用肖像框的贴图顶掉肖像。 */
 export function renderPortraitLayer(
   pack: AssetPack,
   textures: TextureStore,
@@ -122,6 +130,8 @@ export function renderPortraitLayer(
 ): void {
   const W = SIZE[0], H = SIZE[1];
   const ch = pack.portrait;
+  const portraitMatIdx = pack.manifest.portrait_mat_idx ?? 0;
+  const portraitSub = portraitMatIdx === 1 ? ch.sub1 : ch.sub0;
   const portraitNode = [...walkWithKey(pack.frameRecon.hierarchy)]
     .find(([n]) => n.mesh_stats && n.npz_key === pack.manifest.portrait_node_key);
   if (!portraitNode) throw new Error('frame_recon 无肖像节点');
@@ -141,9 +151,9 @@ export function renderPortraitLayer(
     depth[i] = wy;
   }
 
-  const portraitFile = pack.plan.components
+  const portraitFile = pack.plan!.components
     .find(c => c.path.endsWith('PortraitFrame_mesh'))!
-    .material_slots![0]._MainTex_runtime?.file;
+    .material_slots!.find(s => s.slot === portraitMatIdx)?._MainTex_runtime?.file;
   if (!portraitFile) return; // PET 类无原画（引擎 PET 卡型 SetMaterialNormal no-op 同语义）
   const mainRgba = textures.get(portraitFile);
   const secondRgba = textures.get(pack.manifest.second_tex as string);
@@ -151,7 +161,7 @@ export function renderPortraitLayer(
   renderPortraitSubmesh(
     canvas, zbuf, W, H,
     Array.from(depth), Array.from(px), Array.from(py),
-    ch.uv0, ch.uv1, ch.sub0,
+    ch.uv0, ch.uv1, portraitSub,
     mainRgba, secondRgba,
     [st.r, st.g, st.b, st.a],
     pack.materialProps.m_Floats._BlendIntensity,
@@ -203,7 +213,7 @@ export function renderGemsStage(
   const rgb = canvasToQuantRgb(canvas);
   renderStatGems(rgb, pack, textures);
   quantTrunc(rgb);
-  if (pack.plan.rarity_gem?.visible) {
+  if (pack.plan!.rarity_gem?.visible) {
     renderRarityGemWrap(rgb, pack, textures);
     quantTrunc(rgb);
   }

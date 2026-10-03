@@ -37,6 +37,7 @@ export interface FontDef {
 interface UberTextNode { path: string, fields?: Record<string, unknown>, font_name?: string }
 
 function loadUberTextNodes(pack: AssetPack): UberTextNode[] {
+  if (pack.ubertext) return pack.ubertext.nodes as UberTextNode[]; // 帧包（frames/{slot}）
   const p = join(pack.dir, 'prefab_ubertext_ally.json');
   const data = JSON.parse(readFileSync(p, 'utf-8')) as { nodes: UberTextNode[] };
   return data.nodes;
@@ -165,8 +166,9 @@ export function renderText(
   const boldPx = hasBold ? Math.min(f('m_BoldSize') ?? 0, BOLD_SIZE_CAP) : 0;
 
   if (f('m_RenderToTexture')) {
-    if (!curved) throw new Error('m_RenderToTexture=1 需要 curved mesh');
-    return renderRtt(layout, fm, ns, scene, fill, outline, boldPx, curved, offset);
+    // 武器帧名字：RT=1 但 m_RenderOnObject 为空 → 引擎走 SetupRenderOnPlane（UB:2265-2277），
+    // 轴对齐平面采样 ≈ 直绘；v1 以直绘近似（登记残差），有载体网格时走 RTT 网格采样。
+    if (curved) return renderRtt(layout, fm, ns, scene, fill, outline, boldPx, curved, offset);
   }
 
   const W = SIZE[0], H = SIZE[1];
