@@ -4,7 +4,7 @@
  * 出处：exporter ExporterController.cs:659-660（exportWidth/Height 默认 512×768）、:7440
  * （RenderTexture.GetTemporary 同尺寸）、FrameCamera :11027（orthoSize=2.0）及
  * :11021-11025（aspect=2:3 取景注释）；协议 schema style card.hand.v1 = 512×768 +
- * transparentBackground。L2 验收 = 与 exporter 基准图（explore/fixtures/，512×768）同尺寸对比。
+ * transparentBackground。L2 验收 = 与 exporter 基准图（reference/，512×768）同尺寸对比。
  * 前口径为游戏内 SnapshotCamera 的 512×707（176.75 px/单位；py scene_compiler：AlphaTool.cs:
  * 285-287）——同一张卡内容比 exporter 口径小 192/176.75−1 ≈ 8.6%，2026-10-04 起退役。
  * 世界 (x,y,z)：px ← x，py ← z；y 是深度轴（越大越近相机）。

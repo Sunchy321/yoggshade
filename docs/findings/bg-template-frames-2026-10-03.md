@@ -105,7 +105,7 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
   LT23 佣兵/PET 等非战棋卡逐像素 0 差异。
 - **七卡渲染图**：`explore/2026-10-03-bg-template/output/bg7_grid.png`（+ trinket/quest reward
   大图 `trinket_quest_grid.png`）。typecheck/lint 干净（lint 30 条既有 warning，0 error）。
-- **官方基准图**：`explore/fixtures/*-hand-*.png`（HSJSON 官方渲染，512×768）已入库，
+- **官方基准图**：`reference/*.png`（HSJSON 官方渲染，512×768）已入库，
   覆盖 BG30_802/BG33_828/BG34_Giant_072/BG34_Treasure_917 等——L2 比对通道恢复。
 
 ## 7. 用户复核修正（2026-10-03 第二/三轮）
@@ -177,7 +177,7 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
 
 ## 9. 铸币/等级徽章位姿以预制序列化根 TRS 为准（2026-10-04 修正，用户目验通过）
 
-**现象**：官方渲染图入库后（`explore/fixtures/BG30_802-hand-battlegrounds-normal.png`），
+**现象**：官方渲染图入库后（`reference/BG30_802.png`），
 非时空酒馆法术（BG30_802，cardType 42，TECH_LEVEL=6）的铸币画在帧宝石位、叠上等级徽章；
 官方图中铸币在徽章正下方。
 
