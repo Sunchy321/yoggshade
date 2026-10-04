@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { loadPack, loadSpellOverlay, TextureStore, walkWithKey } from './assets.js';
 import { SIZE } from './camera.js';
 import {
-  buildRenderList, rasterBucketZbuf, renderPortraitLayer, composeToRgba8,
+  buildRenderList, rasterBucketZbuf, renderPortraitLayer, composeToRgba8, alphaPlane,
   renderGemsStage, rgbToRgba8, renderSpellOverlays,
 } from './render.js';
 import type { OverlayGemSource } from './gems.js';
@@ -92,12 +92,15 @@ let rgba8: Uint8Array;
 if (stage === 'p0') {
   rgba8 = composeToRgba8(canvas);
 } else {
-  const rgb = renderGemsStage(canvas, pack, textures, overlayGems);
+  // 透明背景：宝石/文字阶段只消费直感 RGB，覆盖率平面随之并行累加（凸出卡框的
+  // 宝石/数字的覆盖也在卡框轮廓外），末尾与 RGB 拼合输出
+  const alpha = alphaPlane(canvas);
+  const rgb = renderGemsStage(canvas, pack, textures, overlayGems, alpha);
   if (stage === 'p2') {
     const { renderTextStage } = await import('./textstage.js');
-    renderTextStage(rgb, pack);
+    renderTextStage(rgb, pack, alpha);
   }
-  rgba8 = rgbToRgba8(rgb);
+  rgba8 = rgbToRgba8(rgb, alpha);
 }
 
 mkdirSync(dirname(outPng), { recursive: true });

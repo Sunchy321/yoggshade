@@ -323,18 +323,33 @@ export function renderSpellOverlays(
   }
 }
 
-/** 直感 alpha 合成到不透明黑底 → uint8 RGBA（np.clip→astype 截断口径 + PIL 量化近邻）。 */
+/** canvas → uint8 RGBA，**直通 alpha 输出**（2026-10-04 用户裁定）：
+ *  rgb = 直感色（非预乘）、a = 覆盖率；卡框圆角外等未覆盖像素 = (0,0,0,0) 透明背景。
+ *  与游戏内渲染的差异：引擎画到不透明屏幕帧缓冲（无 alpha 概念），exporter 导出 PNG
+ *  时对 opaque 几何 alpha-fill、背景清透明——本链对齐的是 exporter 语义，背景透明后
+ *  卡片可合成到任意底色；对黑底合成结果与旧「合成到不透明黑底」口径逐位一致
+ *  （黑底 out = 直感色×覆盖率）。 */
 export function composeToRgba8(canvas: Float64Array): Uint8Array {
   const W = SIZE[0], H = SIZE[1];
   const out = new Uint8Array(W * H * 4);
   for (let i = 0; i < W * H; i++) {
     const ci = i * 4;
-    const a = Math.min(Math.max(canvas[ci + 3], 0), 1);
     for (let c = 0; c < 3; c++) {
       const rgb = Math.min(Math.max(canvas[ci + c], 0), 1);
-      out[ci + c] = Math.round(rgb * a * 255);
+      out[ci + c] = Math.round(rgb * 255);
     }
-    out[ci + 3] = 255;
+    out[ci + 3] = Math.round(Math.min(Math.max(canvas[ci + 3], 0), 1) * 255);
+  }
+  return out;
+}
+
+/** canvas 覆盖率 → float alpha 平面（0..1）。P1/P2 的宝石/文字阶段只消费直感 RGB（丢 alpha），
+ *  但宝石是「不透明覆盖」、文字是 over 合成——两者都在卡框轮廓外有投影（凸出卡角的费用/
+ *  攻/血宝石、宝石上的费用数字），覆盖率必须随绘制同步累加，最终与 RGB 拼合输出透明背景。 */
+export function alphaPlane(canvas: Float64Array): Float64Array {
+  const out = new Float64Array(SIZE[0] * SIZE[1]);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Math.min(Math.max(canvas[i * 4 + 3], 0), 1);
   }
   return out;
 }
@@ -361,30 +376,35 @@ export function quantTrunc(buf: Float64Array): Float64Array {
   return buf;
 }
 
-/** P1：宝石两段（含段间 uint8 量化口径），返回直感 RGB buffer。 */
+/** P1：宝石两段（含段间 uint8 量化口径），返回直感 RGB buffer。
+ *  alpha：覆盖率平面（alphaPlane 产出），宝石覆盖处按「不透明覆盖」语义置 1。 */
 export function renderGemsStage(
   canvas: Float64Array, pack: AssetPack, textures: TextureStore,
   overlayGems?: OverlayGemSource,
+  alpha?: Float64Array,
 ): Float64Array {
   const rgb = canvasToQuantRgb(canvas);
-  renderStatGems(rgb, pack, textures, overlayGems);
+  renderStatGems(rgb, alpha, pack, textures, overlayGems);
   quantTrunc(rgb);
   if (pack.plan!.rarity_gem?.visible) {
-    renderRarityGemWrap(rgb, pack, textures);
+    renderRarityGemWrap(rgb, alpha, pack, textures);
     quantTrunc(rgb);
   }
   return rgb;
 }
 
-/** RGB float buffer → uint8 RGBA（trunc，对齐 py astype(uint8)）。 */
-export function rgbToRgba8(rgb: Float64Array): Uint8Array {
+/** RGB float buffer → uint8 RGBA（trunc，对齐 py astype(uint8)）。
+ *  alpha：覆盖率平面（0..1，round 量化输出）则直通（透明背景），缺省 = 全不透明（旧口径）。 */
+export function rgbToRgba8(rgb: Float64Array, alpha?: Float64Array): Uint8Array {
   const W = SIZE[0], H = SIZE[1];
   const out = new Uint8Array(W * H * 4);
   for (let i = 0; i < W * H; i++) {
     for (let c = 0; c < 3; c++) {
       out[i * 4 + c] = Math.trunc(Math.min(Math.max(rgb[i * 3 + c], 0), 1) * 255);
     }
-    out[i * 4 + 3] = 255;
+    out[i * 4 + 3] = alpha
+      ? Math.round(Math.min(Math.max(alpha[i], 0), 1) * 255)
+      : 255;
   }
   return out;
 }

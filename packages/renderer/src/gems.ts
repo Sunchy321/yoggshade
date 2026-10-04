@@ -30,12 +30,14 @@ function sampleWrap(tex: RGBAImage, u: number, v: number, out: Float64Array): vo
   }
 }
 
-/** rgb 缓冲（W*H*3，0..1）上不透明写色。 */
-function writeRgb(rgb: Float64Array, x: number, y: number, r: number, g: number, b: number): void {
+/** rgb 缓冲（W*H*3，0..1）上不透明写色；alpha 平面同步置 1（不透明覆盖语义：
+ *  py 链宝石直写 RGB 即覆盖处全显，透明背景输出下该像素覆盖率 = 1，对黑底合成与旧口径逐位一致）。 */
+function writeRgb(rgb: Float64Array, alpha: Float64Array | undefined, x: number, y: number, r: number, g: number, b: number): void {
   const i = (y * SIZE[0] + x) * 3;
   rgb[i] = r;
   rgb[i + 1] = g;
   rgb[i + 2] = b;
+  if (alpha) alpha[y * SIZE[0] + x] = 1;
 }
 
 function projectNode(pack: AssetPack, key: string, world: number[][]) {
@@ -65,9 +67,10 @@ export interface OverlayGemSource {
   gems:  StatGem[];
 }
 
-/** 攻/血/费用三晶体：main clamp 采样，clouds wrap；桶内世界 Y 均值画家序。 */
+/** 攻/血/费用三晶体：main clamp 采样，clouds wrap；桶内世界 Y 均值画家序。
+ *  alpha：透明背景口径的覆盖率平面（宝石覆盖处置 1，见 writeRgb）。 */
 export function renderStatGems(
-  rgb: Float64Array, pack: AssetPack, textures: TextureStore,
+  rgb: Float64Array, alpha: Float64Array | undefined, pack: AssetPack, textures: TextureStore,
   overlay?: OverlayGemSource,
 ): void {
   const plan = pack.plan!;
@@ -125,7 +128,7 @@ export function renderStatGems(
         const cr = Math.min(Math.max(cloudS[0] * tR * aMain + mainS[0], 0), 1);
         const cg = Math.min(Math.max(cloudS[0] * tG * aMain + mainS[1], 0), 1);
         const cb = Math.min(Math.max(cloudS[0] * tB * aMain + mainS[2], 0), 1);
-        writeRgb(rgb, x, y, cr, cg, cb);
+        writeRgb(rgb, alpha, x, y, cr, cg, cb);
       });
     }
   }
@@ -162,7 +165,7 @@ function rasterGemTri(
 
 /** 稀有度宝石（wrap 版）：main/clouds 都 Repeat；UV + 图集偏移；三角原序。 */
 export function renderRarityGemWrap(
-  rgb: Float64Array, pack: AssetPack, textures: TextureStore,
+  rgb: Float64Array, alpha: Float64Array | undefined, pack: AssetPack, textures: TextureStore,
 ): void {
   const plan = pack.plan!;
   const main = textures.get('GenFX_RarityGems.png');
@@ -190,7 +193,7 @@ export function renderRarityGemWrap(
       const cr = Math.min(Math.max(cloudS[0] * tint[0] * aMain + mainS[0], 0), 1);
       const cg = Math.min(Math.max(cloudS[0] * tint[1] * aMain + mainS[1], 0), 1);
       const cb = Math.min(Math.max(cloudS[0] * tint[2] * aMain + mainS[2], 0), 1);
-      writeRgb(rgb, x, y, cr, cg, cb);
+      writeRgb(rgb, alpha, x, y, cr, cg, cb);
     });
   }
 }
