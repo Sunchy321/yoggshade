@@ -39,8 +39,11 @@ export interface PlanSlot {
   };
   /** opaque-edge alpha 修复：按不透明绘制（忽略纹理 alpha）；见 plan.ts needsOpaqueEdgeRepair。 */
   opaque?: boolean;
-  /** 乘法混合（Hero/Multiply/* 材质）：dst.rgb *= 纹理色 + _Color，只压暗不遮盖。 */
-  blend?:  'multiply';
+  /** 非默认混合：multiply = Hero/Multiply/*（dst.rgb *= 纹理色+_Color，只压暗）；
+   *  additive = Hero/Additive/*（dst.rgb += src·tint·src.a，星芒/辉光）。 */
+  blend?:  'multiply' | 'additive';
+  /** 该材质槽不参与光栅（运行时占位/被 spell 视觉替换的底板）。 */
+  skip?:   boolean;
 }
 
 export interface PlanComponent {
@@ -57,6 +60,9 @@ export interface StatGem {
   node:          string;
   path:          string;
   npz_key:       string;
+  /** 非空 = 节点在 spells/{overlay}/ 的 SpellTable 预制里（战棋铸币；renderStatGems 从
+   *  overlayPacks 取节点/网格，见 main.ts collectOverlayGems）。 */
+  overlay?:      string;
   main_tex_file: string;
   tint_rgb:      number[];
   intensity:     number;
@@ -65,19 +71,30 @@ export interface StatGem {
 }
 
 export interface PlanTextEntry {
-  role:        string;
-  render?:     boolean;
-  text?:       string;
-  [k: string]: unknown;
+  role:         string;
+  render?:      boolean;
+  text?:        string;
+  /** alt-cost 等场景：渲染期把文本节点世界平移整体平移该 delta（UpdateManaGemOffset 语义）。 */
+  world_delta?: number[];
+  [k: string]:  unknown;
 }
 
 export interface RenderPlan {
-  components:  PlanComponent[];
-  input?:      { dbf_id?: string, card_id?: string };
-  rarity_gem?: { visible?: boolean, atlas_offset?: number[], tint_rgb?: number[] };
-  gem?:        { enabled?: boolean, t?: number };
-  stat_gems?:  StatGem[];
-  texts?:      PlanTextEntry[];
+  components:      PlanComponent[];
+  input?:          { dbf_id?: string, card_id?: string };
+  rarity_gem?:     { visible?: boolean, atlas_offset?: number[], tint_rgb?: number[] };
+  gem?:            { enabled?: boolean, t?: number };
+  stat_gems?:      StatGem[];
+  texts?:          PlanTextEntry[];
+  /** 战棋模板 spell 视觉（SpellTable 实例；scripts/extract_spell.py 提取到 pack spells/{key}/）。
+   *  gem 被替换时 stat_gems 置空（Actor.UpdateManaGemComponent 隐藏 m_manaObject，Actor.cs:5184-5201）。
+   *  anchor='world-target'：预制序列化位姿≠本帧宝石位（各帧布局不同/FSM 搬运），渲染期把
+   *  整个 overlay 平移到 world_target（plan 计算：一般= 本帧 Gem_Mana 世界位
+   *  [UpdateManaGemComponent 原位替换语义]；酒馆法术 tech>0 = 商店 actor 作者化费用位）。 */
+  spell_overlays?: { key: string, tech_level?: number, anchor?: 'world-target', world_target?: number[] }[];
+  /** 晚通道绘制的节点名（运行时激活的覆盖层，如饰品徽章子树）——主帧光栅后按序合成，
+   *  每节点独立深度缓冲（激活序 = 合成序，Unity SetActive 语义）。 */
+  late_nodes?:     string[];
 }
 
 export interface HierarchyNode {
@@ -92,8 +109,10 @@ export interface HierarchyNode {
     verts:        number;
     submesh_tris: number[];
   } | null;
-  renderers?: { enabled?: number, materials: (FrameMaterial | null)[] }[];
-  children?:  HierarchyNode[];
+  renderers?:           { enabled?: number, materials: (FrameMaterial | null)[] }[];
+  /** 序列化激活状态（含祖先链；prefab walk 产物）。 */
+  active_in_hierarchy?: boolean;
+  children?:            HierarchyNode[];
 }
 
 /** 肖像网格通道（portrait_mesh_channels.npz）。 */
@@ -137,6 +156,13 @@ export interface PrefabReport {
   issues: string[];
 }
 
+/** spells/{key}/（scripts/extract_spell.py 产物）：coin / tavern-tier 等 SpellTable spell 预制。 */
+export interface SpellOverlayPack {
+  key:       string;
+  hierarchy: HierarchyNode;
+  meshes:    Record<string, MeshEntry>;
+}
+
 export interface AssetPack {
   dir:      string;
   slot?:    string;
@@ -160,7 +186,14 @@ export interface AssetPack {
     m_Colors: Record<string, { r: number, g: number, b: number, a: number }>;
     m_Floats: Record<string, number>;
   };
-  ubertext?: { nodes: { path: string, fields?: Record<string, unknown>, font_name?: string }[] };
+  ubertext?: { nodes: {
+    path:           string;
+    fields?:        Record<string, unknown>;
+    font_name?:     string;
+    localPosition?: number[];
+    localRotation?: number[];
+    localScale?:    number[];
+  }[]; };
   curved?:   { verts: number[][], uv0: number[][], tris: number[][], world: number[][] };
   fontdefs?: unknown;
 }

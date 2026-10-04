@@ -140,14 +140,14 @@ def main() -> int:
             "textInHand": loc_dict(row["m_textInHand"]),
             "tags": tags_by_dbf.get(dbf, {}),
         }
-        (out_dir / f"{card_id}.json").write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
+        (out_dir / f"{card_id}.json").write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         manifest["presets"].append({"cardId": card_id, "dbfId": dbf, "label": label,
                                     "premium": premium, "template": template, "zone": zone})
         t = doc["tags"]
         print(f"[ok] {card_id} dbf={dbf} cost={t.get(48)} atk={t.get(47)} hp={t.get(45)} "
               f"type={t.get(202)} rarity={t.get(203)} race={t.get(200)} zh={doc['name']['zhCN']}")
     manifest["gameVersion"] = ver
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"\n[done] {len(manifest['presets'])} 卡数据 + manifest（缺 {len(manifest['missing'])}）→ {out_dir}")
     return 0
 

@@ -85,6 +85,11 @@ def parse_school_zh() -> dict[str, str]:
             continue
         if parts[idx["enum_class"]] == "TAG_SPELL_SCHOOL" and parts[idx["variant"]] == "s_spellSchoolNames":
             zh_by_name[parts[idx["label_enUS"]].replace(" ", "_").upper()] = parts[idx["label_zhCN"]]
+    # CSV 无 2023 后新增学派行（PHYSICAL_COMBAT/TAVERN/SPELLCRAFT/LESSER|GREATER_TRINKET/UPGRADE，
+    # GameStrings.cs:1168-1200 有键但 tag_enum.csv 未收录）。TAVERN 的 zhCN 取游戏内通用译名「酒馆」
+    # （GLOBAL_SPELL_SCHOOL_TAVERN；BG 法术学派板，BG30_80p 首证，用户视觉复核项）。其余无译名来源 →
+    # 不落表（渲染侧 schoolText 为 UNKNOWN 的兜底不触发，因 plate 文本为空即不渲染）。
+    zh_by_name.setdefault("TAVERN", "酒馆")
     return {value: zh_by_name[name] for value, name in enum_names.items() if name in zh_by_name}
 
 

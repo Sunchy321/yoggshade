@@ -241,21 +241,39 @@ export const CARD_TYPE_TO_SLOT: Record<number, string> = {
   7:  'hand-weapon',
   39: 'hand-location',
   10: 'hand-heropower',
+  // 战棋系（ActorNames.GetHandActor，ActorNames.cs:546-569）：任务奖励(40)/酒馆法术(42) 同用
+  // HAND_SPELL；畸变(43)/饰品(44) 走 BIG_CARD_BG_*（Card_Hand_BG_Anomaly / Card_Hand_BG_Trinket）。
+  40: 'hand-spell',
+  42: 'hand-spell',
+  43: 'hand-bg-anomaly',
+  44: 'hand-bg-trinket',
 };
 
 /** 帧 slot → 该帧的原生卡型（ActorNames 的 actor 归属；4=MINION，47=战棋英雄伙伴同用随从 actor）。
  * 别型卡（佣兵技能/战棋法术/宠物等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
 export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
-  'hand-minion':    [4, 47],
-  'hand-spell':     [5],
-  'hand-hero':      [3],
-  'hand-weapon':    [7],
-  'hand-location':  [39],
-  'hand-heropower': [10],
+  'hand-minion':     [4, 47],
+  'hand-spell':      [5, 40, 42],
+  'hand-hero':       [3],
+  'hand-weapon':     [7],
+  'hand-location':   [39],
+  'hand-heropower':  [10],
+  'hand-bg-anomaly': [43],
+  'hand-bg-trinket': [44],
 };
 
-/** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）。 */
-const TAG2 = { ARMOR: 292, SPELL_SCHOOL: 1635 } as const;
+/** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）+ 战棋模板相关（GAME_TAG.cs 实测行号）：
+ *  TECH_LEVEL=1440(:233)、BACON_TIMEWARPED=4503(:381)。 */
+const TAG2 = { ARMOR: 292, SPELL_SCHOOL: 1635, TECH_LEVEL: 1440, BACON_TIMEWARPED: 4503 } as const;
+
+/** hand-spell 帧的 alternate-cost 世界位（CostObject × ALT(-0.01,0.003,-0.58)；x/z 即法术分支
+ *  altCostWorldPos 的结果）。时空扭曲随从的费用数字也用它：随从帧 CostObject 序列化位比
+ *  法术帧偏左 0.0163（引擎原样 → 数字偏左 ~2.9px，两帧预制都未覆盖 ALT 默认值——探针
+ *  40 副本全同），用户裁定消除该差异（2026-10-04）。 */
+const ALT_COST_WORLD_HAND_SPELL: number[] = [-0.8419, 0.153, 0.6306];
+
+/** TAG_SPELL_SCHOOL 饰品等级枚举值（TAG_SPELL_SCHOOL.cs:14-15）。 */
+const TRINKET_SCHOOLS = { LESSER: 11, GREATER: 12 } as const;
 
 /** 全帧型静态隐藏（运行时默认态；出处见 py _frame_components_* 各分支）：
  *  Highlight=无高亮（Actor.cs:4924-4929）；Ghost=ghostCard 默认 NONE；Shadow=ContactShadow(true) 才显；
@@ -279,6 +297,9 @@ interface FrameRules {
   multiRace?:    string[];
   noGem?:        string; // !rarity 时显（地标替代件）
   forcedHidden?: string[];
+  /** 饰品等级徽章（TrinketLevelIndicatorRing 族）：SPELL_SCHOOL ∈ {LESSER,GREATER_TRINKET} 才显
+   *  （GetTrinketLevel + UpdateBaconTrinketComponents，Actor.cs:5368-5420）。 */
+  trinketBadge?: string[];
   roles:         string[];
 }
 
@@ -315,6 +336,22 @@ const FRAME_RULES: Record<string, FrameRules> = {
     health:       ['Wep_SheildBroken'],
     noGem:        'No_Gem_Mesh', forcedHidden: ['RacePlate_mesh'],
     roles:        ['cost', 'name', 'desc', 'health'],
+  },
+  // 战棋畸变（Card_Hand_BG_Anomaly）：ability 帧家族；无 cost 角色（prefab role_paths 实测，
+  // 畸变无费用显示且 Gem_Mana 序列化失活）；稀有度/精英龙同法术帧。
+  'hand-bg-anomaly': {
+    elite:  ['InHand_Ability_Unique_Dragon', 'InHand_Ability_Unique_Dragon_shadow'],
+    rarity: ['RarityFrame_mesh', 'RarityGem'],
+    roles:  ['name', 'desc', 'race'],
+  },
+  // 战棋饰品（Card_Hand_BG_Trinket）：主体 = FrameMesh（m_cardMesh 与 m_portraitMesh 同节点，
+  // 肖像槽 1 序列化为空=运行时 CardDef 材质）；等级徽章按 school 显隐+换材质（见 trinketBadge）。
+  // "Mesh Old (From Card_Hand_Ability)" 整树序列化失活（activity 兜底）。
+  'hand-bg-trinket': {
+    elite:        [],
+    rarity:       [],
+    trinketBadge: ['TrinketLevelIndicatorRing', 'Trinket_Medallion_Portrait_Mesh', 'Trinket_Medallion_Shadow_Mesh'],
+    roles:        ['cost', 'name', 'desc'],
   },
   // 英雄技能（History_HeroPower）：附件层整个不存在（prefab 无 RarityGem/Gem_Attack/Gem_Health/
   // RacePlate/Unique_*/RuneBanner/MulticlassRibbon 节点，非隐藏——RARITY=FREE 与结构双证），
@@ -412,6 +449,121 @@ export function compileFramePlan(
   const schoolId = tags[TAG2.SPELL_SCHOOL] ?? 0;
   const schoolText = schoolId === 0 ? '' : (tables.schoolZh?.[schoolId] ?? 'UNKNOWN');
 
+  // ---- 战棋模板 spell 视觉（exporter ApplyBattlegroundsHandVisualSetup 逐卡型分支对译，
+  //      ExporterController.cs:5056-5620；gem 替换 = Actor.UpdateManaGemComponent 隐藏
+  //      m_manaObject，Actor.cs:5184-5201；tier 图标 spell 按 GetTechLevelSpellType 选
+  //      TECH_LEVEL_MANA_GEM / BACON_TIMEWARPED→TIME_TAVERN_TIER_ICON，Actor.cs:7474-7484）----
+  const techLevel = tags[TAG2.TECH_LEVEL] ?? 0;
+  const timewarped = (tags[TAG2.BACON_TIMEWARPED] ?? 0) !== 0;
+  const isBGTemplate = pivot.preset.template === 'Battlegrounds';
+  const spellOverlays: RenderPlan['spell_overlays'] = [];
+  let gemReplaced = false;
+  let bgHideCost = false;
+  let bgAltCost = false; // 费用文本挪 alternate 位（world_delta 标注在 texts.cost 上）
+  let bgAltCostTarget: number[] | undefined;
+  const lateNodes: string[] = [];
+  // 铸币变体按帧选：各帧 actor 的 SpellTable 145 条目是不同的预制——逐表探针
+  // explore/2026-10-03-bg-template/scripts/probe_table_refs.py：
+  //   hand-spell → Card_Hand_Ability_CoinManaGem；hand-heropower →
+  //   History_HeroPower_CoinManaGem；hand-bg-trinket → "Card_Hand_Ability_CoinManaGem 1"
+  //   （名字串陈旧，实际 Card_Hand_Trinket_CoinManaGem）。
+  let coinKey = 'coin-ability';
+  if (slot === 'hand-heropower') coinKey = 'coin-heropower';
+  else if (slot === 'hand-bg-trinket') coinKey = 'coin-trinket';
+  // 铸币锚点 = 本帧自己的 Gem_Mana 世界位（UpdateManaGemComponent 原位替换语义）。
+  const coinTarget = frameGemWorldPos(base, keyByPath);
+  if (isBGTemplate) {
+    const tierKey = timewarped ? 'tier-icon-timewarp' : 'tech-level-gem';
+    if ((cardType === 4 || cardType === 47) && techLevel > 0) {
+      // BG 随从：tier 盾+星替换费用宝石（ApplyBattlegroundsHandMinionVisualSetup
+      // → ShowTavernTierSpell + HideCoinManaGem）。非时空：费用数字隐藏
+      // （HideBattlegroundsHandCostTextNumber；引擎 ShouldHideCost 对 tech-level 随从恒 true）。
+      gemReplaced = true;
+      if (timewarped) {
+        // 时空扭曲随从：等级盾与时空扭曲法术同款。位姿/材质 = 预制纯序列化（根 TRS=0）；
+        // 盾面格子由**序列化材质自带的 _MainTex ST** 决定：Bacon_TechLevelBanner_Timewarp_Unlit
+        // offset=(0,0.475)（scale 恒等）→ mesh v[0.537,0.971] +0.475 wrap 后 [0.012,0.446] =
+        // Bacon_AllTierGuide_TimewarpTavernTier 左下格（渲染端 ST 变换见 render.ts overlay；
+        // 提取侧 walk_material 本就采集 scale/offset）。2026-10-04 演进（用户逐轮目验）：
+        // 基准实测 world_target 锚定撤销；uv_offset[0,-0.5] 是 ST 的 -0.5 近似——比引擎
+        // 0.475 低 0.025v ≈ 5px = "微微下移"的真凶；Default 态换普通盾贴图一轮回滚
+        // （游戏内背景就是本素材，用户指认；§7-3 "下面那格 plain" 裁定作废）。
+        // 盾下 Chronum 费用铸币 = COST_ALT_TAVERN_COIN，exporter 对 timewarped 随从
+        // ActivateSpellBirthState（ExporterController.cs:5443-5450），无重排 → 纯预制位姿
+        // （Gem_Coin ≈ 屏幕 (108,250)，盾正下方；同法术分支，2026-10-04 用户目验通过）。
+        // 费用数字按法术同法挪 alternate-cost 位（exporter 对 timewarped 随从不调
+        // HideBattlegroundsHandCostTextNumber、只 EnableAlternateCostTextPosition；
+        // 用户目验数字显示、位置随法术）。目标不用本帧 altCostWorldPos（随从帧 CostObject
+        // 序列化位偏左 0.0163 → 引擎原样数字偏左 ~2.9px），用户裁定与法术对齐 → 采用
+        // hand-spell 帧的 altCost 世界位。
+        spellOverlays.push({ key: tierKey, tech_level: techLevel });
+        spellOverlays.push({ key: 'alt-tavern-coin' });
+        bgAltCost = true;
+        bgAltCostTarget = ALT_COST_WORLD_HAND_SPELL.slice();
+      } else {
+        spellOverlays.push({ key: tierKey, tech_level: techLevel });
+        bgHideCost = true;
+      }
+    } else if (cardType === 42) {
+      // 酒馆法术：tech>0 → 等级徽章（宝石位）+ 铸币/数字在 alternate-cost 文本位
+      // （EnableAlternateCostTextPosition → UpdateManaGemOffset，Actor.cs:1178/6454）；
+      // timewarped 无铸币、等级盾锚到基准徽章位（用户按基准校准）。否则普通铸币在宝石位。
+      gemReplaced = true;
+      if (techLevel > 0) {
+        const target = altCostWorldPos(base, refs, keyByPath);
+        if (timewarped) {
+          // 时空扭曲：等级盾 = 预制纯序列化（位姿/材质/UV，证据同上方 cardType 4/47 分支注释；
+          // tag 门槛 BACON_TIMEWARPED(4503) → TIME_TAVERN_TIER_ICON，Actor.cs:7474-7484）。
+          // Chronum 费用铸币 = 预制纯序列化位姿（2026-10-04，与 coin-bacon-spell 同法）：
+          // 预制无 FSM（探针 Card_Hand_Ability_CardsCostAltTavernCoin）、根 TRS=(0,0,0)，
+          // LoadSpell AttachAndPreserveLocalTransform 原样挂 actor 根 → Gem_Coin world
+          // (-0.8384,0.085,0.5864) ≈ 屏幕 (108,250)——只比费用数字锚点低 ~8px（此前
+          // world_target 锚 altCost 使其稍微偏上，用户目验）。exporter 同样不重排
+          // （ExporterController.cs:5531-5539）。游戏内该图标本无法正确渲染（用户注），
+          // 预制语义即权威。费用数字仍走 altCost（bgAltCostTarget）。
+          spellOverlays.push({ key: tierKey, tech_level: techLevel });
+          spellOverlays.push({ key: 'alt-tavern-coin' });
+        } else {
+          // 非时空：等级徽章 = 预制序列化位姿（tech-level-gem 根 TRS = 0；Shield/Stars 的序列化
+          // world 组合已就位，泊位只在 local——findings §4）。铸币 = 预制序列化位姿**含根 TRS**
+          // （Actor.LoadSpell，Actor.cs:6949：AttachAndPreserveLocalTransform 保留预制本地 TRS，
+          // 挂 actor 根下恒等 "Spells" 节点，SpellTable 根缩放 ×1 → 预制根位即游戏内摆位；
+          // coin-bacon-spell 根 z=-0.643 → Gem_Health world (-0.829,-0.018,0.597) ≈ 屏幕 (110,248)
+          // = 等级徽章正下方。extract_spell 2026-10-04 起不再归零 spell 根平移）。
+          spellOverlays.push({ key: tierKey, tech_level: techLevel });
+          spellOverlays.push({ key: 'coin-bacon-spell' });
+        }
+        bgAltCost = true;
+        bgAltCostTarget = target;
+      } else {
+        spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
+      }
+    } else if (cardType === 5) {
+      // BG 模板普通法术：tech>0 → 仅 tier 徽章且费用清空（exporter 注释引 ShouldHideCost 分支）；
+      // 否则铸币（ApplyBattlegroundsHandCoinVisualSetup）
+      gemReplaced = true;
+      if (techLevel > 0) {
+        bgHideCost = true;
+        spellOverlays.push({ key: tierKey, tech_level: techLevel });
+      } else {
+        spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
+      }
+    } else if (cardType === 44) {
+      // 饰品：铸币（ApplyBattlegroundsHandCoinVisualSetup 的 trinket 分支），费用数字保留
+      gemReplaced = true;
+      spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
+    } else if (cardType === 10) {
+      // 英雄技能：铸币（ApplyBattlegroundsHandCoinVisualSetup 的 IsHeroPower 分支），费用数字保留
+      gemReplaced = true;
+      spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
+    } else if (cardType === 40) {
+      // 任务奖励：隐 mana gem + 费用清空 + 铸币（ApplyBattlegroundsHandQuestRewardVisualSetup）
+      gemReplaced = true;
+      bgHideCost = true;
+      spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
+    }
+  }
+
   // ---- 组件骨架（report 节点 × 规则）----
   const components: PlanComponent[] = [];
   const byName = new Map<string, PlanComponent>();
@@ -429,7 +581,9 @@ export function compileFramePlan(
       else if ((rules.armor ?? []).includes(name)) visible = armorVal > 0;
       else if ((rules.race ?? []).includes(name)) visible = !!raceText && raceCount === 1;
       else if ((rules.multiRace ?? []).includes(name)) visible = !!raceText && raceCount > 1;
-      else if (rules.noGem === name) visible = !rarityVisible;
+      else if ((rules.trinketBadge ?? []).includes(name)) {
+        visible = schoolId === TRINKET_SCHOOLS.LESSER || schoolId === TRINKET_SCHOOLS.GREATER;
+      } else if (rules.noGem === name) visible = !rarityVisible;
     } else if (rules.noGem === name) {
       // 序列化失活的 No_Gem_Mesh 由运行时规则翻正/翻回（地标）
       visible = !rarityVisible;
@@ -481,12 +635,48 @@ export function compileFramePlan(
   if (portraitMeshComp && portraitIdx > -1 && portraitFile) {
     setSlotTex(portraitMeshComp, portraitIdx, portraitFile);
   }
+  if (slot === 'hand-bg-trinket' && portraitFile) {
+    // 饰品原画窗：NonQuestObjects/Mesh 的 slot0（BG_Trinket_BigCard_FramePortrait_Mat，6 tri
+    // 窗 quad）。m_portraitMesh 指向的 FrameMesh 只有 1 个子网格（slot1 序列化为空且无几何），
+    // 实际画窗是这个兄弟节点的 FramePortrait 材质（材质名即证）。
+    const artPath = `${report.prefab.name}/RootObject/NonQuestObjects/Mesh`;
+    const artComp = components.find(c => c.path === artPath);
+    if (artComp) setSlotTex(artComp, 0, portraitFile);
+  }
+  if (slot === 'hand-bg-trinket' && (schoolId === TRINKET_SCHOOLS.LESSER
+    || schoolId === TRINKET_SCHOOLS.GREATER)) {
+    // UpdateBaconTrinketComponents（Actor.cs:5404-5420）：m_trinketLevelPortraitMesh 的
+    // materials[0] = m_lesserTrinketMaterial / m_greaterTrinketMaterial（整材质替换，含 _Color）。
+    const medComp = components.find(c => c.path === refs['m_trinketLevelPortraitMesh']?.node);
+    if (medComp) {
+      const tex = schoolId === TRINKET_SCHOOLS.LESSER ? 'lesser' : 'greater';
+      setSlotTex(medComp, 0, `frames/hand-bg-trinket/textures/TrinketIconHeroSelect_${tex}.png`);
+      // swap 材质 _Color=(1,1,1)：序列化 Lid 材质 _Color=(0,0,0,1) 纯黑，不重设 tint 会把纹章染黑。
+      const swapMat = (base.frameRecon as { material_refs?: Record<string, { colors?: Record<string, number[]> }> })
+        .material_refs?.[schoolId === TRINKET_SCHOOLS.LESSER ? 'm_lesserTrinketMaterial' : 'm_greaterTrinketMaterial'];
+      const swapColor = swapMat?.colors?.['_Color'] ?? [1, 1, 1];
+      const medSlot = medComp.material_slots?.find(sl => sl.slot === 0);
+      if (medSlot) medSlot.material_override = { _tint_rgb: swapColor.slice(0, 3) };
+      // 底板：Ring 节点 slot0（6 tri quad，_MainTex=GenFX_white32x32 占位白）深度比纹章近，
+      // 盖住纹章 → 徽章激活时不参与光栅（真实底板材质的运行时来源待 exporter 基准确认）。
+      const ringComp = components.find(c => c.path === refs['m_trinketLevelIndicator']?.node);
+      const ringSlot = ringComp?.material_slots?.find(sl => sl.slot === 0);
+      if (ringSlot) ringSlot.skip = true;
+      // 徽章子树晚通道：运行时 SetActive 激活（Actor.cs:5418），后激活者合成在上。
+      for (const nm of ['Trinket_Medallion_Shadow_Mesh', ...(rules.trinketBadge ?? [])
+        .filter(x => x !== 'Trinket_Medallion_Shadow_Mesh')]) lateNodes.push(nm);
+    }
+  }
 
   // ---- 宝石晶体（攻/血/费）：材质序列化值采集（py _collect_stat_gems 同口径）----
   const statGems: RenderPlan['stat_gems'] = [];
   for (const [path, key] of keyByPath) {
     const name = path.split('/').pop()!;
     if (!['Gem_Attack', 'Gem_Health', 'Gem_Mana'].includes(name)) continue;
+    // 序列化失活子树里的同名节点不采（战棋畸变帧 Gem_Mana 失活=无费用显示）；
+    // 战棋模板下 mana gem 被 coin/tier spell 替换（UpdateManaGemComponent 隐藏 m_manaObject）。
+    if (!(active.get(path) ?? true)) continue;
+    if (gemReplaced && name === 'Gem_Mana') continue;
     const comp = byName.get(name);
     if (name !== 'Gem_Mana' && !comp) continue;
     const node = findNode(base.frameRecon.hierarchy, path);
@@ -506,6 +696,7 @@ export function compileFramePlan(
   const bodyFor = (role: string): string => {
     switch (role) {
     case 'cost':
+      if (bgHideCost) return ''; // 战棋模板：tier 徽章/铸币替换费用显示（见 spellOverlays 规则）
       if (slot === 'hand-hero') return String(tags[TAG.COST] ?? 0); // 英雄费用缺省显 "0"
       return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
     case 'name': return pivot.name.zhCN ?? '';
@@ -517,9 +708,17 @@ export function compileFramePlan(
     default: return '';
     }
   };
+  let costWorldDelta: number[] | undefined;
+  if (bgAltCost && bgAltCostTarget) {
+    const node = findFrameNodeWorld(base, keyByPath, base.frameManifest?.role_paths?.cost ?? '∅');
+    if (node) {
+      costWorldDelta = [0, 1, 2].map(i => bgAltCostTarget[i] - node.world[i][3]);
+    }
+  }
   const texts = rules.roles.map(role => {
     const body = bodyFor(role);
     if (!body) return { role, render: false, reason: '文本为空（缺省/规则隐藏）' };
+    if (role === 'cost' && costWorldDelta) return { role, render: true, text: body, world_delta: costWorldDelta };
     return { role, render: true, text: body };
   });
 
@@ -534,11 +733,98 @@ export function compileFramePlan(
       atlas_offset: rarityVisible ? GEM_TEXTURE_OFFSET[rarityName] : undefined,
       tint_rgb:     rarityVisible ? GEM_COLOR[rarityName] : undefined,
     },
-    gem:       { enabled: true, t: 0.07 },
-    stat_gems: statGems,
+    gem:            { enabled: true, t: 0.07 },
+    stat_gems:      statGems,
     texts,
+    spell_overlays: spellOverlays.length ? spellOverlays : undefined,
+    late_nodes:     lateNodes.length ? lateNodes : undefined,
   };
   return plan;
+}
+
+/** 帧层级里按路径后缀找节点，返回其世界矩阵（找不到返回 null）。 */
+function findFrameNodeWorld(
+  base: AssetPack,
+  keyByPath: Map<string, string>,
+  endsWith: string,
+): { path: string, world: number[][] } | null {
+  const path = [...keyByPath.keys()].find(p => p.endsWith(endsWith) || p === endsWith);
+  const node = path ? findNode(base.frameRecon.hierarchy, path) as { world?: number[][] } | null : null;
+  return path && node?.world ? { path, world: node.world } : null;
+}
+
+/** 帧自己的 Gem_Mana 世界平移（铸币原位替换的锚点；UpdateManaGemComponent 语义）。
+ *  找不到时返回 undefined（调用方不锚定，按预制序列化位姿渲染）。 */
+function frameGemWorldPos(base: AssetPack, keyByPath: Map<string, string>): number[] | undefined {
+  const node = findFrameNodeWorld(base, keyByPath, '/Gem_Mana');
+  if (!node) return undefined;
+  return [node.world[0][3], node.world[1][3], node.world[2][3]];
+}
+
+/** alternate-cost 文本位的世界坐标：CostUberText 节点世界矩阵 × 替换 localPosition =
+ *  m_alternateCostTextLocalPos（Actor.cs:562 默认 (-0.01,0.003,-0.58)；帧未序列化覆盖）。
+ *  hand-spell 帧实测 = (-0.8419, 0.153, 0.6306) → 屏幕 (107,242)，等级徽章位 (110,127) 正下方。 */
+function altCostWorldPos(
+  base: AssetPack,
+  refs: Record<string, { node?: string }>,
+  keyByPath: Map<string, string>,
+): number[] {
+  void refs;
+  const suffix = base.frameManifest?.role_paths?.cost ?? '∅';
+  const node = findFrameNodeWorld(base, keyByPath, suffix);
+  const ub = base.ubertext?.nodes.find(n => n.path.endsWith(suffix));
+  if (!node || !ub) return ALT_COST_WORLD_HAND_SPELL.slice(); // hand-spell 帧实测值（解析失败的兜底）
+  const mul = (A: number[][], B: number[][]): number[][] => A.map(r =>
+    B[0].map((_, j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j] + (r[3] ?? 0) * (B[3]?.[j] ?? 0)));
+  const [px, py, pz] = ub.localPosition ?? [0, 0, 0];
+  const [rx, ry, rz, rw] = ub.localRotation ?? [0, 0, 0, 1];
+  const [sx, sy, sz] = ub.localScale ?? [1, 1, 1];
+  const R: number[][] = [
+    [1 - 2 * (ry * ry + rz * rz), 2 * (rx * ry - rz * rw), 2 * (rx * rz + ry * rw)],
+    [2 * (rx * ry + rz * rw), 1 - 2 * (rx * rx + rz * rz), 2 * (ry * rz - rx * rw)],
+    [2 * (rx * rz - ry * rw), 2 * (ry * rz + rx * rw), 1 - 2 * (rx * rx + ry * ry)],
+  ];
+  const L: number[][] = [
+    [R[0][0] * sx, R[0][1] * sy, R[0][2] * sz, px],
+    [R[1][0] * sx, R[1][1] * sy, R[1][2] * sz, py],
+    [R[2][0] * sx, R[2][1] * sy, R[2][2] * sz, pz],
+    [0, 0, 0, 1],
+  ];
+  const inv = (M: number[][]): number[][] => {
+    const a = M.map(r => [...r]);
+    const invm = Array.from({ length: 4 }, (_, i) =>
+      Array.from({ length: 4 }, (_, j) => (i === j ? 1 : 0)));
+    for (let col = 0; col < 4; col++) {
+      let piv = col;
+      for (let r = col + 1; r < 4; r++) {
+        if (Math.abs(a[r][col]) > Math.abs(a[piv][col])) piv = r;
+      }
+      const t1 = a[col];
+      a[col] = a[piv];
+      a[piv] = t1;
+      const t2 = invm[col];
+      invm[col] = invm[piv];
+      invm[piv] = t2;
+      const d = a[col][col];
+      for (let j = 0; j < 4; j++) {
+        a[col][j] /= d;
+        invm[col][j] /= d;
+      }
+      for (let r = 0; r < 4; r++) {
+        if (r === col) continue;
+        const f = a[r][col];
+        for (let j = 0; j < 4; j++) {
+          a[r][j] -= f * a[col][j];
+          invm[r][j] -= f * invm[col][j];
+        }
+      }
+    }
+    return invm;
+  };
+  const parentWorld = mul(node.world, inv(L));
+  const ALT: number[][] = [[1, 0, 0, -0.01], [0, 1, 0, 0.003], [0, 0, 1, -0.58], [0, 0, 0, 1]];
+  const W = mul(parentWorld, ALT);
+  return [W[0][3], W[1][3], W[2][3]];
 }
 
 /** 按 prefab_report 的材质槽名/shader + 计划最终纹理，标注 opaque-edge 修复与乘法混合（见各 needs* 说明）。 */

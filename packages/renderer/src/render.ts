@@ -3,8 +3,8 @@ import { projectX, projectY, SIZE } from './camera.js';
 import { rasterZbuf } from './raster.js';
 import { renderPortraitSubmesh } from './portrait.js';
 import { walkWithKey, TextureStore } from './assets.js';
-import { renderStatGems, renderRarityGemWrap } from './gems.js';
-import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent, RenderPlan } from './types.js';
+import { renderStatGems, renderRarityGemWrap, type OverlayGemSource } from './gems.js';
+import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent, RenderPlan, SpellOverlayPack } from './types.js';
 
 interface FrameNode {
   name:      string;
@@ -12,10 +12,18 @@ interface FrameNode {
   materials: (FrameMaterial | null)[];
   world:     number[][];
   comp:      PlanComponent;
+  /** 每材质槽混合模式（spell overlay 用；帧路径走 slotPlan.blend）。 */
+  blends?:   ('multiply' | 'additive' | 'alpha')[];
 }
 
-/** build_render_list_ally：计划可见性过滤 + 宝石三兄弟排除（→ shader 公式层，P1）。 */
-export function buildRenderList(hierarchy: HierarchyNode, plan: RenderPlan): FrameNode[] {
+/** build_render_list_ally：计划可见性过滤 + 宝石三兄弟排除（→ shader 公式层，P1）。
+ *  exclude/include：晚通道节点（plan.late_nodes）——主光栅排除、晚通道按序单独纳入。 */
+export function buildRenderList(
+  hierarchy: HierarchyNode,
+  plan: RenderPlan,
+  exclude?: Set<string>,
+  include?: Set<string>,
+): FrameNode[] {
   const visible = new Map<string, PlanComponent>();
   for (const c of plan.components) if (c.visible) visible.set(c.path, c);
 
@@ -27,6 +35,8 @@ export function buildRenderList(hierarchy: HierarchyNode, plan: RenderPlan): Fra
     if (!rr.length || !rr[0].materials?.length) continue;
     if (!comp) continue; // 计划隐藏
     if (comp.raster === false) continue; // 文字载体 / 无材质光栅
+    // 晚通道按 include 白名单只画单节点；主通道按 exclude 黑名单跳过晚通道节点
+    if (include ? !include.has(n.name) : (exclude !== undefined && exclude.has(n.name))) continue;
     if (n.name === 'Gem_Mana' || n.name === 'Gem_Attack' || n.name === 'Gem_Health') continue;
     nodes.push({ name: n.name, key, materials: rr[0].materials, world: n.world!, comp });
   }
@@ -44,6 +54,7 @@ interface BucketTri {
   uvOffset: [number, number];
   opaque:   boolean;
   multiply: boolean;
+  additive: boolean;
 }
 
 /** raster_bucket_zbuf：收集全部三角形 → (mean 世界 Y, DFS 序) 排序 → z-buffer 光栅。 */
@@ -53,6 +64,7 @@ export function rasterBucketZbuf(
   textures: TextureStore,
   canvas: Float64Array,
   zbuf: Float64Array,
+  meshes: AssetPack['meshes'] = pack.meshes,
 ): number {
   const W = SIZE[0], H = SIZE[1];
   const trisOut: BucketTri[] = [];
@@ -61,7 +73,7 @@ export function rasterBucketZbuf(
   for (const { key, materials: mats, world: M, comp } of bucket) {
     // 网格覆写：Actor 运行期 MeshFilter.sharedMesh 替换（法术学派板 Actor.cs:6174-6185；
     // plan 编译器写入 comp.mesh，键为资产包 meshes 表的 extra/{actor字段}）。
-    const mesh = pack.meshes[comp.mesh ?? key];
+    const mesh = meshes[comp.mesh ?? key];
     if (!mesh) continue;
     const R = M;
     const verts = mesh.verts;
@@ -106,6 +118,7 @@ export function rasterBucketZbuf(
           texKey, tint, uvOffset,
           opaque:   slotPlan?.opaque ?? false,
           multiply: slotPlan?.blend === 'multiply',
+          additive: slotPlan?.blend === 'additive',
         });
       }
     }
@@ -114,7 +127,7 @@ export function rasterBucketZbuf(
   trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
   for (const e of trisOut) {
     rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
-      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply);
+      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive);
   }
   return trisOut.length;
 }
@@ -159,16 +172,155 @@ export function renderPortraitLayer(
     ?.material_slots?.find(s => s.slot === portraitMatIdx)?._MainTex_runtime?.file;
   if (!portraitFile) return; // PET 类无原画（引擎 PET 卡型 SetMaterialNormal no-op 同语义）
   const mainRgba = textures.get(portraitFile);
-  const secondRgba = textures.get(pack.manifest.second_tex as string);
-  const st = pack.materialProps.m_Colors._SecondTint;
+  // 肖像第二通道缺失（饰品帧：肖像槽序列化为空，运行时 CardDef 材质，离线链未取到其
+  // _SecondTex/_SecondTint）→ second 全零：w = secS.a·tA = 0 → out = main（纯原画贴窗）。
+  // 登记残差：饰品的肖像与窗的二混合未复刻。
+  const secondRgba = pack.manifest.second_tex
+    ? textures.get(pack.manifest.second_tex)
+    : { w: 1, h: 1, data: new Float64Array(4) };
+  const st = pack.materialProps?.m_Colors._SecondTint;
   renderPortraitSubmesh(
     canvas, zbuf, W, H,
     Array.from(depth), Array.from(px), Array.from(py),
     ch.uv0, ch.uv1, portraitSub,
     mainRgba, secondRgba,
-    [st.r, st.g, st.b, st.a],
-    pack.materialProps.m_Floats._BlendIntensity,
+    st ? [st.r, st.g, st.b, st.a] : [0, 0, 0, 0],
+    pack.materialProps?.m_Floats._BlendIntensity ?? 0,
   );
+}
+
+/** 战棋模板 spell 视觉（SpellTable 实例）渲染：与帧同一 z-buffer/画家序管线。
+ *  结构可见性：
+ *  - tier 图标（tech-level-gem / tier-icon-timewarp）：Stars/Lv{n} 子树按 tech_level 点亮——
+ *    ShowTavernTierSpell 写 FSM 变量 TechLevel 后激活 BIRTH（Actor.cs:7497-7505）；prefab 里
+ *    Lv1..Lv7 分组序列化失活（运行时由 FSM SetActive），故 Lv 子树**不受**序列化 active 约束。
+ *  - coin（coin-*）：Health_Burst 是 Birth 态瞬闪（静态快照不含）；Gem_Health 本体走宝石公式
+ *    （Hero/Diffuse/DiffuseAlphaMaskScroller，与 stat gem 同族）——由 main.ts 收集进 gems 阶段，
+ *    此处跳过。Health_Persistant 常驻辉光保留（残差：瞬态/常驻的精确分界待基准对照）。
+ *  材质混合：Hero/Multiply/* → multiply；Hero/Additive/* → additive（星芒/辉光）。 */
+export function renderSpellOverlays(
+  overlays: SpellOverlayPack[],
+  plan: RenderPlan,
+  textures: TextureStore,
+  canvas: Float64Array,
+  zbuf: Float64Array,
+): void {
+  if (!plan.spell_overlays?.length) return;
+  for (const spec of plan.spell_overlays) {
+    const ov = overlays.find(o => o.key === spec.key);
+    if (!ov) throw new Error(`资产包缺 spell overlay: ${spec.key}`);
+    const nodes: FrameNode[] = [];
+    // 递归携带 Lv 匹配状态（Lv 子树内不受序列化 active 约束）
+    const walk = (n: HierarchyNode, key: string, path: string, lvActive: boolean | null): void => {
+      const p = path ? `${path}/${n.name}` : n.name;
+      const lv = /^Lv(\d+)$/.exec(n.name);
+      const selfLv = lv ? Number(lv[1]) === (spec.tech_level ?? 0) : null;
+      const active = selfLv !== null ? selfLv : (lvActive ?? n.active_in_hierarchy !== false);
+      for (const c of n.children ?? []) walk(c, `${key}.${lv ? 0 : (n.children ?? []).indexOf(c)}`, p, active);
+      if (!active || !n.mesh_stats) return;
+      // 铸币正面（宝石 shader 族）走 gems 阶段公式；瞬闪（Birth 态）与常驻辉光 quad 不渲染——
+      // 它们的锚在铸币上方（FSM 摆位），随锚定平移会让"铸币+辉光"整体比基准圆心偏上。
+      if (n.name === 'Health_Burst' || n.name === 'Health_Persistant'
+        || n.name === 'Gem_Health' || n.name === 'Gem_Coin') return;
+      const rr = n.renderers ?? [];
+      if (!rr.length || !rr[0].materials?.length) return;
+      nodes.push({ name: n.name, key, materials: rr[0].materials, world: n.world!, comp: { path: p } });
+    };
+    walk(ov.hierarchy, 'root', '', null);
+    // anchor='world-target'：把整个 overlay（含层级本体——铸币正面走 gems 公式，从同一层级取位）
+    // 平移到 world_target。参考位 = 层级里 Gem_Health/Gem_Coin 的当前世界平移。
+    if (spec.anchor === 'world-target' && spec.world_target) {
+      let gemWorld: number[][] | null = null;
+      for (const [n] of walkWithKey(ov.hierarchy)) {
+        if ((n.name === 'Gem_Health' || n.name === 'Gem_Coin') && n.world) {
+          gemWorld = n.world;
+          break;
+        }
+      }
+      if (gemWorld) {
+        const dx = spec.world_target[0] - gemWorld[0][3];
+        const dy = spec.world_target[1] - gemWorld[1][3];
+        const dz = spec.world_target[2] - gemWorld[2][3];
+        for (const [n] of walkWithKey(ov.hierarchy)) {
+          if (!n.world) continue;
+          n.world[0][3] += dx;
+          n.world[1][3] += dy;
+          n.world[2][3] += dz;
+        }
+      }
+    }
+    // 材质槽 blend 标记（按 shader 名；见函数头注释）
+    for (const nd of nodes) {
+      nd.blends = nd.materials.map(mm => {
+        if (mm?.shader?.startsWith('Hero/Multiply/')) return 'multiply' as const;
+        if (mm?.shader?.startsWith('Hero/Additive/')) return 'additive' as const;
+        return 'alpha' as const;
+      });
+    }
+    const meshes = ov.meshes;
+    const W = SIZE[0], H = SIZE[1];
+    const trisOut: BucketTri[] = [];
+    let seq = 0;
+    for (const nd of nodes) {
+      const mesh = meshes[nd.key];
+      if (!mesh) continue;
+      const M = nd.world;
+      const verts = mesh.verts;
+      const n = verts.length;
+      const px = new Float64Array(n), py = new Float64Array(n), depth = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const vx = verts[i][0], vy = verts[i][1], vz = verts[i][2];
+        const wx = M[0][0] * vx + M[0][1] * vy + M[0][2] * vz + M[0][3];
+        const wy = M[1][0] * vx + M[1][1] * vy + M[1][2] * vz + M[1][3];
+        const wz = M[2][0] * vx + M[2][1] * vy + M[2][2] * vz + M[2][3];
+        px[i] = projectX(wx);
+        py[i] = projectY(wz);
+        depth[i] = wy;
+      }
+      const blends = nd.blends ?? [];
+      for (let si = 0; si < mesh.subs.length; si++) {
+        const mi = Math.min(si, nd.materials.length - 1);
+        const mat = nd.materials[mi];
+        if (!mat) continue;
+        const texFile = mat.tex?.['_MainTex']?.texture?.file;
+        if (!texFile) continue;
+        const tint = mat.colors?.['_Color'] ?? [1, 1, 1, 1];
+        const blend = blends[mi] ?? 'alpha';
+        // 材质 _MainTex ST（Unity: final_uv = uv*scale + offset，采样 repeat wrap）。
+        // Timewarp 盾 offset=(0,0.475)：mesh v[0.537,0.971] wrap 后 [0.012,0.446] = 图集左下格；
+        // 提取侧本就采集 ST（extract_frame walk_material），此前渲染端从未应用。整网格变换后
+        // UV 落在同一整数周期内（span<1），逐顶点 fract 不产生接缝。
+        const tenv = mat.tex?.['_MainTex'];
+        const stS = tenv?.scale, stO = tenv?.offset;
+        let uvArr = mesh.uv0;
+        if (stS && stO && (stS[0] !== 1 || stS[1] !== 1 || stO[0] !== 0 || stO[1] !== 0)) {
+          uvArr = mesh.uv0.map(([u, v]) => {
+            const tu = u * stS[0] + stO[0], tv = v * stS[1] + stO[1];
+            return [tu - Math.floor(tu), tv - Math.floor(tv)];
+          });
+        }
+        for (const t of mesh.subs[si]) {
+          const a = t[0], b = t[1], c = t[2];
+          trisOut.push({
+            depth:    (depth[a] + depth[b] + depth[c]) / 3,
+            seq:      seq++,
+            tri2d:    [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
+            triUv:    [uvArr[a], uvArr[b], uvArr[c]],
+            triZ:     [depth[a], depth[b], depth[c]],
+            texKey:   texFile, tint, uvOffset: [0.0, 0.0],
+            opaque:   false,
+            multiply: blend === 'multiply',
+            additive: blend === 'additive',
+          });
+        }
+      }
+    }
+    trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
+    for (const e of trisOut) {
+      rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
+        textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive);
+    }
+  }
 }
 
 /** 直感 alpha 合成到不透明黑底 → uint8 RGBA（np.clip→astype 截断口径 + PIL 量化近邻）。 */
@@ -212,9 +364,10 @@ export function quantTrunc(buf: Float64Array): Float64Array {
 /** P1：宝石两段（含段间 uint8 量化口径），返回直感 RGB buffer。 */
 export function renderGemsStage(
   canvas: Float64Array, pack: AssetPack, textures: TextureStore,
+  overlayGems?: OverlayGemSource,
 ): Float64Array {
   const rgb = canvasToQuantRgb(canvas);
-  renderStatGems(rgb, pack, textures);
+  renderStatGems(rgb, pack, textures, overlayGems);
   quantTrunc(rgb);
   if (pack.plan!.rarity_gem?.visible) {
     renderRarityGemWrap(rgb, pack, textures);

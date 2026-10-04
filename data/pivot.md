@@ -39,6 +39,8 @@ exporter 侧新增基准卡时，在此表追加一行再重跑提取。
 | BG34_Giant_072 | 时空扭曲随从 | NORMAL | Battlegrounds | Hand | 时空扭曲随从基线，用于验证时间酒馆随从的 TIME_TAVERN_TIER_ICON 图标渲染。 |
 | BG34_Treasure_917 | 时空扭曲法术 | NORMAL | Battlegrounds | Hand | 时空扭曲法术基线，用于验证时间酒馆法术的 TIME_TAVERN_TIER_ICON 图标渲染。 |
 | PET_3_1 | 宠物测试 | NORMAL | Normal | Hand | 宠物样例，用于验证宠物预览导出。 |
+| BG24_Reward_107 | 任务奖励基线 | NORMAL | Battlegrounds | Hand | 战棋任务奖励样例，用于验证任务奖励导出（铸币替换费用宝石、费用文本清空）。 |
+| BG24_Reward_310 | 任务奖励基线2 | NORMAL | Battlegrounds | Hand | 战棋任务奖励样例 2（exporter 基准卡），验证任务奖励规则的泛化。 |
 | LT23_802P2 | 佣兵技能基线 | NORMAL | Normal | Hand | 佣兵技能样例，用于验证 LETTUCE_ABILITY 法术类技能 BigCard 渲染。 |
 | LT23_803P2 | 佣兵技能2 | NORMAL | Normal | Hand | 佣兵技能样例 2，用于验证另一张 LETTUCE_ABILITY 渲染。 |
 

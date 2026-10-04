@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-03T01:23:05.040529+00:00",
+ "generatedAt": "2026-10-03T14:51:28.825745+00:00",
  "source": {
   "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
   "gameVersion": "36.6.253216",
@@ -232,6 +232,22 @@
    "label": "宠物测试",
    "premium": "NORMAL",
    "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG24_Reward_107",
+   "dbfId": 89449,
+   "label": "任务奖励基线",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "BG24_Reward_310",
+   "dbfId": 91980,
+   "label": "任务奖励基线2",
+   "premium": "NORMAL",
+   "template": "Battlegrounds",
    "zone": "Hand"
   },
   {

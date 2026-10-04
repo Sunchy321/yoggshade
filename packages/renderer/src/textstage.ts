@@ -10,8 +10,11 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack): Promi
 
   for (const entry of pack.plan!.texts ?? []) {
     if (!entry.render || !entry.text) continue;
-    const ns = settings[entry.role];
+    let ns = settings[entry.role];
     if (!ns) continue;
+    // 战棋 alternate-cost：费用文本挪到铸币位（Actor.cs:562/6454；delta 由 plan 计算）
+    const delta = entry.world_delta;
+    if (delta) ns = { ...ns, worldPos: [ns.worldPos[0] + delta[0], ns.worldPos[1] + delta[1], ns.worldPos[2] + delta[2]] };
     const layer = renderText(pack, entry.text, ns, scene, [0.0, 0.0],
       entry.role === 'name' ? pack.curved : undefined);
     if (process.env.DEBUG_LAYER === entry.role) {

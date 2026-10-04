@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-03T08:05:34.891209+00:00",
+ "generatedAt": "2026-10-03T11:03:39.185383+00:00",
  "sources": {
   "class": "explore/ilspy/TAG_CLASS.cs",
   "schoolZh": "explore/ilspy/TAG_SPELL_SCHOOL.cs + explore/hs-render/data/card_tags/tag_enum.csv",
@@ -75,7 +75,8 @@
   "4": "自然",
   "5": "神圣",
   "6": "暗影",
-  "7": "邪能"
+  "7": "邪能",
+  "9": "酒馆"
  },
  "colorSwitcher": {
   "spellCardTextures": [

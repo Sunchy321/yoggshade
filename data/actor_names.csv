@@ -5,3 +5,5 @@ normal,HAND_WEAPON,Card_Hand_Weapon.prefab,30888a1fdca5c6c43abcc5d9dca55783,Acto
 normal,HAND_HERO,Card_Hand_Hero.prefab,a977c49edb5fb5d4c8dee4d2344d1395,ActorNames.cs:58-61
 normal,HAND_LOCATION,Card_Hand_Location.prefab,bc312fcf691884a40967dae38d4d8b79,ActorNames.cs:66-69
 normal,HAND_HERO_POWER,History_HeroPower.prefab,e73edf8ccea2b11429093f7a448eef53,ActorNames.cs:555-556
+normal,BIG_CARD_BG_ANOMALY,Card_Hand_BG_Anomaly.prefab,7f3f43fd7e6cf3848b2502662d5ba14d,ActorNames.cs:158-161
+normal,BIG_CARD_BG_TRINKET,Card_Hand_BG_Trinket.prefab,3c79ff39d8cdb154f86343c20ebf9c5a,ActorNames.cs:162-165

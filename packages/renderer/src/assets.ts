@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePng } from './image.js';
-import type { AssetPack, HierarchyNode, RGBAImage } from './types.js';
+import type { AssetPack, HierarchyNode, MeshEntry, RGBAImage, SpellOverlayPack } from './types.js';
 
 function readJson<T>(p: string): T {
   return JSON.parse(readFileSync(p, 'utf-8')) as T;
@@ -79,6 +79,14 @@ export function loadPack(dir: string, slot?: string): AssetPack {
   if (pk && meshes[pk]?.subs?.[0]) meshes[pk].subs[0] = [];
 
   return { dir, manifest, plan, frameRecon, meshes, portrait, materialProps, curved };
+}
+
+/** spells/{key}/（extract_spell.py 产物）装载：层级 + 网格。 */
+export function loadSpellOverlay(packDir: string, key: string): SpellOverlayPack {
+  const d = join(packDir, 'spells', key);
+  const recon = readJson<{ hierarchy: HierarchyNode }>(join(d, 'frame_recon.json'))!;
+  const meshes = readJson<Record<string, MeshEntry>>(join(d, 'meshes.json'))!;
+  return { key, hierarchy: recon.hierarchy, meshes };
 }
 
 /** sc._walk_with_key：yield (node, npz_key, prefab_path)。 */

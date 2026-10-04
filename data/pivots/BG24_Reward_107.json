@@ -1,0 +1,55 @@
+{
+ "cardId": "BG24_Reward_107",
+ "dbfId": 89449,
+ "preset": {
+  "label": "任务奖励基线",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "战棋任务奖励样例，用于验证任务奖励导出（铸币替换费用宝石、费用文本清空）。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Snicker Snacks",
+  "deDE": "Zum Schreien gute Snacks",
+  "esES": "Zis, zas",
+  "esMX": "Bocadillos",
+  "frFR": "Menus plaisirs",
+  "itIT": "Merenda Gustosa",
+  "jaJP": "刻み刈り獲らん",
+  "koKR": "부스락 과자",
+  "plPL": "Ściachu-ciach",
+  "ptBR": "Para Trás, Para Diante",
+  "ruRU": "Злопастности",
+  "thTH": "ฉึบฉับฉึบฉับ",
+  "zhCN": "尖啸零食",
+  "zhTW": "我笑我咬"
+ },
+ "textInHand": {
+  "enUS": "[x]At the end of your turn,\n2 friendly minions\ntrigger their <b>Battlecries</b>.",
+  "deDE": "Löst am Ende Eures Zuges die <b>Kampfschreie</b> von 2 befreundeten Dienern aus.",
+  "esES": "[x]Al final de tu turno, dos\nesbirros amistosos activan\nsus <b>Gritos de batalla</b>.",
+  "esMX": "Al final de tu turno, 2 esbirros aliados activan_sus <b>Gritos_de_batalla</b>.",
+  "frFR": "À la fin de votre tour, 2_serviteurs alliés déclenchent leur <b>Cri_de guerre</b>.",
+  "itIT": "Alla fine del tuo turno, 2 tuoi servitori attivano i loro <b>Gridi di Battaglia</b>.",
+  "jaJP": "[x]自分のターンの終了時\n味方のミニオン2体の\n<b>雄叫び</b>を発動させる。",
+  "koKR": "내 턴이 끝날 때, 아군 하수인 둘의 <b>전투의 함성</b>을 발동합니다.",
+  "plPL": "Na koniec twojej tury 2_przyjaznych stronników aktywuje swoje <b>Okrzyki bojowe</b>.",
+  "ptBR": "No final do seu turno, 2 lacaios aliados ativam seus <b>Gritos de Guerra</b>.",
+  "ruRU": "В конце вашего хода 2 ваших существа применяют свои <b>«Боевые кличи»</b>.",
+  "thTH": "เมื่อจบเทิร์นของคุณ มินเนี่ยนฝ่ายคุณ 2 ตัวใช้[b]ผล_<b>คำรามสู้ศึก</b>_ของตน",
+  "zhCN": "在你的回合结束时，2个友方随从触发其<b>战吼</b>。",
+  "zhTW": "在你的回合結束時，2個友方手下觸發其<b>戰吼</b>"
+ },
+ "tags": {
+  "199": 12,
+  "202": 40,
+  "201": 3,
+  "2467": 70,
+  "2641": 1,
+  "32": 1,
+  "684": 1,
+  "218": 1
+ }
+}

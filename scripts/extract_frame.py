@@ -61,6 +61,11 @@ SLOT_TO_ACTOR_KEY = {
     # = History_HeroPower.prefab。不是 Card_Hand_Ability（那是 SPELL=5 的帧），也不是对局区的
     # Card_Play_HeroPower（GetPlayActorByTags 才走那条；exporter docs/decompile-notes.md 已记）。
     "hand-heropower": "HAND_HERO_POWER",
+    # 战棋专用手牌帧（GetHandActor：BATTLEGROUND_ANOMALY → BIG_CARD_BG_ANOMALY、
+    # BATTLEGROUND_TRINKET → BIG_CARD_BG_TRINKET，ActorNames.cs:562-565）。
+    # 注意 BG 法术(42)/任务奖励(40) 走 HAND_SPELL（复用 hand-spell 帧），BG 随从走 HAND_MINION。
+    "hand-bg-anomaly": "BIG_CARD_BG_ANOMALY",
+    "hand-bg-trinket": "BIG_CARD_BG_TRINKET",
 }
 
 # UberText 节点名 → 物理角色（TS plan 编译按卡型决定渲染与否与文本来源）
@@ -479,6 +484,25 @@ def extract_one(pack: Path, slot: str) -> int:
                       "submesh_tris": [len(t) for t in mesh["submeshes"]],
                       "bundle": e["bundle"], "path_id": e["path_id"]}
 
+    # ---- actor 引用的 Material 资产（如饰品 m_lesserTrinketMaterial/m_greaterTrinketMaterial，
+    #      UpdateBaconTrinketComponents 运行时换上；Actor.cs:5368-5420）----
+    material_refs = {}
+    for field, e in refs.items():
+        if e.get("type") != "Material" or not e.get("bundle"):
+            continue
+        try:
+            env = rec.r.open_bundle(e["bundle"])
+            mat_info = None
+            for sf in _iter_sf(env):
+                if e["path_id"] in sf.objects:
+                    mat_info = rec.walk_material(sf.objects[e["path_id"]], e["bundle"],
+                                                 sf.objects[e["path_id"]])
+                    break
+            if mat_info:
+                material_refs[field] = mat_info
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] material ref {field}: {exc}")
+
     # ---- role_paths（UberText 节点名 → 角色；路径相对帧根）----
     role_paths: dict[str, str] = {}
     for n in rec.iter_nodes(hierarchy):
@@ -520,12 +544,16 @@ def extract_one(pack: Path, slot: str) -> int:
             if 0 <= pmat_idx < len(mats) and mats[pmat_idx]:
                 mat = mats[pmat_idx]
                 break
-        assert mat is not None, f"{portrait_node}: 肖像材质槽 {pmat_idx} 空"
-        material_props = {
+        if mat is None:
+            # 饰品帧（Card_Hand_BG_Trinket）的肖像槽序列化为空：运行时经
+            # UpdatePortraitMaterials → cardDef.GetPortraitMaterial(NORMAL)（m_useCardDefMaterial=1）
+            # 塞入标准肖像材质，原画纹理由 CardDef 给。离线链按「槽位 + 标准肖像公式 + pivot 原画」处理。
+            print(f"[portrait] {portrait_node}: 肖像材质槽 {pmat_idx} 序列化为空（运行时 CardDef 材质）")
+        material_props = None if mat is None else {
             "m_Colors": {"_SecondTint": dict(zip("rgba", mat["colors"].get("_SecondTint", [0.5, 0.5, 0.5, 1.0])))},
             "m_Floats": {"_BlendIntensity": mat["floats"].get("_BlendIntensity", 1.0)},
         }
-        st = mat["tex"].get("_SecondTex", {}).get("texture")
+        st = mat["tex"].get("_SecondTex", {}).get("texture") if mat else None
         second_tex = st.get("file") if st else None
         print(f"[portrait] node={portrait_node_key} mesh={mesh_name} matIdx={pmat_idx} secondTex={second_tex}")
 
@@ -562,7 +590,8 @@ def extract_one(pack: Path, slot: str) -> int:
                    "root_translation_neutralized": {
                        "raw_root_pos": root_pos_raw,
                        "reason": "prefab 根位置=场景摆位残留；游戏区域布局覆写根位置；canonical 位姿=恒等根（Ability 帧原点+E7 自然映射零偏移实证）"},
-                   "hierarchy": hierarchy, "extra_meshes": extra}
+                   "hierarchy": hierarchy, "extra_meshes": extra,
+                   "material_refs": material_refs}
     (out / "frame_recon.json").write_text(
         json.dumps(frame_recon, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     (out / "meshes.json").write_text(json.dumps(meshes, ensure_ascii=False), encoding="utf-8")

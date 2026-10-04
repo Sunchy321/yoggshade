@@ -30,6 +30,7 @@ export function rasterZbuf(
   uvOffset: [number, number],
   opaque = false,
   multiply = false,
+  additive = false,
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -76,7 +77,20 @@ export function rasterZbuf(
         canvas[ci + 2] = Math.max(Math.min(canvas[ci + 2] * Math.min(scratch[2] + tb, 1), 1), 0);
         continue;
       }
+      if (additive) {
+        // 加法混合（Hero/Additive/*，SrcAlpha·One）：dst.rgb += src.rgb × tint × src.a；不动 alpha、
+        // 不写深度（Transparent 队列语义；星芒/辉光类 FX 只增亮）。
+        const sa = scratch[3] * ta;
+        canvas[ci] = Math.min(canvas[ci] + scratch[0] * tr * sa, 1);
+        canvas[ci + 1] = Math.min(canvas[ci + 1] + scratch[1] * tg * sa, 1);
+        canvas[ci + 2] = Math.min(canvas[ci + 2] + scratch[2] * tb * sa, 1);
+        continue;
+      }
       const sa = opaque ? 1.0 : scratch[3] * ta;
+      // 全透明纹素（sa=0）：引擎里要么 ZWrite Off 要么 alpha-test discard，**绝不产生遮挡**。
+      // 离线链此前无条件写深度，饰品格子纹章（Trinket_Medallion）被 TrinketLevelIndicatorRing
+      // 内圈的透明纹素挡在 zbuf 外（用户报告"大型/小型没渲染上"，2026-10-03）。
+      if (sa <= 0) continue;
       const dstA = canvas[ci + 3];
       const outA = sa + dstA * (1 - sa);
       const safe = outA > 1e-6 ? outA : 1.0;

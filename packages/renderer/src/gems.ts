@@ -3,7 +3,7 @@
 import { projectX, projectY, SIZE } from './camera.js';
 import { walkWithKey, TextureStore } from './assets.js';
 import { sampleBilinearClamp } from './image.js';
-import type { AssetPack, RGBAImage } from './types.js';
+import type { AssetPack, MeshEntry, RGBAImage, SpellOverlayPack, StatGem } from './types.js';
 
 const mainS = new Float64Array(4);
 const cloudS = new Float64Array(4);
@@ -59,27 +59,61 @@ function nodeByKeyPath(pack: AssetPack, path: string) {
   return null;
 }
 
+/** 战棋铸币等 SpellTable 预制里的宝石（StatGem.overlay 非空）：从 overlay 包解析几何。 */
+export interface OverlayGemSource {
+  packs: SpellOverlayPack[];
+  gems:  StatGem[];
+}
+
 /** 攻/血/费用三晶体：main clamp 采样，clouds wrap；桶内世界 Y 均值画家序。 */
 export function renderStatGems(
   rgb: Float64Array, pack: AssetPack, textures: TextureStore,
+  overlay?: OverlayGemSource,
 ): void {
   const plan = pack.plan!;
-  if (!plan.gem?.enabled || !plan.stat_gems?.length) return;
+  const gems = [...(plan.stat_gems ?? []), ...(overlay?.gems ?? [])];
+  if (!plan.gem?.enabled || !gems.length) return;
   const t = plan.gem.t!;
   const clouds = textures.get('GenFX_clouds03.png');
-  for (const g of plan.stat_gems) {
+  for (const g of gems) {
     const main = textures.get(g.main_tex_file);
     const [tR, tG, tB] = g.tint_rgb;
     const du = posmod(t * g.speed_xy[0], 1.0);
     const dv = posmod(t * g.speed_xy[1], 1.0);
-    const hit = nodeByKeyPath(pack, g.path);
-    if (!hit) continue;
-    const { mesh, px, py, wy } = projectNode(pack, hit.key, hit.n.world!);
+    let mesh: MeshEntry | undefined;
+    let world: number[][] | null | undefined;
+    if (g.overlay) {
+      const ov = overlay?.packs.find(o => o.key === g.overlay);
+      if (!ov) continue;
+      for (const [n, key, p] of walkWithKey(ov.hierarchy)) {
+        if (n.mesh_stats && p === g.path) {
+          mesh = ov.meshes[key];
+          world = n.world ?? undefined;
+          break;
+        }
+      }
+      if (!mesh || !world) continue;
+    } else {
+      const hit = nodeByKeyPath(pack, g.path);
+      if (!hit) continue;
+      mesh = pack.meshes[hit.key];
+      world = hit.n.world!;
+    }
+    const M = world;
+    const n = mesh.verts.length;
+    const px = new Float64Array(n), py = new Float64Array(n), wy = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const [vx, vy, vz] = mesh.verts[i];
+      px[i] = projectX(M[0][0] * vx + M[0][1] * vy + M[0][2] * vz + M[0][3]);
+      py[i] = projectY(M[2][0] * vx + M[2][1] * vy + M[2][2] * vz + M[2][3]);
+      wy[i] = M[1][0] * vx + M[1][1] * vy + M[1][2] * vz + M[1][3];
+    }
     const tris = mesh.subs[0];
     const order = tris.map((tri, i) => [tri, i] as const)
       .sort((a, b) =>
         ((wy[a[0][0]] + wy[a[0][1]] + wy[a[0][2]]) - (wy[b[0][0]] + wy[b[0][1]] + wy[b[0][2]])) / 3)
       .map(([tri]) => tri);
+    // （几何解析完成后与帧内宝石同公式；见文件头公式注释）
     for (const tri of order) {
       const ia = tri[0], ib = tri[1], ic = tri[2];
       const xs = [px[ia], px[ib], px[ic]];

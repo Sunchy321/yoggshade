@@ -1,0 +1,53 @@
+{
+ "cardId": "BG24_Reward_310",
+ "dbfId": 91980,
+ "preset": {
+  "label": "任务奖励基线2",
+  "premium": "NORMAL",
+  "template": "Battlegrounds",
+  "zone": "Hand",
+  "reason": "战棋任务奖励样例 2（exporter 基准卡），验证任务奖励规则的泛化。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Partner in Crime",
+  "deDE": "Komplize",
+  "esES": "Cómplice",
+  "esMX": "Cómplice",
+  "frFR": "Complice",
+  "itIT": "Socio Criminale",
+  "jaJP": "共謀者",
+  "koKR": "공범",
+  "plPL": "Wspólnik w zbrodni",
+  "ptBR": "Parceiro de Crime",
+  "ruRU": "Соучастник преступления",
+  "thTH": "ผู้สมรู้ร่วมคิด",
+  "zhCN": "共犯",
+  "zhTW": "共犯"
+ },
+ "textInHand": {
+  "enUS": "[x]Get your Golden <b>Buddy</b>.",
+  "deDE": "Erhaltet eine goldene Kopie Eures <b>Partners</b>.",
+  "esES": "[x]Obtienes a tu <b>colega</b> dorado.",
+  "esMX": "Obtén tu <b>Compa</b>_dorado.",
+  "frFR": "Vous obtenez votre <b>compagnon</b> doré.",
+  "itIT": "Ottieni il tuo\n<b>Amico</b> Dorato.",
+  "jaJP": "[x]自分の\nゴールデン<b>バディ</b>\nを得る。",
+  "koKR": "내 황금 <b>전우</b>를 얻습니다.",
+  "plPL": "Otrzymujesz złotego <b>Towarzysza</b>.",
+  "ptBR": "Receba seu <b>Camarada</b> Dourado.",
+  "ruRU": "Вы получаете золотого <b>компаньона</b>.",
+  "thTH": "รับ<b>คู่หู</b>สีทอง[b]ของคุณ",
+  "zhCN": "获取你的金色<b>伙伴</b>。",
+  "zhTW": "獲得你的金卡<b>夥伴</b>"
+ },
+ "tags": {
+  "199": 12,
+  "202": 40,
+  "201": 3,
+  "2467": 80,
+  "2653": 1,
+  "684": 1
+ }
+}
