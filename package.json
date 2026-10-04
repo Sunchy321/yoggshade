@@ -10,6 +10,7 @@
     "render": "bun packages/renderer/src/main.ts",
     "diff": "bun packages/renderer/src/diff.ts",
     "fixtures": "bash scripts/render_fixtures.sh",
+    "l2": "bun packages/renderer/src/compare-reference.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
