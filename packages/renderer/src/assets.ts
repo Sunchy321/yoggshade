@@ -55,7 +55,7 @@ export function loadPack(dir: string, slot?: string): AssetPack {
     if (pk && meshes[pk]?.subs?.[portraitMatIdx]) meshes[pk].subs[portraitMatIdx] = [];
 
     const manifest = {
-      size:              [512, 707] as [number, number],
+      size:              [512, 768] as [number, number],
       portrait_node_key: frameManifest.portrait_node_key,
       portrait_mat_idx:  portraitMatIdx,
       second_tex:        frameManifest.second_tex,
