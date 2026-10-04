@@ -1,8 +1,8 @@
 /** 渲染 CLI：
  *  bun src/main.ts [packDir] [outPng] [stage]           —— 资产包内嵌 plan（EX1_350 基线）
- *  bun src/main.ts --card CARD_ID [--out out.png]       —— pivot 卡编译渲染（data/pivots + data/tables）
+ *  bun src/main.ts --card CARD_ID [--out out.png]       —— fixture 卡编译渲染（data/fixtures + data/tables）
  * stage: p0 = 帧+肖像；p1 = +宝石；p2 = +文字（全链，默认）
- * 路径注入：--pack/--data 或 YOGGRAPH_PACK/YOGGRAPH_DATA（默认相对 CWD：assets/card-render-v1、data）。 */
+ * 路径注入：--pack/--data 或 YOGGRAPH_PACK/YOGGRAPH_DATA（默认相对 CWD：assets、data）。 */
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { loadPack, loadSpellOverlay, TextureStore, walkWithKey } from './assets.js';
@@ -13,7 +13,7 @@ import {
 } from './render.js';
 import type { OverlayGemSource } from './gems.js';
 import { encodePng } from './image.js';
-import { compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT, type PivotCard, type StaticTables } from './plan.js';
+import { compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT, type FixtureCard, type StaticTables } from './plan.js';
 
 function arg(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);
@@ -21,7 +21,7 @@ function arg(flag: string): string | undefined {
 }
 
 const hasFlags = process.argv.slice(2).some(a => a.startsWith('--'));
-const packDefault = process.env.YOGGRAPH_PACK ?? 'assets/card-render-v1';
+const packDefault = process.env.YOGGRAPH_PACK ?? 'assets';
 const dataDir = arg('--data') ?? process.env.YOGGRAPH_DATA ?? 'data';
 const packDir = arg('--pack') ?? (hasFlags ? packDefault : process.argv[2] ?? packDefault);
 const cardId = arg('--card');
@@ -29,20 +29,20 @@ const outPng = arg('--out') ?? (cardId ? `out/ts_${cardId}.png` : hasFlags ? 'ou
 const stage = arg('--stage') ?? (hasFlags ? 'p2' : process.argv[4] ?? 'p2');
 
 const t0 = Date.now();
-const pivotFile = arg('--pivot-file');
+const fixtureFile = arg('--fixture-file');
 const slotOverride = arg('--slot');
 let pack;
-if (cardId || pivotFile) {
-  const pivot = JSON.parse(
-    readFileSync(pivotFile ?? join(dataDir, 'pivots', `${cardId}.json`), 'utf-8'),
-  ) as PivotCard;
+if (cardId || fixtureFile) {
+  const fixture = JSON.parse(
+    readFileSync(fixtureFile ?? join(dataDir, 'fixtures', `${cardId}.json`), 'utf-8'),
+  ) as FixtureCard;
   const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as StaticTables;
   // 卡型 → 手牌帧 slot（TAG_CARDTYPE；actor_names.csv/ActorNames.cs）；未知卡型回落随从帧
-  const slot = slotOverride ?? CARD_TYPE_TO_SLOT[pivot.tags['202'] ?? 4] ?? 'hand-minion';
+  const slot = slotOverride ?? CARD_TYPE_TO_SLOT[fixture.tags['202'] ?? 4] ?? 'hand-minion';
   pack = loadPack(packDir, slot);
   pack.plan = pack.prefabReport
-    ? compileFramePlan(pivot, tables, pack, packDir, slot)
-    : compilePlan(pivot, tables, pack, packDir);
+    ? compileFramePlan(fixture, tables, pack, packDir, slot)
+    : compilePlan(fixture, tables, pack, packDir);
 } else {
   pack = loadPack(packDir);
 }

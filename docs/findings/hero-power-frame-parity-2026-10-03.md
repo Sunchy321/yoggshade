@@ -11,9 +11,9 @@
 
 | 项 | 结果 |
 |---|---|
-| 新帧 slot | `hand-heropower`（资产包 `assets/card-render-v1/frames/hand-heropower/`，actor=`History_HeroPower.prefab`） |
+| 新帧 slot | `hand-heropower`（资产包 `assets/frames/hand-heropower/`，actor=`History_HeroPower.prefab`） |
 | 卡型映射 | `CARD_TYPE_TO_SLOT[10] = 'hand-heropower'`（`plan.ts`） |
-| 30 张 pivot 回归 | **只有 AV_205p 变化**（原走回落随从帧），其余 29 张逐像素 0 差异 |
+| 30 张 fixture 回归 | **只有 AV_205p 变化**（原走回落随从帧），其余 29 张逐像素 0 差异 |
 | L1（py 链，**非基准**，仅离线冒烟） | 帧与文字修复段 `mae 0 / maxAbs 1 / px>1 = 0`；§7 描边口径修正后 `mae 0.322`（差异只在数字描边，属预期分歧，见 §6.7） |
 | 基准层级（用户口径，2026-10-03） | **官方图 > exporter 导出图**；目前以 exporter 导出图为现行基准，官方图待以后专门对齐 |
 | vs 游戏内参照 · 同卡（HERO_05bp 本尊） | **帧体区（去文字/去肖像）MAE 0.227 / MSE 0.410 / px>64 = 0**（像素级命中） |
@@ -45,7 +45,7 @@ case TAG_CARDTYPE.HERO_POWER:
 **落地**：`data/actor_names.csv` 增 `normal,HAND_HERO_POWER,History_HeroPower.prefab,e73edf8c…`；
 `scripts/extract_frame.py` 的 `SLOT_TO_ACTOR_KEY` 增 `hand-heropower`。
 
-## 2. 帧结构（探针实证，`assets/card-render-v1/frames/hand-heropower/prefab_report.json`）
+## 2. 帧结构（探针实证，`assets/frames/hand-heropower/prefab_report.json`）
 
 - **渲染面只有三处**：`RootObject/Mesh`（`HeroPowerV2`，3 子网格：框 367 tri / 肖像圆窗 6 tri /
   `HeroClass` 垫板 187 tri）、`RootObject/Mesh/FrameMesh`（`History_HeroPower` 材质，92 tri = 名字横幅
@@ -92,7 +92,7 @@ case TAG_CARDTYPE.HERO_POWER:
    实现：在 `loadNodeSettingsAlly` 里把该局部量经节点世界矩阵变换后加到 `worldPos`。
 
 **回归面**：两笔都是按反编译语义的通用修复；ally/spell/weapon/hero/location 帧 zhCN 的
-`m_LocaleAdjustments` 为空、文本无 `\n` → 数学上恒等。实测 30 张 pivot 中 29 张逐像素 0 差异、
+`m_LocaleAdjustments` 为空、文本无 `\n` → 数学上恒等。实测 30 张 fixture 中 29 张逐像素 0 差异、
 L1 黄金 mae 0 变化为零。
 
 **端到端验证**：§5 的同卡对照（HERO_05bp，其 DBF 描述正是 `<b>英雄技能</b>\n…` 且 zhCN 有
@@ -105,7 +105,7 @@ L1 黄金 mae 0 变化为零。
   → 帧与文字修复段为 `mae 0 / maxAbs 1 / px>1 = 0`；**§7 的描边单位修复后变为
   `mae 0.322 / px>4 = 4090`，差异全部落在数字（费/攻/血）描边上**（见 §7 第 3 条：
   py 链与本仓旧口径同源，属「参照不是同步目标」的口径分歧，需用户裁决）。
-- **30 张 pivot 回归**：修复前快照 `explore/2026-10-03-heropower/output/pivots_before/`，
+- **30 张 fixture 回归**：修复前快照 `explore/2026-10-03-heropower/output/pivots_before/`，
   修复后逐张比较 → 仅 `AV_205p` 变化（189,345 px），其余 29 张 `maxdiff = 0`。
 - **vs 游戏内参照**（Angelia 引擎快照，dbf 229 稳固射击；同帧不同卡，帧体应逐位一致）：
   非空内容外框 ref `x[68,441] y[63,620]` vs ours `x[68,441] y[63,620]`（逐位相同，且逐行占用零分歧）。
@@ -118,8 +118,8 @@ L1 黄金 mae 0 变化为零。
 - **费用数字**：ours bbox `x[235,290] y[79,131]` vs ref `x[237,290] y[79,130]`（±2px，与武器
   攻/耐久数字同型残差）。
 - **同卡对照**（最强口径；脚本 `explore/2026-10-03-heropower/scripts/build_probe_pivot.py`）：
-  参照图是引擎快照 dbf 229 = `HERO_05bp`，本仓 pivot 集里没有这张卡，故临时造 pivot JSON + 原画
-  （脚本调 DBF 取 name/text/InHand/tags + 复用 `scripts/extract_pivot_assets.py` 取原画；
+  参照图是引擎快照 dbf 229 = `HERO_05bp`，本仓 fixture 集里没有这张卡，故临时造 fixture JSON + 原画
+  （脚本调 DBF 取 name/text/InHand/tags + 复用 `scripts/extract_fixture_assets.py` 取原画；
   文本里的 `@` 备用文本与 `$2` 伤害令牌按实验预处理展开——二者属 Phase 2 文字重建范围，
   只为让帧对照不被未实现令牌干扰，AV_205p 本身无令牌）。落图
   `output/{HERO_05bp.json,HERO_05bp_ours.png}`，逐区统计（参照图左下角 `REF HERO_05bp`
@@ -189,7 +189,7 @@ L1 黄金 mae 0 变化为零。
 8. ~~**字形缓存历史脏值**~~ **已清（2026-10-03）**：`Belwe_Outline-45` 的 `1 < > b /` 五个 ASCII
    条目 `advance=45`（CJK 全宽）与其 mask 不符（按 hmtx 应为 24/29/29/27/24），
    现由 `scripts/extract_glyph_cache.py --fix-stale` 改写（mask 逐字节校验一致才改）；
-   改写前后 30 张 pivot **逐像素零变化**（该路径当前无文本可达），
+   改写前后 30 张 fixture **逐像素零变化**（该路径当前无文本可达），
    之后 `--verify-all` = **467 复算一致 / 0 不一致**（缓存与 py 链光栅化全量等价的自证）。
 9. **未验**：`Card_Play_HeroPower`（对局区）/`History_HeroPower_Opponent`（敌方）/premium
    变体帧；战棋模板下的英雄技能（`ActorTemplateMode.Battlegrounds`，exporter 另有
@@ -205,12 +205,12 @@ L1 黄金 mae 0 变化为零。
 
 1. **字形缓存未命中 → TS 无 hinting 兜底光栅**。
    资产包 `glyphs/{font}-{fs}/` 此前只覆盖 L1 基准卡的文字（`Belwe_Outline-45` 55 字、
-   `FranklinGothic-40` 28 字、`Belwe_Outline-74` 1 字），pivot 集里**几乎每张卡的名字/描述字符都缺**
+   `FranklinGothic-40` 28 字、`Belwe_Outline-74` 1 字），fixture 集里**几乎每张卡的名字/描述字符都缺**
    （实测：GDB_142「无界空宇」0 缺 → 平滑；TTN_090「尤格-萨隆的监狱」7 缺 → 锯齿；
    AV_205p「培育」2 缺 → 锯齿），且**地标帧名字的 fs=36 目录整个不存在**（zhCN locale
    FontSizeModifier=0.8）→ 该帧全部字形走兜底。
    **修复**：新增长期工具 `scripts/extract_glyph_cache.py`（uv + PEP 723），按「本仓渲染计划真正会画的
-   字符」补齐缓存：pivot 集各卡的 name/textInHand（去标签）+ 种族/学派文本 + 数字角色用的
+   字符」补齐缓存：fixture 集各卡的 name/textInHand（去标签）+ 种族/学派文本 + 数字角色用的
    `0-9 -`，字体/字号逐帧取自 `manifest.role_paths` + `prefab_ubertext.json`
    （fs = trunc(fontdef.m_FontSizeModifier × locale9.m_FontSizeModifier × m_FontSize)；
    实测需要四组：`Belwe_Outline-45`（名字/种族）、`-74`（费/攻/血/护甲）、
@@ -218,7 +218,7 @@ L1 黄金 mae 0 变化为零。
    `uber_text.FontMetrics` 同构（getmask2 / bitmap_left / bitmap_top / hmtx advance）。
    **等价性自证**：`--verify-all` 复算资产包内**全部**既有字形并与盘上字节比对 → 450 一致 / 5 不一致；
    5 处仅 `advance` 字段不符（`/ 1 < > b` 五个 ASCII 字形盘上是 45 = CJK 全宽，本脚本按 hmtx 算
-   24/29/29/27，像素 mask 逐位相同）——盘上这 5 条是历史遗留脏值，当前任何 pivot 文本都不走它们
+   24/29/29/27，像素 mask 逐位相同）——盘上这 5 条是历史遗留脏值，当前任何 fixture 文本都不走它们
    （名字/种族无 ASCII；`\`<b>\`` 标签在排版前已被剥离），本脚本不改写既有条目，登记待清。
    共新增 371 + 3(同卡对照卡) + 9(武器对照卡) 字形。
 2. **直绘路径的描边半径单位错**：`m_OutlineSize` 的单位按反编译是**字体/图集 texel**
@@ -242,7 +242,7 @@ L1 黄金 mae 0 变化为零。
 8.20 vs 8.24；描述 `m_Outline=0` 不受影响，两版逐位相同）。两个独立引擎参照都指向「字体 px」口径。
 
 **回归面**：
-- 只补缓存（未动描边口径）时：L1 `mae 0 / maxAbs 1 / px>1 = 0` 不变；30 张 pivot 全部变化但
+- 只补缓存（未动描边口径）时：L1 `mae 0 / maxAbs 1 / px>1 = 0` 不变；30 张 fixture 全部变化但
   **差异全部落在文字区**（名字/描述/数字），帧体零变化。
 - 叠加描边口径修复后：**L1 变为 `mae 0.322 / px>4 = 4090`，差异只在费/攻/血/杜拉数字的描边上**
   （分块实测：cost 650px、attack 270px、health 340px、名字 0px）。py 链用的是旧口径，

@@ -14,7 +14,7 @@ TTN_090「尤格-萨隆的监狱」未命中=锯齿）。渲染期所用字形�
 以证明两边等价。
 
 字形集合 = 本仓渲染计划真正会画出的字符（zhCN）：
-  data/pivots/*.json 的 name / textInHand（去标签）+ 种族/学派文本（data/tables.json）
+  data/fixtures/*.json 的 name / textInHand（去标签）+ 种族/学派文本（data/tables.json）
   + 数字角色（费/攻/血/护甲）用到的 0-9 与 '-'
 按「卡型 → 手牌帧 slot」选帧（与 packages/renderer/src/plan.ts 的 CARD_TYPE_TO_SLOT 同源），
 逐帧读 frames/{slot}/manifest.json 的 role_paths + prefab_ubertext.json 得到角色 → 字体 + 字号
@@ -41,7 +41,7 @@ from PIL import Image, ImageFont
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-DEFAULT_PACK = REPO / "assets" / "card-render-v1"
+DEFAULT_PACK = REPO / "assets"
 DATA = REPO / "data"
 
 # 卡型 → 手牌帧 slot（plan.ts CARD_TYPE_TO_SLOT 同源；未知卡型回落 hand-minion）
@@ -158,10 +158,10 @@ def collect_texts(pack: Path, data: Path, fdefs: dict,
     need: dict[tuple[str, int], set[str]] = {}
     slot_cache: dict[str, dict] = {}
 
-    # pivot 集（data/pivots/*.json）为口径来源；--extra-card 追加实验卡（如 L2 同卡对照的临时 pivot）
-    pivots = sorted(p for p in (data / "pivots").glob("*.json") if p.name != "manifest.json")
-    pivots += [Path(p) for p in (extra or [])]
-    for path in pivots:
+    # fixture 集（data/fixtures/*.json）为口径来源；--extra-card 追加实验卡（如 L2 同卡对照的临时 fixture）
+    fixtures = sorted(p for p in (data / "fixtures").glob("*.json") if p.name != "manifest.json")
+    fixtures += [Path(p) for p in (extra or [])]
+    for path in fixtures:
         card = json.loads(path.read_text(encoding="utf-8"))
         tags = {int(k): v for k, v in card.get("tags", {}).items()}
         slot = CARD_TYPE_TO_SLOT.get(tags.get(202, 4), FALLBACK_SLOT)
@@ -197,7 +197,7 @@ def main() -> int:
                     help="复算**资产包内全部**已有字形并逐字节比对（等价性自证；不写文件）")
     ap.add_argument("--dry-run", action="store_true", help="只报缺失字形数")
     ap.add_argument("--extra-card", action="append", default=[],
-                    help="额外纳入的 pivot JSON 路径（实验卡；可重复）")
+                    help="额外纳入的 fixture JSON 路径（实验卡；可重复）")
     ap.add_argument("--fix-stale", action="store_true",
                     help="改写既有条目的元数据：mask 字节一致但 advance/box 与 hmtx 不符的历史脏值")
     args = ap.parse_args()

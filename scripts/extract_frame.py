@@ -402,7 +402,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--slot", default="hand-spell", choices=sorted(SLOT_TO_ACTOR_KEY))
     ap.add_argument("--all", action="store_true", help="全部 5 帧")
-    ap.add_argument("--pack", default=str(REPO / "assets" / "card-render-v1"))
+    ap.add_argument("--pack", default=str(REPO / "assets"))
     args = ap.parse_args()
 
     slots = sorted(SLOT_TO_ACTOR_KEY) if args.all else [args.slot]
@@ -547,7 +547,7 @@ def extract_one(pack: Path, slot: str) -> int:
         if mat is None:
             # 饰品帧（Card_Hand_BG_Trinket）的肖像槽序列化为空：运行时经
             # UpdatePortraitMaterials → cardDef.GetPortraitMaterial(NORMAL)（m_useCardDefMaterial=1）
-            # 塞入标准肖像材质，原画纹理由 CardDef 给。离线链按「槽位 + 标准肖像公式 + pivot 原画」处理。
+            # 塞入标准肖像材质，原画纹理由 CardDef 给。离线链按「槽位 + 标准肖像公式 + fixture 原画」处理。
             print(f"[portrait] {portrait_node}: 肖像材质槽 {pmat_idx} 序列化为空（运行时 CardDef 材质）")
         material_props = None if mat is None else {
             "m_Colors": {"_SecondTint": dict(zip("rgba", mat["colors"].get("_SecondTint", [0.5, 0.5, 0.5, 1.0])))},

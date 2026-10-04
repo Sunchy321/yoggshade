@@ -1,4 +1,4 @@
-/** 渲染计划编译（py compile_plan_ally 的卡牌相关子集对译）：pivot 卡数据 + 静态表 → RenderPlan。
+/** 渲染计划编译（py compile_plan_ally 的卡牌相关子集对译）：fixture 卡数据 + 静态表 → RenderPlan。
  *
  * 静态基底（components 几何/材质、camera、stat_gems、gem 相位）来自资产包 plan.json（帧级，
  * 卡牌无关）；本模块只推导卡牌 delta：类色图集、原画、稀有度宝石、ELITE 龙、攻/血宝石显隐、
@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AssetPack, FrameMaterial, PlanComponent, PrefabReport, RenderPlan } from './types.js';
 
-export interface PivotCard {
+export interface FixtureCard {
   cardId:          string;
   dbfId:           number;
   preset:          { label: string, premium: string, template: string, zone: string, reason: string };
@@ -122,13 +122,13 @@ function setSlotTex(comp: PlanComponent, slot: number, file: string | null): voi
 }
 
 export function compilePlan(
-  pivot: PivotCard,
+  fixture: FixtureCard,
   tables: StaticTables,
   base: AssetPack,
   packDir: string,
 ): RenderPlan {
   const plan = clone(base.plan!) as RenderPlan;
-  const tags = pivot.tags;
+  const tags = fixture.tags;
   const binding = (plan as unknown as { actor_binding: Record<string, string | number> }).actor_binding;
   const matIdx = (k: string): number => binding[k] as number;
 
@@ -144,12 +144,12 @@ export function compilePlan(
     atlasFile = `textures/${stem.replace(/\.tif$/, '')}_${guid.slice(0, 8)}.png`;
   }
 
-  // ---- 原画（pivot 提取的新路径优先，EX1_350 时代的旧布局兜底；PET 类无原画 → 置空槽，
+  // ---- 原画（fixture 提取的新路径优先，EX1_350 时代的旧布局兜底；PET 类无原画 → 置空槽，
   //      对应引擎 PET 卡型 SetMaterialNormal 的 no-op 分支 Actor.cs SetMaterial switch）----
-  const portraitFile = existsSync(join(packDir, 'portraits', `${pivot.cardId}.png`))
-    ? `portraits/${pivot.cardId}.png`
-    : existsSync(join(packDir, 'textures', `portrait_${pivot.cardId}.png`))
-      ? `textures/portrait_${pivot.cardId}.png`
+  const portraitFile = existsSync(join(packDir, 'portraits', `${fixture.cardId}.png`))
+    ? `portraits/${fixture.cardId}.png`
+    : existsSync(join(packDir, 'textures', `portrait_${fixture.cardId}.png`))
+      ? `textures/portrait_${fixture.cardId}.png`
       : null;
 
   // ---- 稀有度宝石（RARITY∈四象限 → 显 + 偏移/着色；FREE/INVALID → 隐）----
@@ -203,8 +203,8 @@ export function compilePlan(
   const bodyFor = (role: string): string => {
     switch (role) {
     case 'cost': return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
-    case 'name': return pivot.name.zhCN ?? '';
-    case 'desc': return pivot.textInHand.zhCN ?? '';
+    case 'name': return fixture.name.zhCN ?? '';
+    case 'desc': return fixture.textInHand.zhCN ?? '';
     case 'race': return raceText;
     case 'attack': return attackText;
     case 'health': return healthText;
@@ -218,8 +218,8 @@ export function compilePlan(
   });
 
   (plan as unknown as { input: { dbf_id: string, card_id: string } }).input = {
-    dbf_id:  String(pivot.dbfId),
-    card_id: pivot.cardId,
+    dbf_id:  String(fixture.dbfId),
+    card_id: fixture.cardId,
   };
   return plan;
 }
@@ -385,7 +385,7 @@ function collectKeys(hierarchy: { path?: string, npz_key?: string, children?: un
 
 /** report→plan：帧组件骨架 + 卡牌 delta（类色/原画/稀有度/ELITE/攻血甲/种族板/文字角色）。 */
 export function compileFramePlan(
-  pivot: PivotCard,
+  fixture: FixtureCard,
   tables: StaticTables,
   base: AssetPack,
   packDir: string,
@@ -394,7 +394,7 @@ export function compileFramePlan(
   const report = base.prefabReport!;
   const rules = FRAME_RULES[slot];
   if (!rules) throw new Error(`未知帧 slot: ${slot}`);
-  const tags = pivot.tags;
+  const tags = fixture.tags;
   const actor = report.actor_components[0];
   const refs = actor.object_refs;
   const sc = actor.scalars as Record<string, number>;
@@ -412,10 +412,10 @@ export function compileFramePlan(
     const [stem, guid] = atlasRef.split(':');
     atlasFile = `textures/${stem.replace(/\.tif$/, '')}_${guid.slice(0, 8)}.png`;
   }
-  const portraitFile = existsSync(join(packDir, 'portraits', `${pivot.cardId}.png`))
-    ? `portraits/${pivot.cardId}.png`
-    : existsSync(join(packDir, 'textures', `portrait_${pivot.cardId}.png`))
-      ? `textures/portrait_${pivot.cardId}.png`
+  const portraitFile = existsSync(join(packDir, 'portraits', `${fixture.cardId}.png`))
+    ? `portraits/${fixture.cardId}.png`
+    : existsSync(join(packDir, 'textures', `portrait_${fixture.cardId}.png`))
+      ? `textures/portrait_${fixture.cardId}.png`
       : null;
 
   const rarityName = RARITY_NAMES[tags[TAG.RARITY] ?? 0] ?? 'INVALID';
@@ -455,7 +455,7 @@ export function compileFramePlan(
   //      TECH_LEVEL_MANA_GEM / BACON_TIMEWARPED→TIME_TAVERN_TIER_ICON，Actor.cs:7474-7484）----
   const techLevel = tags[TAG2.TECH_LEVEL] ?? 0;
   const timewarped = (tags[TAG2.BACON_TIMEWARPED] ?? 0) !== 0;
-  const isBGTemplate = pivot.preset.template === 'Battlegrounds';
+  const isBGTemplate = fixture.preset.template === 'Battlegrounds';
   const spellOverlays: RenderPlan['spell_overlays'] = [];
   let gemReplaced = false;
   let bgHideCost = false;
@@ -699,8 +699,8 @@ export function compileFramePlan(
       if (bgHideCost) return ''; // 战棋模板：tier 徽章/铸币替换费用显示（见 spellOverlays 规则）
       if (slot === 'hand-hero') return String(tags[TAG.COST] ?? 0); // 英雄费用缺省显 "0"
       return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
-    case 'name': return pivot.name.zhCN ?? '';
-    case 'desc': return pivot.textInHand.zhCN ?? '';
+    case 'name': return fixture.name.zhCN ?? '';
+    case 'desc': return fixture.textInHand.zhCN ?? '';
     case 'race': return slot === 'hand-spell' ? schoolText : raceText;
     case 'attack': return attackText;
     case 'health': return healthText;
@@ -727,7 +727,7 @@ export function compileFramePlan(
 
   const plan: RenderPlan = {
     components,
-    input:      { dbf_id: String(pivot.dbfId), card_id: pivot.cardId },
+    input:      { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
     rarity_gem: {
       visible:      rarityVisible,
       atlas_offset: rarityVisible ? GEM_TEXTURE_OFFSET[rarityName] : undefined,

@@ -2,7 +2,7 @@
 
 ## Project
 
-TypeScript offline Hearthstone card renderer. This repo replicates in-game Hearthstone card rendering pixel-for-pixel behind renderer protocol v1 (`POST /render` / `GET /status`) with zero game and zero Python at runtime; the final runtime target is Cloudflare Workers. `explore/hs-render` runs the Python golden-reference chain used as the L1 oracle. Unpacked image assets come from the unpack scripts in `scripts/`; renderer inputs are versioned under `assets/card-render-v1`.
+TypeScript offline Hearthstone card renderer. This repo replicates in-game Hearthstone card rendering pixel-for-pixel behind renderer protocol v1 (`POST /render` / `GET /status`) with zero game and zero Python at runtime; the final runtime target is Cloudflare Workers. `explore/hs-render` runs the Python golden-reference chain used as the L1 oracle. Unpacked image assets come from the unpack scripts in `scripts/`; renderer inputs are versioned under `assets/` (asset pack root).
 
 ## Prime Directive
 
@@ -42,7 +42,7 @@ Route work through the engineering skills instead of inventing a process:
 
 Design decisions belong to the user. Never settle one yourself; ask.
 
-Specs and tickets are working artifacts of the issue tracker and are written in Simplified Chinese. Long-term memory is `CONTEXT.md` (a glossary, never implementation details) and `docs/adr/` (decisions that are hard to reverse and involved a real trade-off, e.g. ADR-0001 pivot-frozen benchmark data). Both are committed.
+Specs and tickets are working artifacts of the issue tracker and are written in Simplified Chinese. Long-term memory is `CONTEXT.md` (a glossary, never implementation details) and `docs/adr/` (decisions that are hard to reverse and involved a real trade-off, e.g. ADR-0001 fixture-frozen benchmark data). Both are committed.
 
 Work tickets from the tracker, and mark a ticket done as soon as it is done.
 
@@ -53,7 +53,7 @@ All rendering modifications MUST be grounded in evidence from these sources:
 - UnityPy-probed original asset structure (prefab hierarchy, material assignments, texture formats)
 - Decompiled rendering source (ilspy caches and investigation notes accumulated under the workspace research materials)
 - Decompiled shader source (Metal shaders extracted from game shader bundles)
-- Pixel evidence: L1 diff against the py golden chain, L2 diff against in-game-rendered pivot benchmarks
+- Pixel evidence: L1 diff against the py golden chain, L2 diff against in-game-rendered fixture benchmarks
 
 Before writing any fix, cite specific decompiled code locations (file + line/function name) or diff numbers, and explain how they prove the fix targets the correct root cause. "Try this and see" patches are forbidden unless the user explicitly permits exploration.
 
@@ -74,7 +74,7 @@ Before committing a change classified as a rendering bug fix:
 ## Verification and baselines
 
 - **L1** = py golden chain in `explore/hs-render/` (`dz_render` → `render_dbf9_zfix.png`); run via `bun run render` + `bun run diff`. Py chain is a reference, not a sync target: TS-side changes do not need mirroring into the py scripts, but a rendering change should still be sanity-checked here while the golden is in range.
-- **L2** = in-game-rendered benchmark images for the frozen pivot set (`data/pivot.md`, ADR-0001). The pivot set is the acceptance anchor: acceptance for ported behavior = L2 diff against the in-game image for the same request.
+- **L2** = in-game-rendered benchmark images for the frozen fixture set (`data/fixture.md`, ADR-0001). The fixture set is the acceptance anchor: acceptance for ported behavior = L2 diff against the in-game image for the same request.
 - **Baseline artifacts are provenance.** Never overwrite a previous render/diff under `explore/**/output/`; comparisons are written into the current experiment's own output. Quote baseline numbers from findings docs (committed), not from mutable files.
 - Parity invariants discovered the hard way live in code comments (`packages/renderer/src/resize.ts` Pillow 8bpc semantics, `packages/renderer/src/glyph.ts` outline shader units, `packages/renderer/src/font.ts` FreeType getmask2 semantics). When you fight a parity battle, leave the evidence where the next person will look.
 
@@ -82,10 +82,10 @@ Before committing a change classified as a rendering bug fix:
 
 Bun workspaces monorepo: renderer and web app are separate packages; shared frozen data, extraction tools and the unpacked asset pack live at the root.
 
-- `packages/renderer/` — tracked TS renderer (`bun`, `tsc` strict). CLI: `bun run render` / `bun run pivots` from the repo root; asset pack and frozen-data paths are injectable via `--pack`/`--data` or `YOGGRAPH_PACK`/`YOGGRAPH_DATA` (defaults: `assets/card-render-v1`, `data`, relative to CWD).
+- `packages/renderer/` — tracked TS renderer (`bun`, `tsc` strict). CLI: `bun run render` / `bun run fixtures` from the repo root; asset pack and frozen-data paths are injectable via `--pack`/`--data` or `YOGGRAPH_PACK`/`YOGGRAPH_DATA` (defaults: `assets`, `data`, relative to CWD).
 - `apps/web/` — card-site package (skeleton; framework TBD). Consumes the renderer as `@yoggraph/renderer` (workspace dependency) or over protocol v1 as a separate Worker.
 - `scripts/` — tracked long-term extraction tools (uv + PEP 723 headers, `uv run scripts/<tool>.py`).
-- `data/` — tracked frozen data (e.g. `data/pivots/`); `data/pivot.md` is the single editing point for pivot membership.
+- `data/` — tracked frozen data (e.g. `data/fixtures/`); `data/fixture.md` is the single editing point for fixture membership.
 - `assets/` — unpacked asset pack (gitignored, reproducible via scripts); raw Blizzard assets never leave this boundary into any distribution path.
 - `explore/` — gitignored experiments and the py golden chain. Game install at `/Applications/Hearthstone` is read-only; extraction scripts must never write into it.
 - Cross-package imports use the package name (`@yoggraph/renderer/...`), never a relative path into another package's source.
@@ -103,5 +103,5 @@ Use Conventional Commits for all commit messages: `type(scope): subject`.
 - Types: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
 - `fix` commits must describe the problem that was solved, not how it was fixed. State what was broken and why it mattered.
 - Keep commit messages to a single line by default. Rendering bug fixes are the exception: their bodies must carry the root cause, the fix, and the parity evidence (see Rendering Bug Fix Workflow).
-- Use the most specific reasonable scope (`renderer`, `resize`, `pivots`, `scripts`) instead of broad generic ones, matching repository history.
+- Use the most specific reasonable scope (`renderer`, `resize`, `fixtures`, `scripts`) instead of broad generic ones, matching repository history.
 - When the user asks to commit, create the commit directly without waiting for confirmation of the message, then show the message after the commit is created.

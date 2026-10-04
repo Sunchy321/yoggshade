@@ -2,20 +2,20 @@
 # requires-python = ">=3.11"
 # dependencies = ["unitypy"]
 # ///
-"""extract_pivot_assets — pivot 卡素材提取（ADR-0001 双固化的素材侧）。
+"""extract_fixture_assets — fixture 卡素材提取（ADR-0001 双固化的素材侧）。
 
 链路（Angelia lab/2026-10-02-textless-ref/scripts/tr_extract_portrait.py 逐行同构，
 Mac 路径适配）：cards_map.asset → CardDef prefab → 组件扫 m_*PortraitTexturePath →
 resolve_asset_ref Resolver → Texture2D → PNG。
 
-产出 assets/card-render-v1/portraits/（素材属资产包，gitignored，脚本可复现）：
+产出 assets/portraits/（素材属资产包，gitignored，脚本可复现）：
   {CARD_ID}.png                    —— 普通原画
   {CARD_ID}-golden.png             —— 金卡原画（m_GoldenPortraitTexturePath 非空时）
   {CARD_ID}-signature.png          —— 异画原画（同上）
   {CARD_ID}-diamond.png            —— 钻石原画（m_DiamondPortraitTexturePath 非空时）
 
-前置：uv run scripts/extract_pivot_data.py（读 data/pivots/manifest.json）。
-用法：uv run scripts/extract_pivot_assets.py [--portraits assets/card-render-v1/portraits] [--only CARD_ID]
+前置：uv run scripts/extract_fixture_data.py（读 data/fixtures/manifest.json）。
+用法：uv run scripts/extract_fixture_assets.py [--portraits assets/portraits] [--only CARD_ID]
 """
 from __future__ import annotations
 
@@ -97,8 +97,8 @@ def extract_portraits(r, card_id: str, out_dir: Path) -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--manifest", default=str(REPO / "data" / "pivots" / "manifest.json"))
-    ap.add_argument("--portraits", default=str(REPO / "assets" / "card-render-v1" / "portraits"))
+    ap.add_argument("--manifest", default=str(REPO / "data" / "fixtures" / "manifest.json"))
+    ap.add_argument("--portraits", default=str(REPO / "assets" / "portraits"))
     ap.add_argument("--only", default="", help="只提取指定 cardId（调试用）")
     args = ap.parse_args()
     out_dir = Path(args.portraits)

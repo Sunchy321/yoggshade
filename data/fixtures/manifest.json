@@ -8,7 +8,7 @@
    "CARD_TAG": 260954
   }
  },
- "adr": "docs/adr/0001-pivot-frozen-benchmark-data.md",
+ "adr": "docs/adr/0001-fixture-frozen-benchmark-data.md",
  "presets": [
   {
    "cardId": "GDB_142",
@@ -438,6 +438,6 @@
    "runeOverride": null
   }
  ],
- "pivotMd": "data/pivot.md",
+ "fixtureMd": "data/fixture.md",
  "gameVersion": "36.6.253216"
 }

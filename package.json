@@ -9,7 +9,7 @@
   "scripts": {
     "render": "bun packages/renderer/src/main.ts",
     "diff": "bun packages/renderer/src/diff.ts",
-    "pivots": "bash scripts/render_pivots.sh",
+    "fixtures": "bash scripts/render_fixtures.sh",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

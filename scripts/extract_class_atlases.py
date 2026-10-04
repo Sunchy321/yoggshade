@@ -31,7 +31,7 @@ HS_DATA = Path("/Applications/Hearthstone/Data/OSX")
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tables", default=str(REPO / "data" / "tables.json"))
-    ap.add_argument("--textures", default=str(REPO / "assets" / "card-render-v1" / "textures"))
+    ap.add_argument("--textures", default=str(REPO / "assets" / "textures"))
     args = ap.parse_args()
     probe = {"switcher": {"data": json.loads(Path(args.tables).read_text(encoding="utf-8"))["colorSwitcher"]}}
     out_dir = Path(args.textures)

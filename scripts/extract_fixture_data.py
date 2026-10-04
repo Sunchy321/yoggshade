@@ -2,19 +2,19 @@
 # requires-python = ">=3.11"
 # dependencies = ["unitypy"]
 # ///
-"""extract_pivot_data — pivot 卡数据提取（ADR-0001 双固化的数据侧）。
+"""extract_fixture_data — fixture 卡数据提取（ADR-0001 双固化的数据侧）。
 
 数据源：本机炉石安装 Data/OSX/dbf.unity3d（客户端自带全量 DBF：213 表，
 CARD 36,022 行 / CARD_TAG 260,954 行，与 hearth-sight PG v327 同源同量；
 Angelia docs/notes/textbuilder-drift-measurement.md 记录 Windows 侧同文件）。
 语言序：m_locValues 为 14 语言定长数组，下标 12 = zhCN 简体（Angelia 台账同口径）。
 
-产出 data/pivots/：
-  manifest.json   —— pivot 清单（30 张 CardPresets + glow 基准 12 token）+ 提取元数据
+产出 data/fixtures/：
+  manifest.json   —— fixture 清单（30 张 CardPresets + glow 基准 12 token）+ 提取元数据
   {CARD_ID}.json  —— 单卡 canonical 数据：全部 14 语言 name/text、全量 tags、
                      textBuilderType、preset/glow 归属
 
-用法：uv run scripts/extract_pivot_data.py [--out data/pivots]
+用法：uv run scripts/extract_fixture_data.py [--out data/fixtures]
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ LOCALES = ["enUS", "deDE", "esES", "esMX", "frFR", "itIT", "jaJP", "koKR", "plPL
 
 # exporter bepinex/plugin/CardPresets.md（30 行，逐行照抄；Reason 字段锚定渲染行为）
 # exporter docs/custom-glow-benchmark-plan.md（12 卡型 token；卡 ID 全部 ⊆ PRESETS）
-# ↑ 两表均已外置到 data/pivot.md（唯一编辑入口），本脚本只读不定义。
+# ↑ 两表均已外置到 data/fixture.md（唯一编辑入口），本脚本只读不定义。
 
 
 def game_version() -> str:
@@ -54,8 +54,8 @@ def loc_dict(field: dict) -> dict:
     return {loc: (vals[i] if i < len(vals) else "") for i, loc in enumerate(LOCALES)}
 
 
-def parse_pivot_md(path: Path) -> tuple[list[tuple], list[dict]]:
-    """data/pivot.md → (presets 行, glow-bench 行)。按表头列名定位，容忍空列。"""
+def parse_fixture_md(path: Path) -> tuple[list[tuple], list[dict]]:
+    """data/fixture.md → (presets 行, glow-bench 行)。按表头列名定位，容忍空列。"""
     lines = path.read_text(encoding="utf-8").splitlines()
     tables: dict[str, list[list[str]]] = {}
     section = None
@@ -91,13 +91,13 @@ def parse_pivot_md(path: Path) -> tuple[list[tuple], list[dict]]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(REPO / "data" / "pivots"))
-    ap.add_argument("--pivot-md", default=str(REPO / "data" / "pivot.md"))
+    ap.add_argument("--out", default=str(REPO / "data" / "fixtures"))
+    ap.add_argument("--fixture-md", default=str(REPO / "data" / "fixture.md"))
     args = ap.parse_args()
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    presets, glow_bench = parse_pivot_md(Path(args.pivot_md))
-    print(f"[pivot] presets={len(presets)} glow-bench={len(glow_bench)}（{args.pivot_md}）")
+    presets, glow_bench = parse_fixture_md(Path(args.fixture_md))
+    print(f"[fixture] presets={len(presets)} glow-bench={len(glow_bench)}（{args.fixture_md}）")
 
     env = UnityPy.load(str(DBF_PATH))
     tables: dict[str, dict] = {}
@@ -118,9 +118,9 @@ def main() -> int:
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "source": {"file": str(DBF_PATH), "gameVersion": ver,
                    "tables": {"CARD": len(card_rows), "CARD_TAG": len(tag_rows)}},
-        "adr": "docs/adr/0001-pivot-frozen-benchmark-data.md",
+        "adr": "docs/adr/0001-fixture-frozen-benchmark-data.md",
         "presets": [], "missing": [], "glowBench": glow_bench,
-        "pivotMd": str(Path(args.pivot_md).relative_to(REPO)),
+        "fixtureMd": str(Path(args.fixture_md).relative_to(REPO)),
     }
     for card_id, label, premium, template, zone, reason in presets:
         row = by_guid.get(card_id)

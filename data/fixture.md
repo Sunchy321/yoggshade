@@ -1,7 +1,7 @@
-# Pivot 卡集合（ADR-0001 双固化的定义源头）
+# Fixture 卡集合（ADR-0001 双固化的定义源头）
 
-本文件是 pivot 集合的**唯一编辑入口**：`scripts/extract_pivot_data.py` 读此表提取数据，
-产出的 `manifest.json` 与各卡 JSON 是它的投影。增删 pivot 只改本表，不动脚本。
+本文件是 fixture 集合的**唯一编辑入口**：`scripts/extract_fixture_data.py` 读此表提取数据，
+产出的 `manifest.json` 与各卡 JSON 是它的投影。增删 fixture 只改本表，不动脚本。
 
 来源与同步关系：presets 表逐行同步自 `../exporter/bepinex/plugin/CardPresets.md`；
 glow-bench 表同步自 `../exporter/docs/custom-glow-benchmark-plan.md`（12 卡型 token）。

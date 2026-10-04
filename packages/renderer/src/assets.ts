@@ -1,4 +1,4 @@
-/** 资产包装载（assets/card-render-v1）。
+/** 资产包装载（assets/ 根目录）。
  * 双形态：根目录单帧（历史，py export_asset_pack 产出）与 frames/{slot}/ 多帧
  * （scripts/extract_frame.py 产出；slot 与数据目录彼此独立，共享根级 portraits/fonts/glyphs）。 */
 import { readFileSync } from 'node:fs';

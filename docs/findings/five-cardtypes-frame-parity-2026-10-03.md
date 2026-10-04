@@ -140,7 +140,7 @@ ATK=3 变体渲染出剑形宝石 + "3"）。
 
 **为什么加 `SLOT_NATIVE_CARD_TYPES` 限定**：GetTag→0 的补零只对「原生卡型」成立。本仓对尚无专属帧的
 卡型（佣兵技能 LT23_*、战棋法术/饰品/畸变/时空、宠物 PET_*、英雄技能 AV_205p）用回落帧渲染，那些
-卡在游戏里用别的 actor、根本没有攻血图标；不限定的话这些基线图会平白多出 "0"（实测 8 张 pivot 变化），
+卡在游戏里用别的 actor、根本没有攻血图标；不限定的话这些基线图会平白多出 "0"（实测 8 张 fixture 变化），
 限定后只动真正该动的 3 张英雄 + 1 张随从。
 
 ---
@@ -185,7 +185,7 @@ prefab_report 槽位一并带出）；plan 编译期把 `Hero/Multiply/*` 的槽
 修复后 ETC_210 列采样与官方逐行吻合（140/145/150/155/160 行：官方 42,51,36 / 82,83,58 / 97,95,64 /
 82,85,66 / 115,101,74，本仓 46,55,39 / 89,90,65 / 94,94,66 / **82,85,66** / 119,103,74）。
 
-**影响面**：30 张 pivot 里只有 ETC_210 与 TLC_433（两张带银龙的精英法术）变化，其余逐像素不变。
+**影响面**：30 张 fixture 里只有 ETC_210 与 TLC_433（两张带银龙的精英法术）变化，其余逐像素不变。
 
 ---
 
@@ -228,7 +228,7 @@ prefab_report 槽位一并带出）；plan 编译期把 `Hero/Multiply/*` 的槽
 
 **实现路径（待排期；路线图 Phase 4 signature 项）**：
 
-1. `scripts/extract_pivot_data.py` 增补 `SIGNATURE_FRAME`/`SIGNATURE_CARD` → pivot JSON 带
+1. `scripts/extract_fixture_data.py` 增补 `SIGNATURE_FRAME`/`SIGNATURE_CARD` → fixture JSON 带
    `signature_frame_id` 与 `signature_hand_prefab`；
 2. 抽取签名手牌 prefab（slot 建议 `hand-spell-sig10` 一类）；起步脚本：
    `explore/2026-10-03-five-cardtypes/scripts/extract_signature_probe.py`（复用 `extract_frame.py` 机制，
@@ -247,7 +247,7 @@ prefab_report 槽位一并带出）；plan 编译期把 `Hero/Multiply/*` 的槽
 
 - **L1**：`bun run render` vs py 黄金 `explore/hs-render/lab/2026-10-01-dragon-zorder/output/render_dbf9_zfix.png`
   → `mae 0 / maxAbs 1 / px>1 = 0`（各轮修复前后同值）。
-- **30 张 pivot 回归（分三轮测）**：类色表 + 学派板一轮 → 仅 REV_365/LOOT_392/AV_205/TTN_090 变化；
+- **30 张 fixture 回归（分三轮测）**：类色表 + 学派板一轮 → 仅 REV_365/LOOT_392/AV_205/TTN_090 变化；
   肖像槽位 + 学派名一轮 → 再叠加 11 张（全部是法术/英雄/武器帧，即 portraitMatIdx=1 的卡型）；
   攻血口径一轮 → 仅 AV_205/CATA_190h/SC_004（英雄）+ DMF_709（无攻随从）变化；
   乘法混合一轮 → 仅 TLC_433/ETC_210（精英银龙影）变化；乘法阴影「不写深度」一轮 → 同样只再动这两张
@@ -264,7 +264,7 @@ prefab_report 槽位一并带出）；plan 编译期把 `Hero/Multiply/*` 的槽
 ## 待办 / 已知边界
 
 - **异画帧族（§6）**：事实成立但目前**不影响已发现的问题**（§5b 修完后 TLC_433 已与官方图吻合）；
-  7 张异画 pivot 仍走普通帧、premium 未进渲染口径。若后续要 premium 口径（签名框的半透明观感），
+  7 张异画 fixture 仍走普通帧、premium 未进渲染口径。若后续要 premium 口径（签名框的半透明观感），
   实现路径与 DBF 映射见 §6，起步脚本 `explore/2026-10-03-five-cardtypes/scripts/extract_signature_probe.py`。
 
 - 学派板的 `m_spellDescriptionMeshNeutral` 分支未显式实现：手牌法术预制的序列化网格本就是中性网格，

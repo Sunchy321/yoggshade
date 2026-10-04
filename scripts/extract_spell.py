@@ -73,7 +73,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--key", default="")
     ap.add_argument("--all", action="store_true")
-    ap.add_argument("--pack", default=str(REPO / "assets" / "card-render-v1"))
+    ap.add_argument("--pack", default=str(REPO / "assets"))
     args = ap.parse_args()
     from extract_frame import Recon  # noqa: E402  复用帧提取的 walk/材质/网格机制
     from resolve_asset_ref import Resolver  # noqa: E402

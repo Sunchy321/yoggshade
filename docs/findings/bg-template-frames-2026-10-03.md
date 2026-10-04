@@ -31,7 +31,7 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
 | COIN_MANA_GEM(145)（法术帧变体） | Card_Hand_Ability_CoinManaGem（`coin-ability`） |
 | COIN_MANA_GEM_BACON_SPELL(267) | Card_Hand_Ability_CoinManaGem_BaconSpell（`coin-bacon-spell`） |
 
-逐卡型规则（plan.ts compileFramePlan，模板 = pivot.preset.template === 'Battlegrounds'）：
+逐卡型规则（plan.ts compileFramePlan，模板 = fixture.preset.template === 'Battlegrounds'）：
 
 - **随从(4/47) tech>0**：tier 盾+星替换宝石 + 费用数字隐藏（`ApplyBattlegroundsHandMinionVisualSetup`
   → ShowTavernTierSpell + HideCoinManaGem + HideBattlegroundsHandCostTextNumber）。
@@ -51,7 +51,7 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
   （单子网格 249 tri，slot0 'Trinket_Hand_BigCard_Player'，**slot1 序列化为空**）。
   - **原画窗**在兄弟节点 `NonQuestObjects/Mesh` 的 slot0（`BG_Trinket_BigCard_FramePortrait_Mat`，
     6 三角窗 quad）——FrameMesh slot1 无几何，运行时 SetPortraitMaterial(m_portraitMatIdx=1)
-    无处可写；本仓 plan 直接把 pivot 原画写进该槽（此前渲染为占位白）。
+    无处可写；本仓 plan 直接把 fixture 原画写进该槽（此前渲染为占位白）。
   - **等级徽章**：`TrinketLevelIndicatorRing` 子树（`UpdateBaconTrinketComponents`，Actor.cs:5404-5420）
     仅 SPELL_SCHOOL ∈ {LESSER_TRINKET=11, GREATER_TRINKET=12}（TAG_SPELL_SCHOOL.cs:14-15）时显示；
     `Trinket_Medallion_Portrait_Mesh` materials[0] 运行时换 m_lesser/greaterTrinketMaterial
@@ -84,7 +84,7 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
 - **schoolZh 补 TAVERN**：`tables.schoolZh` 此前只有七大学派（tag_enum.csv 未收录 2023 后新增
   学派行；GameStrings.cs:1168-1200 有键）。TAVERN →「酒馆」（GLOBAL_SPELL_SCHOOL_TAVERN 通用译名；
   **用户视觉复核项**）。重生成后 class/raceZh/colorSwitcher/hideTags 逐字节不变。
-- **任务奖励无 pivot 卡**：规则已实现（40 → hand-spell + coin + 隐宝石/费用），探针卡
+- **任务奖励无 fixture 卡**：规则已实现（40 → hand-spell + coin + 隐宝石/费用），探针卡
   BG24_Reward_107（dbf 89449，`explore/2026-10-03-heropower/scripts/build_probe_pivot.py`
   PROBE_DBF=89449 生成，模板手工切 Battlegrounds）渲染通过。铸币变体 = 表 145 条目
   **coin-ability**（exporter 任务奖励分支 ActivateSpellBirthState(COIN_MANA_GEM)，
@@ -92,14 +92,14 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
   exporter 笔记里的 quest tray（Card.UseBattlegroundQuestComponent 关 Description_mesh/开
   Card_Hand_BG_Quest_Text_Tray_Mesh）**未实现**——exporter 自己的手牌路径实际是
   Description_mesh=true/tray=false + SetUseBGQuestSiloutte（:5089-5093），与我们的普通帧渲染一致。
-  另入基线集：BG24_Reward_310（任务奖励基线 2，`data/pivots/BG24_Reward_310.json`）。
+  另入基线集：BG24_Reward_310（任务奖励基线 2，`data/fixtures/BG24_Reward_310.json`）。
 - 字形缓存：探针卡新增 8 字形（含 BG24_Reward_107 描述字符）。
 
 ## 6. 验证记录
 
 - **L1 冒烟**：`px>4 = 4090`（2026-10-04 review 修复后复测，与既有已知签名逐位相同——
   数字描边口径分歧见 hero-power findings §6.7；非基准，仅确认无意外漂移）。
-- **pivot 全集回归**：`bun run pivots` 32 preset 全部渲染通过（含 BG24_Reward_107/310 两个
+- **fixture 全集回归**：`bun run fixtures` 32 preset 全部渲染通过（含 BG24_Reward_107/310 两个
   任务奖励基线）。首批 30 张回归时只有 6 张战棋系变化（BG33_828/BG30_802/BG27_Anomaly_580/
   BG32_MagicItem_350/BG34_Giant_072/BG34_Treasure_917——后两张是时空扭曲战棋卡）；
   LT23 佣兵/PET 等非战棋卡逐像素 0 差异。
@@ -151,7 +151,7 @@ m_manaObject → **费用宝石被 spell 视觉替换**。spell 实例来自 act
      规则按节点名两者皆查；此前走普通 unlit 光栅被 _Color 染绿，改走 gems 公式后色泽正确），
      锚到费用文本位。exporter 的 COST_ALT_TAVERN_COIN 分支差异继续登记。
 8. **任务奖励入基准集**（用户裁定）：BG24_Reward_107（dbf 89449 尖啸零食）加进
-   `data/pivot.md` presets（NORMAL/Battlegrounds/Hand），`extract_pivot_data.py` 重导
+   `data/fixture.md` presets（NORMAL/Battlegrounds/Hand），`extract_fixture_data.py` 重导
    31 张 + 原画。渲染路径 = 任务奖励规则（40 → hand-spell、隐宝石/费用清空、铸币 =
    coin-ability，见 §5 更正）。后补 BG24_Reward_310（任务奖励基线 2），共 32 preset。
 
@@ -265,8 +265,8 @@ MeshRenderer→resolve_pptr 实证）→ mesh v[0.537,0.971] +0.475 wrap 后 [0.
 explore/2026-10-04-bg-spell-coin/scripts/；overlay spec 移除死字段 `scale`/`anchor_node`
 （渲染端整体缩放块随之删除）；render.ts blends 映射每节点算一次；plan.ts 抽
 `findFrameNodeWorld` 助手收敛三处"后缀找路径→world"重复；textstage.ts 用
-`PlanTextEntry.world_delta` 类型替代强转；pivot JSON 补尾换行（生成器同步）。
-修复后 L1 冒烟 px>4=4090 逐位不变、32 pivot 全渲染、typecheck/lint 干净。
+`PlanTextEntry.world_delta` 类型替代强转；fixture JSON 补尾换行（生成器同步）。
+修复后 L1 冒烟 px>4=4090 逐位不变、32 fixture 全渲染、typecheck/lint 干净。
 
 **用户目验**：第一轮（铸币纯预制位姿含根 TRS）"铸币位置对了"；第二轮（等级徽章复原纯
 预制位姿）"这次对了"；第四轮（时空扭曲盾 ST 左下格）正确；第五轮（随从铸币/数字、
