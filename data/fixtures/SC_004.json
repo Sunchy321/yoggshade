@@ -2,11 +2,11 @@
  "cardId": "SC_004",
  "dbfId": 112846,
  "preset": {
-  "label": "异画5基线",
-  "premium": "SIGNATURE",
+  "label": "虫族阵营样例",
+  "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "异画样例 5，用于验证异画导出。"
+  "reason": "虫族阵营横幅样例（刀锋女王凯瑞甘），用于验证 ZERG 图标象限与星际绶带底板贴图。"
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "GDBIcon_MiniSet.tif:3c7bc9576db6958409f9f3b876a737df",

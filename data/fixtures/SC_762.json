@@ -1,0 +1,61 @@
+{
+ "cardId": "SC_762",
+ "dbfId": 113203,
+ "preset": {
+  "label": "星灵阵营样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "星灵阵营横幅样例（母舰），用于验证 PROTOSS 图标象限。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "GDBIcon_MiniSet.tif:3c7bc9576db6958409f9f3b876a737df",
+ "name": {
+  "enUS": "Mothership",
+  "deDE": "Mutterschiff",
+  "esES": "Nave nodriza",
+  "esMX": "Nave nodriza",
+  "frFR": "Vaisseau mère",
+  "itIT": "Nave Madre",
+  "jaJP": "マザーシップ",
+  "koKR": "모선",
+  "plPL": "Statek-matka",
+  "ptBR": "Nave-mãe",
+  "ruRU": "Материнский корабль",
+  "thTH": "ยานแม่",
+  "zhCN": "母舰",
+  "zhTW": "聖母艦"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Taunt</b>\n<b>Battlecry and Deathrattle:</b>\nGet two random\nProtoss minions.",
+  "deDE": "<b>Spott</b>. <b>Kampfschrei und Todesröcheln:</b> Erhaltet 2 zufällige Protoss-Diener.",
+  "esES": "<b>Provocar</b>\n<b>Grito de batalla\ny Último aliento:</b>\nObtienes dos esbirros protoss_aleatorios.",
+  "esMX": "<b>Provocación</b>\n<b>Grito de batalla y Estertor:</b> obtienes dos esbirros protoss aleatorios.",
+  "frFR": "<b>Provocation</b>\n<b>Cri de guerre et Râle d’agonie_:</b> vous obtenez deux serviteurs protoss aléatoires.",
+  "itIT": "<b>Provocazione</b>.\n<b>Grido di Battaglia e Rantolo\ndi Morte:</b> ottieni due servitori Protoss casuali.",
+  "jaJP": "[x]<b>挑発</b>\n<b>雄叫び＆断末魔:</b>\nランダムな\nプロトスミニオンを\n2体得る。",
+  "koKR": "<b>도발</b>, <b>전투의 함성과 죽음의 메아리:</b> 무작위 프로토스 하수인을 둘 얻습니다.",
+  "plPL": "<b>Prowokacja</b>\n<b>Okrzyk bojowy i_Agonia:</b> Otrzymujesz dwóch losowych Protosów.",
+  "ptBR": "<b>Provocar</b>\n<b>Grito de Guerra e Último Suspiro:</b> Receba dois lacaios Protoss aleatórios.",
+  "ruRU": "<b>Провокация</b> <b>Боевой клич и предсмертный хрип:</b> вы получаете двух случайных протоссов.",
+  "thTH": "<b>ยั่วยุ</b>_<b>คำรามสู้ศึกและ[b]เสียงสุดท้าย:</b>_สุ่มรับ[b]_มินเนี่ยนโพรทอสส์สองใบ",
+  "zhCN": "<b>嘲讽</b>。<b>战吼，亡语：</b>随机获取两张星灵随从牌。",
+  "zhTW": "<b>嘲諷</b>\n<b>戰吼及死亡之聲：\n</b>獲得兩個隨機\n神族手下 "
+ },
+ "tags": {
+  "199": 6,
+  "203": 4,
+  "321": 1,
+  "48": 12,
+  "45": 10,
+  "47": 10,
+  "202": 4,
+  "218": 1,
+  "190": 1,
+  "217": 1,
+  "3469": 1,
+  "1824": 1,
+  "1724": 1,
+  "200": 17
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "cardId": "SC_403",
+ "dbfId": 112856,
+ "preset": {
+  "label": "泰伦阵营样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "泰伦阵营横幅样例（星港，地标帧），用于验证 TERRAN 图标象限与地标帧阵营横幅。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "GDBIcon_MiniSet.tif:3c7bc9576db6958409f9f3b876a737df",
+ "name": {
+  "enUS": "Starport",
+  "deDE": "Raumhafen",
+  "esES": "Puerto estelar",
+  "esMX": "Puerto estelar",
+  "frFR": "Spatioport",
+  "itIT": "Spazioporto",
+  "jaJP": "スターポート",
+  "koKR": "우주공항",
+  "plPL": "Port gwiezdny",
+  "ptBR": "Estaleiro Sideral",
+  "ruRU": "Космопорт",
+  "thTH": "สตาร์พอร์ต",
+  "zhCN": "星港",
+  "zhTW": "星際港"
+ },
+ "textInHand": {
+  "enUS": "[x]Summon a 2/1\n<b>Starship_Piece</b> with an\neffect when launched.",
+  "deDE": "Ruft ein <b>Raumschiffteil</b>_(2/1) herbei, das beim Start einen Effekt erhält.",
+  "esES": "Invoca una\n<b>Pieza de Nave</b> 2/1 que_tiene un efecto cuando se lanza.",
+  "esMX": "Invoca una <b>Pieza de Nave_estelar</b> 2/1 con un_efecto cuando se_lanza.",
+  "frFR": "Invoque une <b>pièce de vaisseau</b> 2/1 avec un effet qui se déclenche quand le vaisseau est déployé.",
+  "itIT": "Evoca una <b>Parte di Astronave</b> 2/1 con un effetto al lancio.",
+  "jaJP": "[x]___発射時の効果1つを___\n持つ2/1の\n<b>宇宙船パーツ</b>\nを1個召喚する。",
+  "koKR": "발사 시 효과가 있는 2/1 <b>우주선 부품</b>을 소환합니다.",
+  "plPL": "Przyzwij <b>Fragment Statku_kosmicznego</b> 2/1 z_efektem_aktywowanym po_wystartowaniu.",
+  "ptBR": "Evoque uma <b>Peça de Nave Estelar</b> 2/1\ncom efeito ao ser_lançada.",
+  "ruRU": "Призывает <b>часть звездолета</b> 2/1\nс эффектом\nпри запуске.",
+  "thTH": "เรียก <b>ชิ้นส่วนยาน[b]อวกาศ</b>_2/1_ที่มีผล[b]เมื่อปล่อยยาน",
+  "zhCN": "召唤一个2/1并具有一项发射时效果的<b>星舰组件</b>。",
+  "zhTW": "發射時，召喚一個帶有效果的\n2/1<b>星艦組件</b>"
+ },
+ "tags": {
+  "203": 1,
+  "202": 39,
+  "48": 2,
+  "45": 2,
+  "321": 1,
+  "3458": 1,
+  "1824": 1,
+  "1724": 1,
+  "476": 656
+ }
+}

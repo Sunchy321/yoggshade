@@ -1,0 +1,59 @@
+{
+ "cardId": "CFM_621",
+ "dbfId": 40408,
+ "preset": {
+  "label": "暗金教阵营样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "暗金教阵营横幅样例（卡扎库斯），用于验证 KABAL 图标象限。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Kazakus",
+  "deDE": "Kazakus",
+  "esES": "Kazakus",
+  "esMX": "Kazakus",
+  "frFR": "Kazakus",
+  "itIT": "Kazakus",
+  "jaJP": "カザカス",
+  "koKR": "카자쿠스",
+  "plPL": "Kozakus",
+  "ptBR": "Kazakus",
+  "ruRU": "Казакус",
+  "thTH": "คาซากัส",
+  "zhCN": "卡扎库斯",
+  "zhTW": "卡札克斯"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Battlecry:</b> If your deck\nhas no duplicates,\n_create a custom spell.",
+  "deDE": "<b>Kampfschrei:</b> Kreiert einen eigenen Zauber, wenn Euer Deck keine Karte mehrfach enthält.",
+  "esES": "<b>Grito de batalla:</b>\nSi tu mazo no contiene\ncartas repetidas, crea un\nhechizo_personalizado.",
+  "esMX": "<b>Grito de batalla:</b> si en tu mazo no hay cartas repetidas, crea_un hechizo personalizado.",
+  "frFR": "<b>Cri de guerre_:</b> si votre deck ne contient pas de cartes en double, crée un sort personnalisé.",
+  "itIT": "[x]<b>Grido di Battaglia:</b>\nse il tuo mazzo ha una sola\ncopia per carta, crea una\nMagia personalizzata.",
+  "jaJP": "[x]<b>雄叫び:</b>\n自分のデッキに\n重複するカードがない場合\n_____即興呪文を1つ作成する。",
+  "koKR": "<b>전투의 함성:</b> 내 덱에 똑같은 카드가 없으면, 원하는 주문을 직접 만듭니다.",
+  "plPL": "<b>Okrzyk bojowy:</b>\nJeśli w twojej talii nie\nma duplikatów, stwórz\nwłasne zaklęcie.",
+  "ptBR": "<b>Grito de Guerra:</b> Se não houver cards repetidos no seu deck, crie um feitiço especial.",
+  "ruRU": "<b>Боевой клич:</b> если в вашей колоде\nнет одинаковых карт, создает\nзаклинание с выбранными\nвами_характеристиками.",
+  "thTH": "<b>คำรามสู้ศึก:</b> ถ้าเด็คคุณไม่มี[b]การ์ดซ้ำกัน สร้างเวทมนตร์[b]โดยเลือกความสามารถเอง",
+  "zhCN": "<b>战吼：</b>如果你的牌库里没有相同的牌，则为你创建一个自定义\n法术。",
+  "zhTW": "<b>戰吼：</b>若你牌堆中沒有重複的卡牌，製造一張自訂的法術牌"
+ },
+ "tags": {
+  "203": 5,
+  "199": 12,
+  "476": 296,
+  "321": 1,
+  "114": 1,
+  "48": 4,
+  "45": 3,
+  "47": 3,
+  "202": 4,
+  "484": 1,
+  "218": 1,
+  "2589": 1
+ }
+}

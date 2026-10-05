@@ -23,6 +23,10 @@ export interface StaticTables {
   schoolZh?:     Record<number, string>; // TAG_SPELL_SCHOOL 枚举值 → zhCN（法术学派板）
   colorSwitcher: Record<string, (string | null)[]>; // family → ColorType 下标 → 图集 AssetReference
   hideTags:      Record<string, number>;
+  /** factionIconSt：CardColorSwitcher faction* 材质序列化摘要（extract_banner_assets.py），
+   *  下标 = FactionColorType（0=GENERIC 空，1..6=帮派/星际）；阵营横幅运行时换材质的编译期输入。 */
+  factionIconSt?: { normal: (import('./types.js').FactionMaterialSt | null)[],
+                    signature: (import('./types.js').FactionMaterialSt | null)[] };
 }
 
 /** GAME_TAG id（py scene_compiler.py:102 同源）。 */
@@ -728,6 +732,9 @@ export function compileFramePlan(
   // ---- DK 符文横幅（tag 2196/2197/2198 → 显隐 + 图标材质覆写；含图标 opaque 豁免，须在标记后）----
   compileRuneBanner(components, tags);
 
+  // ---- 手牌横幅：可交易/锻造/准备 + 阵营 + 多职业绶带（须在标记后：激活态才判 tint/材质覆写）----
+  compileBanners(components, tags, tables);
+
   const plan: RenderPlan = {
     components,
     input:      { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
@@ -956,6 +963,178 @@ function compileRuneBanner(components: PlanComponent[], tags: Record<string, num
       // 图标按 alpha 镂空画（Hero/Unlit_Transparent；见块注「图标 opaque 豁免」），
       // 清掉 needsOpaqueEdgeRepair 对 Rune_/CardRunes 名单的命中
       slot.opaque = undefined;
+    }
+  }
+}
+
+// ============================================================================
+// 手牌横幅：可交易/锻造/准备（DeckActionBanner）+ 阵营（HearthstoneFactionBanner）
+// + 多职业绶带（MulticlassRibbon）（2026-10-05，探针 explore/2026-10-05-banner-recon）
+// ============================================================================
+// 数据源与激活语义（反编译出处）：
+// - 刷新链 Actor.UpdateAllComponents（Actor.cs:1993）→ UpdateMeshComponents（4877-4889）。
+// - Actor.UpdateCardColor（6304-6452，6418-6445）：deck-action 三容器 SetActive 后按
+//   else-if 链互斥实例化（tradeable→forge→prepare，同一锚位）；判定 = HasTag
+//   （TRADEABLE=1720 / FORGE=2785 / PREPARE=4354，EntityBase.cs:1282-1300，GAME_TAG.cs:826-830）。
+//   阵营容器 HasHearthstoneFaction（VALID_FACTIONS 优先序 Actor.cs:205-213：GRIMY_GOONS 482 >
+//   KABAL 484 > JADE_LOTUS 483 > ZERG 3457 > TERRAN 3458 > PROTOSS 3469）→ SetFactionType
+//   (premium, GetFactionColorTypeForTag)（CardColorSwitcher.cs:199-212 → FactionColorType 1..6）。
+// - Actor.UpdateMulticlassRibbon（6068-6075）：GetClasses().Count > 2 才 SetActive；
+//   GetClasses = MULTIPLE_CLASSES=476 位掩码逐位展开（bit1→TAG_CLASS 1，EntityBase.cs:1087-1110），
+//   为 0 时取 CLASS（=1 类）。双职业（2 类）只换框体材质（CardColorSwitcher *_DUALCLASS，
+//   走既有类色图集链），不显绶带。
+// - 几何/材质 = 提取期合并的嵌套 prefab 子树（scripts/extract_banner_assets.py；激活语义
+//   NestedPrefabBase.cs:86-96：容器下 localPosition 置零、保留 prefab 根 rot/scale）。
+//   合并节点全部 active_in_hierarchy=false（容器序列化失活），本函数按 tag 翻 visible（符文横幅同模式）。
+// 材质语义（探针实测 + L2 参考佐证）：
+// - 主 quad（Tradeable/Forgeable/Prepare_Banner、Faction_Banner、Multiclass_Ribbon，
+//   Hero/Unlit/Unlit_Texture）序列化 _Color=(1,0,0,1) 而游戏内为棕褐贴图本色——该 shader 不把
+//   _Color.rgb 乘进基色；离线链 alpha 分支乘 tint.rgb 会染红 → _tint_rgb 白中和（仅基色，
+//   alpha 仍取贴图）。
+// - 阴影 quad（*_shadow，Hero/Multiply/Multiply）序列化 _Color≈0.1038 参与 dst*(tex+_Color)
+//   （raster multiply 分支既有语义），保持序列化值不中和。
+// - 阵营图标 = Faction_Icons 4×4 图集象限（材质 _MainTex ST，tables.factionIconSt），运行时
+//   整体换材质（CardColorSwitcher.GetMaterialIcon）；绶带底板按阵营换贴图（帮派=Faction_Banner
+//   贴图、星际=Faction_Banner_Starcraft，row.banner）。
+// - 绶带普通版阴影 ST（scale 0.53/0.48、offset −0.53/−0.048）采样越过 [0,1] 边界：引擎
+//   _MainTex wrap=repeat，raster 缺省 clamp → 该槽标 wrap_repeat 逐像素 fract。
+// 残差登记：① CATA_190h 的 L2 用 Deathwing 签名帧（金色透视绶带变体=序列化激活的
+//   Multiclass_Ribbon_Signature_mesh，仅存在于该 premium 帧），本链回落普通帧只能显普通棕绶带
+//   ——premium 帧族未移植（five-cardtypes §6）的家族缺口，非本管线误差；② SC_004（ZERG+
+//   4 类）L2 用 Evergreen 签名英雄帧，同族不可对齐（普通帧按统一反编译逻辑渲染绶带）；
+//   ③ Glow_Green/Blue 拖拽高亮（Custom/Selection/Highlight，renderer 序列化 enabled=false）
+//   默认态不渲染，未移植；④ 英雄通用帧无 deck-action 容器字段（Actor 序列化即无）——英雄
+//   不可能显示可交易/锻造横幅，与引擎一致。
+
+const BANNER_TAG = {
+  TRADEABLE: 1720, FORGE: 2785, PREPARE: 4354,
+  GRIMY_GOONS: 482, KABAL: 484, JADE_LOTUS: 483,
+  ZERG: 3457, TERRAN: 3458, PROTOSS: 3469, MULTIPLE_CLASSES: 476,
+} as const;
+
+/** 阵营 tag → FactionColorType 下标（CardColorSwitcher.cs:56-65），按 VALID_FACTIONS 优先序。 */
+const FACTION_PRIORITY: [number, number][] = [
+  [BANNER_TAG.GRIMY_GOONS, 1], [BANNER_TAG.KABAL, 2], [BANNER_TAG.JADE_LOTUS, 3],
+  [BANNER_TAG.ZERG, 4], [BANNER_TAG.TERRAN, 5], [BANNER_TAG.PROTOSS, 6],
+];
+
+/** deck-action 容器节点名（Actor m_*BannerContainer → 容器 GO；hand-location 的锻造容器
+ *  拼写变体 ForgeBannerContainer）。顺序 = Actor.cs:6431-6445 else-if 互斥序。 */
+const DECK_CONTAINERS: [number, string[]][] = [
+  [BANNER_TAG.TRADEABLE, ['TradableBannerContainer']],
+  [BANNER_TAG.FORGE, ['ForgeableBannerContainer', 'ForgeBannerContainer']],
+  [BANNER_TAG.PREPARE, ['PrepareableBannerContainer']],
+];
+
+/** 拖拽高亮（默认不渲染，见块注残差③）。 */
+const BANNER_GLOW_NODES = new Set(['Glow_Green', 'Glow_Blue']);
+
+/** 主 quad（基色不乘 _Color，见块注）的节点名 → _tint_rgb 白中和。 */
+const BANNER_TINT_NEUTRAL_NODES = new Set([
+  'Tradeable_Banner_mesh', 'Forgeable_Banner_mesh', 'Prepareable_Banner_mesh',
+  'Faction_Banner', 'Multiclass_Ribbon_mesh',
+]);
+
+/** EntityBase.GetClasses（EntityBase.cs:1087-1110）：位掩码逐位计数；为 0 取 CLASS（≠INVALID → 1 类）。 */
+function bannerClassCount(tags: Record<string, number>): number {
+  const mask = tags[BANNER_TAG.MULTIPLE_CLASSES] ?? 0;
+  if (mask) {
+    let n = 0;
+    for (let m = mask; m > 0; m >>= 1) n += m & 1;
+    return n;
+  }
+  return (tags[TAG.CLASS] ?? 0) !== 0 ? 1 : 0;
+}
+
+/** 激活容器名下合并子树的全部组件（嵌套 prefab 提取期合并，见块注）；Glow 与死槽排除。 */
+function activateBannerSubtree(components: PlanComponent[], container: string, skipDeadSlot?: string): boolean {
+  const seg = `/${container}/`;
+  let hit = false;
+  for (const c of components) {
+    if (!c.path.includes(seg)) continue;
+    hit = true;
+    const name = c.node ?? '';
+    if (BANNER_GLOW_NODES.has(name) || (skipDeadSlot && c.path.includes(`/${skipDeadSlot}`))) {
+      c.visible = false;
+      continue;
+    }
+    c.visible = true;
+  }
+  return hit;
+}
+
+/** 手牌横幅 delta（tags → 容器子树显隐 + 运行时材质覆写）。无横幅 tag 的卡零操作。 */
+function compileBanners(
+  components: PlanComponent[],
+  tags: Record<string, number>,
+  tables: StaticTables,
+): void {
+  // deck-action else-if 链（Actor.cs:6431-6445）：tradeable > forge > prepare，至多一个。
+  let deckShown = false;
+  for (const [tag, containers] of DECK_CONTAINERS) {
+    if (deckShown || (tags[tag] ?? 0) === 0) continue;
+    for (const container of containers) {
+      if (activateBannerSubtree(components, container)) {
+        deckShown = true;
+        break;
+      }
+    }
+  }
+
+  // 阵营横幅（HasHearthstoneFaction → FactionColorType；SetFactionType 换图标/底板材质）。
+  // SIGNATURE premium 按用户裁定（2026-10-05）照常渲染（SC_004 凯瑞甘需出虫族横幅）；
+  // 材质取 normal 表（真实图标象限）——引擎签名卡用 FX 滚动材质
+  // （Unlit_TransparentTexAlpha2uvScroll，无静态象限），静态近似登记残差。
+  let factionIdx = 0;
+  for (const [tag, idx] of FACTION_PRIORITY) {
+    if ((tags[tag] ?? 0) !== 0) {
+      factionIdx = idx;
+      break;
+    }
+  }
+  if (factionIdx > 0) {
+    // Faction_Banner_mesh 是 prefab 里的失活遗留槽（probe dump），激活时排除
+    activateBannerSubtree(components, 'FactionBannerContainer', 'Faction_Banner_mesh');
+    const st = tables.factionIconSt?.['normal']?.[factionIdx];
+    if (st?.file) {
+      const icon = components.find(c => c.visible && c.node === 'Faction_Icon');
+      const iconSlot = icon?.material_slots?.[0];
+      if (iconSlot) {
+        iconSlot._MainTex_runtime = { file: st.file };
+        iconSlot.material_override = {
+          ...iconSlot.material_override,
+          '_MainTex.offset': st.offset ?? [0, 0],
+          '_MainTex.scale':  st.scale ?? [1, 1],
+        };
+      }
+      const bannerTex = st.banner?.file;
+      const banner = components.find(c => c.visible && c.node === 'Faction_Banner');
+      const bannerSlot = banner?.material_slots?.[0];
+      if (bannerSlot && bannerTex) {
+        bannerSlot._MainTex_runtime = { file: bannerTex };
+      }
+    }
+  }
+
+  // 多职业绶带（UpdateMulticlassRibbon：classes.Count > 2；normal/signature 网格变体按
+  // 序列化自激活取 normal——signature 变体只在 premium 专用帧上激活，见块注残差①）
+  if (bannerClassCount(tags) > 2) {
+    for (const c of components) {
+      if (!c.path.includes('/Multiclass_Ribbon/') && !c.path.includes('/MulticlassRibbon/')) continue;
+      if (BANNER_GLOW_NODES.has(c.node ?? '')) continue;
+      c.visible = !(c.node ?? '').includes('Signature');
+    }
+    // 绶带阴影 repeat wrap（材质 ST 越界；见块注）
+    const shadow = components.find(c => c.visible && c.node === 'Multiclass_Ribbon_Shadow_mesh');
+    const shadowSlot = shadow?.material_slots?.[0];
+    if (shadowSlot) shadowSlot.wrap_repeat = true;
+  }
+
+  // 主 quad 基色白中和（Hero/Unlit/Unlit_Texture 不乘 _Color；见块注材质语义）
+  for (const c of components) {
+    if (!c.visible || !BANNER_TINT_NEUTRAL_NODES.has(c.node ?? '')) continue;
+    for (const s of c.material_slots ?? []) {
+      s.material_override = { ...s.material_override, _tint_rgb: [1, 1, 1] };
     }
   }
 }

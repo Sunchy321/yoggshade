@@ -1,0 +1,57 @@
+{
+ "cardId": "TTN_477",
+ "dbfId": 98123,
+ "preset": {
+  "label": "锻造样例2",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "锻造机制法术样例（熔火符文），用于验证锻造横幅渲染与法术帧泛化。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Molten Rune",
+  "deDE": "Geschmolzene Rune",
+  "esES": "Runa fundida",
+  "esMX": "Runa fundida",
+  "frFR": "Rune en fusion",
+  "itIT": "Runa Ardente",
+  "jaJP": "熔鉄のルーン",
+  "koKR": "녹아내린 룬",
+  "plPL": "Wytopiona runa",
+  "ptBR": "Runa Derretida",
+  "ruRU": "Раскаленная руна",
+  "thTH": "รูนหลอมเหลว",
+  "zhCN": "熔火符文",
+  "zhTW": "熔火符文"
+ },
+ "textInHand": {
+  "enUS": "Deal $3 damage.\nGet a random spell.\n<b>Forge:</b> This casts twice.",
+  "deDE": "Verursacht $3 Schaden. Erhaltet einen zufälligen Zauber auf die Hand. <b>Schmieden:</b> Wird zweimal_gewirkt.",
+  "esES": "Inflige $3 p. de daño. Obtienes un hechizo aleatorio. <b>Forja:</b> Se\nlanza dos veces.",
+  "esMX": "Inflige $3 de daño. Obtienes un hechizo aleatorio.\n <b>Forjar:</b>_se_lanza dos veces.",
+  "frFR": "Inflige $3_|4(point,points) de_dégâts. Vous obtenez un sort aléatoire.\n<b>Forge_:</b> ce sort est lancé deux_fois.",
+  "itIT": "Infligge $3 danni. Ottieni una Magia casuale. <b>Forgia:</b> viene lanciata due volte.",
+  "jaJP": "[x]$3ダメージを与える。\nランダムな呪文を\n1枚得る。\n<b>鍛造:</b>\nこれは2回使用される。",
+  "koKR": "피해를 $3 줍니다.\n무작위 주문을 얻습니다.\n<b>제련:</b> 2번 시전합니다.",
+  "plPL": "Zadaj $3_pkt. obrażeń. Otrzymujesz losowe zaklęcie.\n<b>Wykuj:</b> Ta karta rzucana jest dwukrotnie.",
+  "ptBR": "Cause $3 de dano. Receba um feitiço aleatório. <b>Forjar:</b> Lance isto duas vezes.",
+  "ruRU": "Наносит $3 ед. урона. Вы кладете в руку случайное заклинание. <b>Ковка:</b> срабатывает дважды.",
+  "thTH": "สร้างความเสียหาย_$3_แต้ม สุ่มรับเวทมนตร์หนึ่งใบ <b>หล่อหลอม:</b> การ์ดนี้ร่ายสองครั้ง",
+  "zhCN": "造成$3点伤害。随机获取一张法术牌。<b>锻造：</b>本牌施放两次。",
+  "zhTW": "造成$3點傷害\n獲得一張隨機法術\n<b>鑄造：</b>此法術\n施放兩次"
+ },
+ "tags": {
+  "199": 4,
+  "203": 1,
+  "202": 5,
+  "48": 3,
+  "321": 1,
+  "1743": 2,
+  "1635": 2,
+  "2785": 1,
+  "1452": 98124,
+  "3074": 98124
+ }
+}

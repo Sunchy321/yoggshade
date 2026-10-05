@@ -5,7 +5,8 @@
   "schoolZh": "explore/ilspy/TAG_SPELL_SCHOOL.cs + explore/hs-render/data/card_tags/tag_enum.csv",
   "raceZh": "explore/hs-render/lab/2026-09-30-mana-gem-locator/output/decomp-gem/full/TAG_RACE.cs + explore/hs-render/lab/2026-09-30-mana-gem-locator/output/decomp-gem/full/GameStrings.cs + Strings/zhCN/GLOBAL.txt",
   "colorSwitcher": "Data/OSX/essential_base_global-prefab-0.unity3d",
-  "hideTags": "explore/hs-render/data/game_tag.csv"
+  "hideTags": "explore/hs-render/data/game_tag.csv",
+  "factionIconSt": "CardColorSwitcher faction* 材质 m_SavedProperties（scripts/extract_banner_assets.py 探测）"
  },
  "class": {
   "0": "INVALID",
@@ -423,5 +424,355 @@
   "HIDE_HEALTH": 992,
   "HIDE_ATTACK_NUMBER": 1273,
   "HIDE_HEALTH_NUMBER": 1274
+ },
+ "factionIconSt": {
+  "normal": [
+   null,
+   {
+    "mat": "Faction_Icon_Goons",
+    "scale": [
+     0.25,
+     0.25
+    ],
+    "offset": [
+     0.2549999952316284,
+     0.5
+    ],
+    "tex": "Faction_Icons",
+    "file": "textures/Faction_Icons.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "banner": {
+     "mat": "Faction_Banner",
+     "scale": [
+      1.0,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "tex": "Card_Inhand_Faction_Banner",
+     "file": "textures/Card_Inhand_Faction_Banner.png",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "mat": "Faction_Icon_Kabal",
+    "scale": [
+     0.25,
+     0.25
+    ],
+    "offset": [
+     0.0,
+     0.5
+    ],
+    "tex": "Faction_Icons",
+    "file": "textures/Faction_Icons.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "banner": {
+     "mat": "Faction_Banner",
+     "scale": [
+      1.0,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "tex": "Card_Inhand_Faction_Banner",
+     "file": "textures/Card_Inhand_Faction_Banner.png",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "mat": "Faction_Icon_Lotus",
+    "scale": [
+     0.25,
+     0.25
+    ],
+    "offset": [
+     0.75,
+     0.75
+    ],
+    "tex": "Faction_Icons",
+    "file": "textures/Faction_Icons.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "banner": {
+     "mat": "Faction_Banner",
+     "scale": [
+      1.0,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "tex": "Card_Inhand_Faction_Banner",
+     "file": "textures/Card_Inhand_Faction_Banner.png",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "mat": "Faction_Icon_Zerg",
+    "scale": [
+     0.25,
+     0.25
+    ],
+    "offset": [
+     0.25,
+     0.75
+    ],
+    "tex": "Faction_Icons",
+    "file": "textures/Faction_Icons.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "banner": {
+     "mat": "Faction_Banner_Starcraft",
+     "scale": [
+      1.0,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "tex": "Card_Inhand_Faction_Banner_Starcraft",
+     "file": "textures/Card_Inhand_Faction_Banner_Starcraft.png",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "mat": "Faction_Icon_Terran",
+    "scale": [
+     0.25,
+     0.25
+    ],
+    "offset": [
+     0.5,
+     0.75
+    ],
+    "tex": "Faction_Icons",
+    "file": "textures/Faction_Icons.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "banner": {
+     "mat": "Faction_Banner_Starcraft",
+     "scale": [
+      1.0,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "tex": "Card_Inhand_Faction_Banner_Starcraft",
+     "file": "textures/Card_Inhand_Faction_Banner_Starcraft.png",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "mat": "Faction_Icon_Protoss",
+    "scale": [
+     0.25,
+     0.25
+    ],
+    "offset": [
+     0.0,
+     0.75
+    ],
+    "tex": "Faction_Icons",
+    "file": "textures/Faction_Icons.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "banner": {
+     "mat": "Faction_Banner_Starcraft",
+     "scale": [
+      1.0,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "tex": "Card_Inhand_Faction_Banner_Starcraft",
+     "file": "textures/Card_Inhand_Faction_Banner_Starcraft.png",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   }
+  ],
+  "signature": [
+   null,
+   {
+    "mat": "Faction_Icon_Goons_Signature",
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "tex": "FX3_gradient_vibrate_jitter_noBlack",
+    "file": "textures/FX3_gradient_vibrate_jitter_noBlack.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.5254902243614197
+    ]
+   },
+   {
+    "mat": "Faction_Icon_Kabal_Signature",
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "tex": "FX3_gradient_vibrate_jitter_noBlack",
+    "file": "textures/FX3_gradient_vibrate_jitter_noBlack.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.5254902243614197
+    ]
+   },
+   {
+    "mat": "Faction_Icon_Lotus_Signature",
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "tex": "FX3_gradient_vibrate_jitter_noBlack",
+    "file": "textures/FX3_gradient_vibrate_jitter_noBlack.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.5254902243614197
+    ]
+   },
+   {
+    "mat": "Faction_Icon_Zerg_Signature",
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "tex": "FX3_gradient_vibrate_jitter_noBlack",
+    "file": "textures/FX3_gradient_vibrate_jitter_noBlack.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.5254902243614197
+    ]
+   },
+   {
+    "mat": "Faction_Icon_Terran_Signature",
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "tex": "FX3_gradient_vibrate_jitter_noBlack",
+    "file": "textures/FX3_gradient_vibrate_jitter_noBlack.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.5254902243614197
+    ]
+   },
+   {
+    "mat": "Faction_Icon_Protoss_Signature",
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "tex": "FX3_gradient_vibrate_jitter_noBlack",
+    "file": "textures/FX3_gradient_vibrate_jitter_noBlack.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.5254902243614197
+    ]
+   }
+  ]
  }
 }

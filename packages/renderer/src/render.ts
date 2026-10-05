@@ -55,6 +55,7 @@ interface BucketTri {
   opaque:   boolean;
   multiply: boolean;
   additive: boolean;
+  wrap:     boolean;
 }
 
 /** raster_bucket_zbuf：收集全部三角形 → (mean 世界 Y, DFS 序) 排序 → z-buffer 光栅。 */
@@ -126,6 +127,7 @@ export function rasterBucketZbuf(
           opaque:   slotPlan?.opaque ?? false,
           multiply: slotPlan?.blend === 'multiply',
           additive: slotPlan?.blend === 'additive',
+          wrap:     slotPlan?.wrap_repeat ?? false,
         });
       }
     }
@@ -134,7 +136,7 @@ export function rasterBucketZbuf(
   trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
   for (const e of trisOut) {
     rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
-      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive);
+      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap);
   }
   return trisOut.length;
 }
@@ -318,6 +320,7 @@ export function renderSpellOverlays(
             opaque:   false,
             multiply: blend === 'multiply',
             additive: blend === 'additive',
+            wrap:     false,
           });
         }
       }

@@ -31,6 +31,7 @@ export function rasterZbuf(
   opaque = false,
   multiply = false,
   additive = false,
+  wrapRepeat = false, // _MainTex wrap=repeat（引擎材质默认；缺省 clamp，见 PlanSlot.wrap_repeat）
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -64,7 +65,12 @@ export function rasterZbuf(
 
       const u = l0 * u0 + l1 * u1 + l2 * u2 + uvOffset[0];
       const v = l0 * v0 + l1 * v1 + l2 * v2 + uvOffset[1];
-      sampleBilinearClamp(tex, u * tw - 0.5, (1.0 - v) * th - 0.5, scratch);
+      // wrap=repeat（Unity _MainTex 默认）：ST 后逐像素取分数部分。多职业绶带阴影的材质
+      // ST（scale 0.53/0.48, offset −0.53/−0.048）使采样越过 0 边界，clamp 会拉出边缘条纹；
+      // 引擎 repeat 语义 = fract。逐顶点预 fract 不可行（三角形跨缝插值会横穿整张图）。
+      const uu = wrapRepeat ? u - Math.floor(u) : u;
+      const vv = wrapRepeat ? v - Math.floor(v) : v;
+      sampleBilinearClamp(tex, uu * tw - 0.5, (1.0 - vv) * th - 0.5, scratch);
       const ci = pi * 4;
       if (multiply) {
         // 乘法混合（Hero/Multiply/*）：dst.rgb *= 纹理色 + _Color。alpha 保持不变——乘法阴影只压暗，

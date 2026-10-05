@@ -30,7 +30,7 @@ exporter 侧新增基准卡时，在此表追加一行再重跑提取。
 | WW_373 | 异画2基线 | SIGNATURE | Normal | Hand | 异画样例 2，用于验证异画导出。 |
 | GDB_477 | 异画3基线 | SIGNATURE | Normal | Hand | 异画样例 3，用于验证异画导出。 |
 | TLC_433 | 异画4基线 | SIGNATURE | Normal | Hand | 异画样例 4，用于验证异画导出。 |
-| SC_004 | 异画5基线 | SIGNATURE | Normal | Hand | 异画样例 5，用于验证异画导出。 |
+| SC_004 | 虫族阵营样例 | NORMAL | Normal | Hand | 虫族阵营横幅样例（刀锋女王凯瑞甘），用于验证 ZERG 图标象限与星际绶带底板贴图。 |
 | TLC_EVENT_402 | 异画6基线 | SIGNATURE | Normal | Hand | 异画样例 6，用于验证异画导出。 |
 | BG33_828 | 战棋等级随从 | NORMAL | Battlegrounds | Hand | 六星酒馆战棋随从，用于验证酒馆等级图标和战棋手牌样式。 |
 | BG30_802 | 酒馆法术基线 | NORMAL | Battlegrounds | Hand | 酒馆法术样例，用于验证 BaconSpell 手牌样式和法术框体。 |
@@ -43,6 +43,14 @@ exporter 侧新增基准卡时，在此表追加一行再重跑提取。
 | BG24_Reward_310 | 任务奖励基线2 | NORMAL | Battlegrounds | Hand | 战棋任务奖励样例 2（exporter 基准卡），验证任务奖励规则的泛化。 |
 | LT23_802P2 | 佣兵技能基线 | NORMAL | Normal | Hand | 佣兵技能样例，用于验证 LETTUCE_ABILITY 法术类技能 BigCard 渲染。 |
 | LT23_803P2 | 佣兵技能2 | NORMAL | Normal | Hand | 佣兵技能样例 2，用于验证另一张 LETTUCE_ABILITY 渲染。 |
+| DED_004 | 可交易样例 | NORMAL | Normal | Hand | 可交易机制样例（武器帧·黑水弯刀），用于验证可交易横幅在武器帧的渲染。 |
+| TTN_477 | 锻造样例2 | NORMAL | Normal | Hand | 锻造机制法术样例（熔火符文），用于验证锻造横幅渲染与法术帧泛化。 |
+| JAIL_407 | 预备样例 | NORMAL | Normal | Hand | 准备机制样例（大头目梵妮莎），用于验证预备横幅渲染。 |
+| CFM_902 | 玉莲帮阵营样例 | NORMAL | Normal | Hand | 玉莲帮阵营横幅样例（艾雅·黑掌），用于验证 JADE_LOTUS 图标象限。 |
+| CFM_685 | 污手党阵营样例 | NORMAL | Normal | Hand | 污手党阵营横幅样例（唐·汉古），用于验证 GRIMY_GOONS 图标象限。 |
+| CFM_621 | 暗金教阵营样例 | NORMAL | Normal | Hand | 暗金教阵营横幅样例（卡扎库斯），用于验证 KABAL 图标象限。 |
+| SC_403 | 泰伦阵营样例 | NORMAL | Normal | Hand | 泰伦阵营横幅样例（星港，地标帧），用于验证 TERRAN 图标象限与地标帧阵营横幅。 |
+| SC_762 | 星灵阵营样例 | NORMAL | Normal | Hand | 星灵阵营横幅样例（母舰），用于验证 PROTOSS 图标象限。 |
 
 ## glow-bench
 

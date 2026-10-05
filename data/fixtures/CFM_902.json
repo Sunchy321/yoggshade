@@ -1,0 +1,62 @@
+{
+ "cardId": "CFM_902",
+ "dbfId": 40596,
+ "preset": {
+  "label": "玉莲帮阵营样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "玉莲帮阵营横幅样例（艾雅·黑掌），用于验证 JADE_LOTUS 图标象限。"
+ },
+ "textBuilderType": 2,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Aya Blackpaw",
+  "deDE": "Aya Schwarzpfote",
+  "esES": "Aya Zarpa Negra",
+  "esMX": "Aya Patanegra",
+  "frFR": "Aya Patte Noire",
+  "itIT": "Aya Zampa Nera",
+  "jaJP": "アヤ・ブラックポー",
+  "koKR": "아이야 블랙포우",
+  "plPL": "Aya Czarny Pazur",
+  "ptBR": "Aya Patanegra",
+  "ruRU": "Айя Черная Лапа",
+  "thTH": "อาย่า แบล็คพอว์",
+  "zhCN": "艾雅·黑掌",
+  "zhTW": "阿雅‧黑掌"
+ },
+ "textInHand": {
+  "enUS": "<b>Battlecry and Deathrattle:</b> Summon a{1} {0} <b>Jade Golem</b>. @ <b>Battlecry and Deathrattle:</b> Summon a <b>Jade Golem</b>.",
+  "deDE": "<b>Kampfschrei und Todesröcheln:</b> Ruft einen <b>Jadegolem</b> ({0}) herbei.@<b>Kampfschrei und Todesröcheln:</b> Ruft einen <b>Jadegolem</b> herbei.",
+  "esES": "<b>Grito de batalla y\nÚltimo aliento:</b>\nInvoca un\n<b>gólem de jade</b> {0}.@<b>Grito de batalla y\nÚltimo aliento:</b>\nInvoca un\n<b>gólem de jade</b>.",
+  "esMX": "<b>Grito de batalla y Estertor:</b> invoca un\n<b>Gólem de jade</b> {0}.@<b>Grito de batalla y Estertor:</b> invoca un <b>Gólem de jade</b>.",
+  "frFR": "<b>Cri de guerre et Râle d’agonie_:</b> invoque un <b>golem de jade</b>_{0}. @<b>Cri de guerre et Râle d’agonie_:</b> invoque un <b>golem de jade</b>.",
+  "itIT": "<b>Grido di Battaglia</b> e <b>Rantolo di Morte:</b> evoca un <b>Golem di Giada</b> {0}.@<b>Grido di Battaglia</b> e <b>Rantolo di Morte:</b> evoca un <b>Golem di Giada</b>.",
+  "jaJP": "[x]<b>雄叫び＆断末魔:</b>\n{0}の<b>翡翠のゴーレム</b>を\n1体召喚する。@[x]<b>雄叫び＆断末魔:</b>\n<b>翡翠のゴーレム</b>を\n1体召喚する。",
+  "koKR": "<b>전투의 함성과\n죽음의 메아리:</b>\n{0} <b>비취_골렘</b>을\n소환합니다.@[x]<b>전투의 함성과\n죽음의 메아리:</b>\n<b>비취_골렘</b>을 소환합니다.",
+  "plPL": "<b>Okrzyk bojowy i Agonia:</b> Przyzwij <b>Nefrytowego golema</b> {0}.@<b>Okrzyk bojowy i Agonia:</b> Przyzwij <b>Nefrytowego golema</b>.",
+  "ptBR": "<b>Grito de Guerra e Último Suspiro:</b> Evoque um <b>Golem de Jade</b> {0}. @ <b>Grito de Guerra e Último Suspiro:</b> Evoque um <b>Golem de Jade</b>.",
+  "ruRU": "[x]<b>Боевой клич\nи предсмертный хрип:</b>\nпризывает <b>нефритового\nголема</b> {0}.@<b>Боевой клич и_предсмертный хрип:</b> призывает __<b>нефритового_голема</b>.",
+  "thTH": "<b>คำรามสู้ศึก[b]และเสียงสุดท้าย:</b> เรียก <b>เจดโกเล็ม</b> {0}@<b>คำรามสู้ศึก[b]และเสียงสุดท้าย:</b> เรียก <b>เจดโกเล็ม</b>",
+  "zhCN": "<b>战吼，亡语：</b>召唤一个{0}的<b>青玉魔像</b>。@<b>战吼，亡语：</b>召唤一个<b>青玉魔像</b>。",
+  "zhTW": "<b>戰吼及死亡之聲：</b>召喚一個{0}<b>翠玉魔像</b>@<b>戰吼及死亡之聲：</b>召喚一個<b>翠玉魔像</b>"
+ },
+ "tags": {
+  "203": 5,
+  "199": 12,
+  "476": 194,
+  "321": 1,
+  "114": 1,
+  "48": 6,
+  "45": 3,
+  "47": 6,
+  "202": 4,
+  "441": 1,
+  "483": 1,
+  "218": 1,
+  "217": 1,
+  "1452": 42098,
+  "2589": 1
+ }
+}

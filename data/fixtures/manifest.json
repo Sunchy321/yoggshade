@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-03T14:51:28.825745+00:00",
+ "generatedAt": "2026-10-05T13:22:26.513455+00:00",
  "source": {
   "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
   "gameVersion": "36.6.253216",
@@ -165,8 +165,8 @@
   {
    "cardId": "SC_004",
    "dbfId": 112846,
-   "label": "异画5基线",
-   "premium": "SIGNATURE",
+   "label": "虫族阵营样例",
+   "premium": "NORMAL",
    "template": "Normal",
    "zone": "Hand"
   },
@@ -262,6 +262,70 @@
    "cardId": "LT23_803P2",
    "dbfId": 87111,
    "label": "佣兵技能2",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "DED_004",
+   "dbfId": 65597,
+   "label": "可交易样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TTN_477",
+   "dbfId": 98123,
+   "label": "锻造样例2",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "JAIL_407",
+   "dbfId": 124150,
+   "label": "预备样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "CFM_902",
+   "dbfId": 40596,
+   "label": "玉莲帮阵营样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "CFM_685",
+   "dbfId": 40703,
+   "label": "污手党阵营样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "CFM_621",
+   "dbfId": 40408,
+   "label": "暗金教阵营样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "SC_403",
+   "dbfId": 112856,
+   "label": "泰伦阵营样例",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "SC_762",
+   "dbfId": 113203,
+   "label": "星灵阵营样例",
    "premium": "NORMAL",
    "template": "Normal",
    "zone": "Hand"

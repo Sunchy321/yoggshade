@@ -1,0 +1,57 @@
+{
+ "cardId": "DED_004",
+ "dbfId": 65597,
+ "preset": {
+  "label": "可交易样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "可交易机制样例（武器帧·黑水弯刀），用于验证可交易横幅在武器帧的渲染。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "SWIcon_MiniSet.tif:244d5847b732b6b449e255aded77a0fa",
+ "name": {
+  "enUS": "Blackwater Cutlass",
+  "deDE": "Schwarzmeerentersäbel",
+  "esES": "Alfanje Aguasnegras",
+  "esMX": "Alfanje aguasnegras",
+  "frFR": "Coutelas des flots noirs",
+  "itIT": "Lama Acquanera",
+  "jaJP": "ブラックウォーター・カトラス",
+  "koKR": "검은바다 해적단 커틀라스",
+  "plPL": "Szabla z Czarnej Wody",
+  "ptBR": "Alfanje Aguanegra",
+  "ruRU": "Черноводная абордажная сабля",
+  "thTH": "คัตลาสแบล็ควอเตอร์",
+  "zhCN": "黑水弯刀",
+  "zhTW": "黑水彎刀"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Tradeable</b>\nAfter you <b>Trade</b> this,\nreduce the Cost of a spell\nin your hand by (1).",
+  "deDE": "<b>Handelbar</b>\nVerringert die Kosten eines Zaubers auf Eurer Hand um (1), nachdem Ihr diese Karte <b>gehandelt</b> habt.",
+  "esES": "[x]<b>Comerciable</b>\nDespués de <b>Comerciar</b>\ncon esta carta, reduce en\n(1) cristal el coste de\nun hechizo de tu mano.",
+  "esMX": "<b>Intercambiable</b>\nDespués de que realizas un <b>Intercambio</b> con esta carta, reduce el costo de un hechizo en tu mano en (1).",
+  "frFR": "<b>Échangeable</b>\nUne fois que vous avez <b>échangé</b> cette carte, réduit de (1)_|4(cristal,cristaux) le coût d’un sort de votre main.",
+  "itIT": "<b>Scambio</b>. Dopo che l'hai <b>Scambiata</b>, riduce di (1) il costo di una Magia nella tua mano.",
+  "jaJP": "[x]<b>交換可</b>\nこれを<b>交換</b>した後\n自分の手札の呪文\n1枚のコストを\n（1）減らす。",
+  "koKR": "<b>교환성</b>, 내가 이 무기를 <b>교환</b>한 후에, 내 손에 있는 주문의 비용이 (1) 감소합니다.",
+  "plPL": "<b>Wymiana</b>\nGdy <b>Wymienisz</b> tę kartę, zmniejsz koszt zaklęcia w_twojej ręce o_(1).",
+  "ptBR": "<b>Trocável</b>. Depois que você <b>Trocar</b> este card, reduza em (1) o Custo de um feitiço na sua mão.",
+  "ruRU": "<b>Можно обменять</b>. После того как вы <b>обмениваете</b> эту карту, уменьшает стоимость заклинания у вас в руке на (1).",
+  "thTH": "<b>แลกเปลี่ยนได้</b> หลังจากคุณ_<b>แลกเปลี่ยน</b> การ์ดนี้_ลดค่าร่ายของเวทมนตร์[b]หนึ่งใบในมือคุณลง_(1)",
+  "zhCN": "<b>可交易</b>\n在你<b>交易</b>此牌后，使你手牌中的一张法术牌的法力值消耗减少（1）点。",
+  "zhTW": "<b>可更換</b>\n在你<b>更換</b>此牌後，使你手中的一張法術消耗減少(1)"
+ },
+ "tags": {
+  "199": 7,
+  "203": 1,
+  "48": 1,
+  "202": 7,
+  "47": 2,
+  "321": 1,
+  "1720": 1,
+  "1743": 1,
+  "1824": 1,
+  "45": 2
+ }
+}

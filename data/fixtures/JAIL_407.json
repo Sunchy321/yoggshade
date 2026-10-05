@@ -1,0 +1,59 @@
+{
+ "cardId": "JAIL_407",
+ "dbfId": 124150,
+ "preset": {
+  "label": "预备样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "准备机制样例（大头目梵妮莎），用于验证预备横幅渲染。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Vanessa the Ringleader",
+  "deDE": "Anführerin Vanessa",
+  "esES": "Vanessa la Gerifalte",
+  "esMX": "Vanessa, la Líder",
+  "frFR": "Vanessa la meneuse",
+  "itIT": "Vanessa la Capa",
+  "jaJP": "首謀者ヴァネッサ",
+  "koKR": "두목 바네사",
+  "plPL": "Przywódczyni Vanessa",
+  "ptBR": "Vanessa, a Cabecilha",
+  "ruRU": "Главарь Ванесса",
+  "thTH": "วาเนสซาหัวหน้าโจร",
+  "zhCN": "大头目梵妮莎",
+  "zhTW": "頭目凡妮莎"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Prepare</b>\nAfter you play a card, get a\nrandom <b>Battlecry</b> minion.\nIt costs (2) less.",
+  "deDE": "<b>Vorbereiten</b>. Nachdem Ihr eine Karte ausgespielt habt, erhaltet Ihr einen zufälligen Diener mit <b>Kampfschrei</b>. Er kostet (2) weniger.",
+  "esES": "<b>Preparar</b>\nDespués de que juegues una carta,_obtienes un esbirro con <b>Grito_de batalla</b> aleatorio. Cuesta (2) cristales menos.",
+  "esMX": "<b>Preparar</b>\nDespués de que juegas una carta, obtienes un esbirro aleatorio con_<b>Grito de batalla</b>. Cuesta (2) menos.",
+  "frFR": "<b>Préparation</b>\nUne fois que vous avez joué une carte, vous obtenez un serviteur aléatoire avec <b>Cri de guerre</b>. Il coûte (2)_|4(cristal,cristaux) de moins.",
+  "itIT": "<b>Predisposizione</b>.\nDopo che hai giocato una carta, ottieni un servitore casuale con <b>Grido di Battaglia</b>. Costa (2) in meno.",
+  "jaJP": "[x]<b>仕込み</b>\n自分がカードを手札から\n使用した後、ランダムな<b>雄叫び</b>\nミニオンを1体得る。その\nコストは（2）減る。",
+  "koKR": "<b>준비</b>, 내가 카드를 낸 후에, 무작위 <b>전투의 함성</b> 하수인을 얻습니다. 그 하수인의 비용이 (2) 감소합니다.",
+  "plPL": "<b>Gotowość</b>\nGdy zagrasz kartę, otrzymujesz_losowego stronnika_z_<b>Okrzykiem_bojowym</b>. Kosztuje (2)_mniej.",
+  "ptBR": "<b>Preparar</b>\nDepois que você jogar um card, receba um lacaio aleatório com <b>Grito de Guerra</b>. Ele custa (2) a menos.",
+  "ruRU": "<b>Подготовка</b>. После того как вы разыгрываете карту, вы получаете случайное существо\nс <b>«Боевым кличем»</b>. Оно стоит на (2) меньше.",
+  "thTH": "<b>เตรียมการ</b> หลังจากคุณเล่นการ์ด_สุ่มรับ[b]มินเนี่ยน_<b>คำรามสู้ศึก</b>_หนึ่งใบ มันมีค่าร่ายลดลง_(2)",
+  "zhCN": "<b>预备</b>。在你使用一张牌后，随机获取一张<b>战吼</b>随从牌，其法力值消耗减少（2）点。",
+  "zhTW": "<b>預備</b>\n在你打出卡牌後，獲得一個隨機<b>戰吼</b>手下，其消耗減少(2)"
+ },
+ "tags": {
+  "203": 5,
+  "199": 12,
+  "114": 1,
+  "48": 7,
+  "45": 3,
+  "47": 4,
+  "202": 4,
+  "321": 1,
+  "1743": 1,
+  "4354": 1,
+  "32": 1,
+  "2589": 1
+ }
+}

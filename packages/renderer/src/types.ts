@@ -40,6 +40,8 @@ export interface PlanSlot {
   };
   /** opaque-edge alpha 修复：按不透明绘制（忽略纹理 alpha）；见 plan.ts needsOpaqueEdgeRepair。 */
   opaque?: boolean;
+  /** _MainTex 采样 wrap=repeat（引擎材质默认；缺省 clamp）。多职业绶带阴影 ST offset 越界。 */
+  wrap_repeat?: boolean;
   /** 非默认混合：multiply = Hero/Multiply/*（dst.rgb *= 纹理色+_Color，只压暗）；
    *  additive = Hero/Additive/*（dst.rgb += src·tint·src.a，星芒/辉光）。 */
   blend?:  'multiply' | 'additive';
@@ -162,6 +164,20 @@ export interface SpellOverlayPack {
   key:       string;
   hierarchy: HierarchyNode;
   meshes:    Record<string, MeshEntry>;
+}
+
+/** tables.json factionIconSt 行（CardColorSwitcher faction* 材质序列化摘要，
+ *  scripts/extract_banner_assets.py 产出）：图标/绶带底板的运行时换材质编译期输入。 */
+export interface FactionMaterialSt {
+  mat?:    string;
+  tex?:    string;
+  file?:   string;
+  scale?:  number[];
+  offset?: number[];
+  color?:  number[];
+  /** factionBannerMaterials[i] 绶带底板材质（帮派=Faction_Banner，星际=Faction_Banner_Starcraft）。 */
+  banner?: FactionMaterialSt | null;
+  error?:  string;
 }
 
 export interface AssetPack {

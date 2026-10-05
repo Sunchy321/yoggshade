@@ -109,8 +109,14 @@ def main() -> int:
     card_rows = tables["CARD"]["Records"]
     tag_rows = tables["CARD_TAG"]["Records"]
     by_guid: dict[str, dict] = {r["m_noteMiniGuid"]: r for r in card_rows if r.get("m_noteMiniGuid")}
+    # tag 装载口径对齐 EntityDef.LoadTagFromDBF_SetTags（EntityDef.cs:331-349）：
+    # m_isReferenceTag=1 的行只进 SetReferencedTag（如奇迹推销员 WW_331 引用"可交易"关键字
+    # 却不可交易），仅同时 m_isPowerKeywordTag=1 才 SetTag 进实体——照抄会把"文本引用关键字"
+    # 的 reference tag 带进 fixture tags，渲染端 tag 驱动的横幅（TRADEABLE 1720 等）就会误亮。
     tags_by_dbf: dict[int, dict[int, int]] = {}
     for r in tag_rows:
+        if r.get("m_isReferenceTag") and not r.get("m_isPowerKeywordTag"):
+            continue
         tags_by_dbf.setdefault(r["m_cardId"], {})[r["m_tagId"]] = r["m_tagValue"]
 
     ver = game_version()

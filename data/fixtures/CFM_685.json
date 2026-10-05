@@ -1,0 +1,59 @@
+{
+ "cardId": "CFM_685",
+ "dbfId": 40703,
+ "preset": {
+  "label": "污手党阵营样例",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "污手党阵营横幅样例（唐·汉古），用于验证 GRIMY_GOONS 图标象限。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Don Han'Cho",
+  "deDE": "Don Han’Cho",
+  "esES": "Don Han'Cho",
+  "esMX": "Don Han'Cho",
+  "frFR": "Don Han’Cho",
+  "itIT": "Don Han'cho",
+  "jaJP": "ドン・ハン＝チョー",
+  "koKR": "두목 한초",
+  "plPL": "Don Sze'Fu",
+  "ptBR": "Dom Han'Cho",
+  "ruRU": "Дон Хан'Чо",
+  "thTH": "ดอนฮานโช",
+  "zhCN": "唐·汉古",
+  "zhTW": "宏辛老大"
+ },
+ "textInHand": {
+  "enUS": "<b>Battlecry:</b> Give a\nrandom minion in your hand +5/+5.",
+  "deDE": "<b>Kampfschrei:</b> Verleiht einem zufälligen Diener auf Eurer Hand +5/+5.",
+  "esES": "<b>Grito de batalla:</b> Otorga +5/+5 a un esbirro aleatorio que esté en tu mano.",
+  "esMX": "<b>Grito de batalla:</b> otorga +5/+5 a un esbirro aleatorio de tu mano.",
+  "frFR": "<b>Cri de guerre_:</b> donne_+5/+5 à un serviteur aléatoire de votre main.",
+  "itIT": "<b>Grido di Battaglia:</b> +5/+5 a un servitore casuale nella tua mano.",
+  "jaJP": "<b>雄叫び:</b>\n自分の手札のランダムなミニオン1体に+5/+5を付与する。",
+  "koKR": "<b>전투의 함성:</b> 내 손에 있는 무작위 하수인에게 +5/+5를 부여합니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> Daj losowemu stronnikowi w_twojej_ręce_+5/+5.",
+  "ptBR": "<b>Grito de Guerra:</b> Conceda +5/+5 a um lacaio aleatório na sua mão.",
+  "ruRU": "<b>Боевой клич:</b> случайное существо у вас в руке получает +5/+5.",
+  "thTH": "<b>คำรามสู้ศึก:</b> สุ่มมอบ +5/+5_ให้มินเนี่ยนหนึ่งตัว[b]ในมือคุณ",
+  "zhCN": "<b>战吼：</b>随机使你手牌中的一张随从牌获得+5/+5。",
+  "zhTW": "<b>戰吼：</b>賦予你手中\n一個隨機手下+5/+5"
+ },
+ "tags": {
+  "203": 5,
+  "199": 12,
+  "476": 532,
+  "321": 1,
+  "114": 1,
+  "48": 5,
+  "45": 5,
+  "47": 5,
+  "202": 4,
+  "482": 1,
+  "218": 1,
+  "2589": 1
+ }
+}
