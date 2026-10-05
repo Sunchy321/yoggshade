@@ -39,14 +39,14 @@ export interface PlanSlot {
     '_MainTex.scale'?:  number[];
   };
   /** opaque-edge alpha 修复：按不透明绘制（忽略纹理 alpha）；见 plan.ts needsOpaqueEdgeRepair。 */
-  opaque?: boolean;
+  opaque?:      boolean;
   /** _MainTex 采样 wrap=repeat（引擎材质默认；缺省 clamp）。多职业绶带阴影 ST offset 越界。 */
   wrap_repeat?: boolean;
   /** 非默认混合：multiply = Hero/Multiply/*（dst.rgb *= 纹理色+_Color，只压暗）；
    *  additive = Hero/Additive/*（dst.rgb += src·tint·src.a，星芒/辉光）。 */
-  blend?:  'multiply' | 'additive';
+  blend?:       'multiply' | 'additive';
   /** 该材质槽不参与光栅（运行时占位/被 spell 视觉替换的底板）。 */
-  skip?:   boolean;
+  skip?:        boolean;
 }
 
 export interface PlanComponent {
@@ -98,6 +98,13 @@ export interface RenderPlan {
   /** 晚通道绘制的节点名（运行时激活的覆盖层，如饰品徽章子树）——主帧光栅后按序合成，
    *  每节点独立深度缓冲（激活序 = 合成序，Unity SetActive 语义）。 */
   late_nodes?:     string[];
+  /** 取景锚（世界 xz，世界单位）：非 undefined 时渲染端全部世界→像素投影以此为画布中心。
+   *  exporter FrameCamera 不对原点取景——TryGetActorFrameBounds（ExporterController.cs:11259、
+   *  :11329+）以主体网格（RootObject[/NonQuestObjects]/Mesh）世界包围盒中心为相机中心，
+   *  基准图（reference/）全按该口径导出；TS 原点取景因此与基准图差每帧型一个常数平移
+   *  （量化与对账：explore/2026-10-06-l2-offset/findings.md）。plan 编译期按主体网格顶点
+   *  包围盒算好写入；scope 外帧族缺省 undefined = 原点锚（行为不变）。 */
+  frame_center?:   [number, number];
 }
 
 export interface HierarchyNode {

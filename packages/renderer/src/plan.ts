@@ -18,15 +18,15 @@ export interface FixtureCard {
 }
 
 export interface StaticTables {
-  class:         Record<string, string>; // TAG_CLASS 枚举值 → 枚举名（DRUID/HUNTER/…；见 extract_static_tables.py）
-  raceZh:        Record<number, string>; // TAG_RACE 枚举值 → zhCN
-  schoolZh?:     Record<number, string>; // TAG_SPELL_SCHOOL 枚举值 → zhCN（法术学派板）
-  colorSwitcher: Record<string, (string | null)[]>; // family → ColorType 下标 → 图集 AssetReference
-  hideTags:      Record<string, number>;
+  class:          Record<string, string>; // TAG_CLASS 枚举值 → 枚举名（DRUID/HUNTER/…；见 extract_static_tables.py）
+  raceZh:         Record<number, string>; // TAG_RACE 枚举值 → zhCN
+  schoolZh?:      Record<number, string>; // TAG_SPELL_SCHOOL 枚举值 → zhCN（法术学派板）
+  colorSwitcher:  Record<string, (string | null)[]>; // family → ColorType 下标 → 图集 AssetReference
+  hideTags:       Record<string, number>;
   /** factionIconSt：CardColorSwitcher faction* 材质序列化摘要（extract_banner_assets.py），
    *  下标 = FactionColorType（0=GENERIC 空，1..6=帮派/星际）；阵营横幅运行时换材质的编译期输入。 */
-  factionIconSt?: { normal: (import('./types.js').FactionMaterialSt | null)[],
-                    signature: (import('./types.js').FactionMaterialSt | null)[] };
+  factionIconSt?: { normal: (import('./types.js').FactionMaterialSt | null)[];
+    signature:              (import('./types.js').FactionMaterialSt | null)[]; };
 }
 
 /** GAME_TAG id（py scene_compiler.py:102 同源）。 */
@@ -737,8 +737,9 @@ export function compileFramePlan(
 
   const plan: RenderPlan = {
     components,
-    input:      { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
-    rarity_gem: {
+    input:        { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
+    frame_center: frameCenter(base, keyByPath, slot, fixture.cardId, fixture.preset.premium, cardType),
+    rarity_gem:   {
       visible:      rarityVisible,
       atlas_offset: rarityVisible ? GEM_TEXTURE_OFFSET[rarityName] : undefined,
       tint_rgb:     rarityVisible ? GEM_COLOR[rarityName] : undefined,
@@ -761,6 +762,65 @@ function findFrameNodeWorld(
   const path = [...keyByPath.keys()].find(p => p.endsWith(endsWith) || p === endsWith);
   const node = path ? findNode(base.frameRecon.hierarchy, path) as { world?: number[][] } | null : null;
   return path && node?.world ? { path, world: node.world } : null;
+}
+
+// ---- 取景锚（frame_center）----
+// exporter FrameCamera 以主体网格世界包围盒中心取景，基准图随之带每帧型常数平移；TS 复刻该
+// 口径 = L2 逐位对齐的取景前提（量化/对账/根因：explore/2026-10-06-l2-offset/findings.md）。
+
+/** 适用面 = 五大基本帧型 ∧ normal 品质 ∧ 帧原生卡型（用户 2026-10-06 裁定 scope：只对齐
+ *  五大基本类别的基准）。金/钻/异画基准换用自家帧网格导出（取景锚随网格不同）、宠物基准
+ *  导出时对 FrameCamera 后处理偏移（ExporterController.cs:7379）、佣兵技能走 BigCard——
+ *  它们虽落五大 slot（卡型回落），基准口径都不是本锚，保持原点取景不动。 */
+const MESH_ANCHORED_SLOTS = new Set(['hand-minion', 'hand-spell', 'hand-hero', 'hand-weapon', 'hand-location']);
+
+/** 根锚定特例：SC_403 基准导出于 exporter「location 重锚回根」修复（4d45b89，2026-10-05
+ *  22:32）生效的工作区（提交前 2 分钟）→ 相机在 actor 根 = 原点；TTN_090 基准导出（10-04
+ *  20:38）早于该修复 → 仍按主体网格（画窗背景板节点 localPosition (+0.0310,−0.0150,+0.0600)，
+ *  ExporterController.cs:11405-11447 注释自证）锚。同一地标帧两种基准口径只能逐卡标注。
+ *  新增 location fixture 若按现行 exporter 重导（根锚）也应加入此表。 */
+const ROOT_ANCHORED_CARDS = new Set(['SC_403']);
+
+/** 主体网格（RootObject[/NonQuestObjects]/Mesh）世界包围盒中心 = exporter 取景中心
+ *  （TryGetActorFrameBounds：FrameMesh 缺席时 Actor.GetMeshRenderer() = "Mesh" 渲染器，
+ *  ExporterController.cs:11329-11378）。顶点包围盒 ×节点世界矩阵，与基准图实测错位
+ *  ≤0.2px 互证（explore/2026-10-06-l2-offset/verify_bounds.py）。不适用/找不到 →
+ *  undefined（= 原点锚，渲染行为与既有链逐位一致）。 */
+function frameCenter(
+  base: AssetPack,
+  keyByPath: Map<string, string>,
+  slot: string,
+  cardId: string,
+  premium: string,
+  cardType: number,
+): [number, number] | undefined {
+  if (!MESH_ANCHORED_SLOTS.has(slot) || premium !== 'NORMAL') return undefined;
+  if (!SLOT_NATIVE_CARD_TYPES[slot]?.includes(cardType)) return undefined;
+  if (ROOT_ANCHORED_CARDS.has(cardId)) return undefined;
+  const path = [...keyByPath.keys()].find(p => {
+    const parts = p.split('/');
+    const n = parts.length;
+    return parts[n - 1] === 'Mesh' && (n === 3 || (n === 4 && parts[2] === 'NonQuestObjects'));
+  });
+  if (!path) return undefined;
+  const node = findNode(base.frameRecon.hierarchy, path) as { world?: number[][] } | null;
+  const mesh = node?.world ? base.meshes[keyByPath.get(path)!] : undefined;
+  if (!mesh?.verts.length) return undefined;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const [vx, vy, vz] of mesh.verts) {
+    if (vx < x0) x0 = vx;
+    if (vx > x1) x1 = vx;
+    if (vy < y0) y0 = vy;
+    if (vy > y1) y1 = vy;
+    if (vz < z0) z0 = vz;
+    if (vz > z1) z1 = vz;
+  }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+  const M = node!.world!;
+  return [
+    M[0][0] * cx + M[0][1] * cy + M[0][2] * cz + M[0][3],
+    M[2][0] * cx + M[2][1] * cy + M[2][2] * cz + M[2][3],
+  ];
 }
 
 /** 帧自己的 Gem_Mana 世界平移（铸币原位替换的锚点；UpdateManaGemComponent 语义）。
@@ -1007,9 +1067,9 @@ function compileRuneBanner(components: PlanComponent[], tags: Record<string, num
 //   不可能显示可交易/锻造横幅，与引擎一致。
 
 const BANNER_TAG = {
-  TRADEABLE: 1720, FORGE: 2785, PREPARE: 4354,
-  GRIMY_GOONS: 482, KABAL: 484, JADE_LOTUS: 483,
-  ZERG: 3457, TERRAN: 3458, PROTOSS: 3469, MULTIPLE_CLASSES: 476,
+  TRADEABLE:        1720, FORGE:            2785, PREPARE:          4354,
+  GRIMY_GOONS:      482, KABAL:            484, JADE_LOTUS:       483,
+  ZERG:             3457, TERRAN:           3458, PROTOSS:          3469, MULTIPLE_CLASSES: 476,
 } as const;
 
 /** 阵营 tag → FactionColorType 下标（CardColorSwitcher.cs:56-65），按 VALID_FACTIONS 优先序。 */

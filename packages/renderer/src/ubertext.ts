@@ -1,7 +1,7 @@
 /** UberText 渲染主流程（uber_text.render_text / _render_rtt + ally 版装载器对译）。 */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PX_PER_UNIT, HALF_W, HALF_H, SIZE } from './camera.js';
+import { PX_PER_UNIT, HALF_W, HALF_H, SIZE, getFrameAnchor } from './camera.js';
 import { FontMetrics, PackFontMetrics, type FontMetricsLike } from './font.js';
 import { glyphOutlineShader, composite, pyRound } from './glyph.js';
 import { resampleImage } from './resize.js';
@@ -14,8 +14,10 @@ export interface Scene {
 }
 
 export function makeScene(): Scene {
-  // dz_render：自然映射相机（scene 常量直接取 sc.*，零偏移）
-  return { s: PX_PER_UNIT, wx0: -HALF_W, wz1: HALF_H, ox: 0.0, oy: 0.0 };
+  // dz_render：自然映射相机（scene 常量直接取 sc.*，零偏移）+ 取景锚（exporter FrameCamera
+  // 主体网格中心口径；projectX/projectY 同式消费，camera.ts 同源注释）。
+  const [ax, az] = getFrameAnchor();
+  return { s: PX_PER_UNIT, wx0: ax - HALF_W, wz1: HALF_H + az, ox: 0.0, oy: 0.0 };
 }
 
 function project(scene: Scene, wx: number, wz: number): [number, number] {

@@ -6,7 +6,7 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { loadPack, loadSpellOverlay, TextureStore, walkWithKey } from './assets.js';
-import { SIZE } from './camera.js';
+import { SIZE, setFrameAnchor } from './camera.js';
 import {
   buildRenderList, rasterBucketZbuf, renderPortraitLayer, composeToRgba8, alphaPlane,
   renderGemsStage, rgbToRgba8, renderSpellOverlays,
@@ -43,6 +43,10 @@ if (cardId || fixtureFile) {
   pack.plan = pack.prefabReport
     ? compileFramePlan(fixture, tables, pack, packDir, slot)
     : compilePlan(fixture, tables, pack, packDir);
+  // 取景锚（exporter FrameCamera 主体网格中心口径；camera.ts 同源注释）：渲染前设置，
+  // 本进程内所有投影（网格/肖像/overlay/宝石/文字）统一跟随。逐卡进程，无串卡风险。
+  const fc = pack.plan!.frame_center;
+  if (fc) setFrameAnchor(fc[0], fc[1]);
 } else {
   pack = loadPack(packDir);
 }
