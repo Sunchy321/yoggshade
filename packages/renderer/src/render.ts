@@ -105,6 +105,13 @@ export function rasterBucketZbuf(
       const mo = slotPlan?.material_override;
       if (mo?._tint_rgb) tint = [...mo._tint_rgb, 1.0];
       if (mo?.['_MainTex.offset']) uvOffset = [mo['_MainTex.offset'][0], mo['_MainTex.offset'][1]];
+      // material_override _MainTex ST scale（符文图标 Rune_*_sm scale (0.5,0.5)）：逐顶点
+      // uv×scale 预变换（Angelia dk 链 raster_bucket_zbuf_uvscale 同语义；lerp(uv·s) ≡
+      // lerp(uv)·s 仿射恒等——offset 走 rasterZbuf 既有逐像素通道，不在此重复施加）。
+      const stS = mo?.['_MainTex.scale'];
+      const uvArr = stS && (stS[0] !== 1 || stS[1] !== 1)
+        ? uv0.map(([u, v]) => [u * stS[0], v * stS[1]])
+        : uv0;
 
       const tris = mesh.subs[si];
       for (const t of tris) {
@@ -113,7 +120,7 @@ export function rasterBucketZbuf(
           depth:    (depth[a] + depth[b] + depth[c]) / 3,
           seq:      seq++,
           tri2d:    [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
-          triUv:    [uv0[a], uv0[b], uv0[c]],
+          triUv:    [uvArr[a], uvArr[b], uvArr[c]],
           triZ:     [depth[a], depth[b], depth[c]],
           texKey, tint, uvOffset,
           opaque:   slotPlan?.opaque ?? false,

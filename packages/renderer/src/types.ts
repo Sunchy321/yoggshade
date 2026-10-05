@@ -36,6 +36,7 @@ export interface PlanSlot {
   material_override?: {
     '_tint_rgb'?:       number[];
     '_MainTex.offset'?: number[];
+    '_MainTex.scale'?:  number[];
   };
   /** opaque-edge alpha 修复：按不透明绘制（忽略纹理 alpha）；见 plan.ts needsOpaqueEdgeRepair。 */
   opaque?: boolean;

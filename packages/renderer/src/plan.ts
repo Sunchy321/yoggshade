@@ -725,6 +725,9 @@ export function compileFramePlan(
   // ---- opaque-edge alpha 修复标记（写点完成后按最终纹理判定；见 needsOpaqueEdgeRepair）----
   markOpaqueEdgeSlots(components, report.nodes);
 
+  // ---- DK 符文横幅（tag 2196/2197/2198 → 显隐 + 图标材质覆写；含图标 opaque 豁免，须在标记后）----
+  compileRuneBanner(components, tags);
+
   const plan: RenderPlan = {
     components,
     input:      { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
@@ -847,6 +850,112 @@ function markOpaqueEdgeSlots(
       if (typeof rep?.shader === 'string' && rep.shader.startsWith('Hero/Multiply/')) {
         slot.blend = 'multiply';
       }
+    }
+  }
+}
+
+// ============================================================================
+// DK 符文横幅（CardRuneBanner 运行时激活对译；2026-10-05，参照 Angelia dk-runes /
+// rune-display / rune-samples 三实验的已验证链）
+// ============================================================================
+// 数据源：三独立 tag（非 bitmask）COST_BLOOD/FROST/UNHOLY = 2196/2197/2198（game_tag.csv；
+// ETC_210 实测三值各 1）。EntityBase.cs:93 HasRuneCost = 血+冰+邪 > 0；
+// Actor.cs:6116-6133 UpdateCardRuneBannerComponent 对非符文卡 m_cardRuneBanner.Hide()
+// （本链默认态：holder/shadow 在 STATIC_HIDDEN、三布局子树 prefab 序列化失活——双兜底），
+// HasRuneCost 才 Show(pattern)。
+//
+// Show 形态（CardRuneBanner.cs:21-50 + RuneSlotVisual.cs:47-85 + Rune.cs:104-126）：
+//   布局 = CombinedValue 1/2/3 → OneRune/TwoRunes/ThreeRunes（switch CardRuneBanner.cs:27-40）；
+//   槽 GO 名 = prefab m_deckRuneSlots 实测（rune-samples §3 关账 dk-runes §6.3 缺口 3）：
+//   OneRune=Resource_Rune（无序号）、TwoRunes=(1)(2)、ThreeRunes=(3)(4)(5)；
+//   填色序 = [BLOOD×b, FROST×f, UNHOLY×u] 从左往右（RunePattern.cs:6-11 ValidRuneTypes
+//   顺序展开 + RuneSlotVisual.cs:68-85 槽序填充；与槽位序列绑定无关）；
+//   图标材质 = Rune_{type}_sm：_MainTex=CardRunes_DeathKnight_sm（essential_base_global-
+//   texture-1 pid -7217558262942142559，与帧 prefab 占位引用的基础版同名异对象——基础版
+//   带符文图形、_sm 是无符号宝石面，ref 图标内容实证；提取 scripts/extract_rune_textures.py），
+//   ST scale (0.5,0.5)、offset 血(0,.5)/冰(.5,.5)/邪(0,0)（prefab Rune MB m_runeAssetTable
+//   序列化实测，dk-runes findings §2）。
+// 底座 = m_runeBannerBackground=Card_Hand_Deathknight_Banner SetActive(true)
+// （CardRuneBanner.cs:45-48）：RuneHolder_Mesh（RuneBanner_Card；底座不随布局变形，
+// rune-samples §4 holder 足迹三布局同值）+ RuneHolder_Shadow_Mesh（RuneBanner_Card_Shadow_Mat，
+// Hero/Multiply/ → markOpaqueEdgeSlots 按乘法混合标注）。
+// 阴影混合：阴影 shader PS `add o0.rgb = tex + COLOR`（COLOR0=顶点色×_Color，_Color=(0,0,0,1)
+// → 0）、blend DstColor/Zero → final = dst.rgb × tex.rgb（rune-display 反汇编定案，关闭
+// dk-runes §6.2 缺口 2）；本链 multiply 分支公式 dst*(tex+_Color) 在 _Color 黑时恒同语义——
+// 无需 Angelia 的 _tint_rgb 白修正（那是修它自家 rgb=tex×tint 公式把黑乘进因子的 bug，本链无）。
+// 图标 opaque 豁免：Hero/Unlit_Transparent = SrcAlpha/OneMinusSrcAlpha + _Cutoff 0.9
+// （dk-runes shader pass dump），_sm 图集 alpha 近二值镂空（宝石面仅 ~37% 象限）——须按 alpha
+// 镂空画；exporter 的 opaque-edge 名单修复只补导出 PNG 的 alpha 通道（repair RT 上镂空区
+// 无几何写入、不补），按不透明画整张 quad 会把透明角涂成垃圾 RGB。
+// 残差登记：① 引擎采样 MIP_POINT bias −0.5（mip-sampler 定案；rune-display bias 诊断极小
+// −0.75 差 0.09，浅谷族），本链无 mip 设施按 L0 双线性——图标偏锐；是否引入 mip 属架构
+// 决策（Angelia 全链 mip 补丁后仍有 mae_icon 0.86–3.12/槽 同族余量），未做。
+// ② 异画/钻石等 premium 卡（GDB_477/RLK_706/WW_373/TLC_433/TTN_850）的参考图用 premium
+// actor 导出，其 RuneBanner 连同框体整体比本链回落普通帧的几何偏上右 ~10px——premium 帧
+// 族未移植（five-cardtypes §6 已知边界）的既有家族，非符文管线误差（ETC_210 普通 premium
+// 亚像素吻合；槽位投影与 Angelia 引擎 blob ≤0.5px 互证）。
+
+const RUNE_TAG = { BLOOD: 2196, FROST: 2197, UNHOLY: 2198 } as const;
+type RuneType = keyof typeof RUNE_TAG;
+
+/** Rune_*_sm 材质图集偏移/缩放（prefab Rune MB m_runeAssetTable 序列化实测）。 */
+const RUNE_ATLAS_OFFSET: Record<RuneType, [number, number]> = {
+  BLOOD: [0.0, 0.5], FROST: [0.5, 0.5], UNHOLY: [0.0, 0.0],
+};
+const RUNE_ATLAS_SCALE: [number, number] = [0.5, 0.5];
+
+/** CombinedValue → 布局节点/槽 GO 名（CardRuneBanner.cs:27-40 switch × prefab
+ * m_deckRuneSlots 实测；rune-samples §3 + rune-display LAYOUT_SLOTS 正典表）。 */
+const RUNE_LAYOUTS: Record<number, { layout: string, slots: string[] }> = {
+  1: { layout: 'OneRune', slots: ['Resource_Rune'] },
+  2: { layout: 'TwoRunes', slots: ['Resource_Rune (1)', 'Resource_Rune (2)'] },
+  3: { layout: 'ThreeRunes', slots: ['Resource_Rune (3)', 'Resource_Rune (4)', 'Resource_Rune (5)'] },
+};
+
+const RUNE_SM_TEX = 'textures/CardRunes_DeathKnight_sm.png';
+
+/** 符文横幅 delta（tags 2196/2197/2198 → 节点显隐 + 图标材质覆写）。非符文卡零操作
+ * （默认隐藏态 = 引擎 Hide() 路径）。帧间 RuneBanner 子树同构，按路径后缀匹配。 */
+function compileRuneBanner(components: PlanComponent[], tags: Record<string, number>): void {
+  const blood = tags[RUNE_TAG.BLOOD] ?? 0;
+  const frost = tags[RUNE_TAG.FROST] ?? 0;
+  const unholy = tags[RUNE_TAG.UNHOLY] ?? 0;
+  const combined = blood + frost + unholy;
+  // HasRuneCost（EntityBase.cs:93）+ Show 的 switch default：CombinedValue ∉ 1..3 时
+  // Show 直接 return（CardRuneBanner.cs:26 `default: return;`）——容器/底座都不激活
+  if (combined <= 0 || combined > 3) return;
+
+  const bySuffix = (suffix: string): PlanComponent | undefined =>
+    components.find(c => c.path.endsWith(suffix));
+  // 底座：CardRuneBanner.cs:45-48 m_runeBannerBackground SetActive(true)
+  for (const node of ['RuneHolder_Mesh', 'RuneHolder_Shadow_Mesh']) {
+    const comp = bySuffix(`RuneBanner/Card_Hand_Deathknight_Banner/${node}`);
+    if (comp) comp.visible = true;
+  }
+
+  // 布局与填色（CardRuneBanner.cs:28-39 m_runeSlotVisuals[combined-1].Show；RuneSlotVisual.cs:47-85）
+  const { layout, slots } = RUNE_LAYOUTS[combined];
+  const seq = Object.entries({ BLOOD: blood, FROST: frost, UNHOLY: unholy } as const)
+    .flatMap(([rt, n]) => Array<RuneType>(n).fill(rt as RuneType));
+  for (let i = 0; i < seq.length; i++) {
+    const comp = bySuffix(`RuneBanner/RuneLayouts/${layout}/${slots[i]}/Rune`);
+    if (!comp) continue;
+    // 运行时激活（CardRuneBanner.Show → SetActive）：序列化失活节点的 visible 与 raster 一并翻回
+    // （dk-runes findings §5.2 勘误）
+    comp.visible = true;
+    comp.raster = true;
+    const slot = comp.material_slots?.[0];
+    if (slot) {
+      // Rune.ShowRune（Rune.cs:104-126）：Default 态材质 = Rune_{type}_sm（整材质替换语义
+      // ——纹理与 ST 一并换，序列化 Rune_Blood 占位的偏移不生效）
+      slot._MainTex_runtime = { file: RUNE_SM_TEX };
+      slot.material_override = {
+        '_MainTex.offset': [...RUNE_ATLAS_OFFSET[seq[i]]],
+        '_MainTex.scale':  [...RUNE_ATLAS_SCALE],
+      };
+      // 图标按 alpha 镂空画（Hero/Unlit_Transparent；见块注「图标 opaque 豁免」），
+      // 清掉 needsOpaqueEdgeRepair 对 Rune_/CardRunes 名单的命中
+      slot.opaque = undefined;
     }
   }
 }
