@@ -51,7 +51,12 @@ export function loadFontdef(pack: AssetPack, name: string): FontDef {
   return { fields: side['fontdef'], ttfPath: join(pack.dir, side['font_object']['saved_to']) };
 }
 
-/** Ally 版节点装载：Underwear Flip=0 且 Left/RightBounds 未序列化 → 置 0（UB:2589-2602 推导）。 */
+/** Ally 版节点装载。2026-10-06 撤销旧「Flip=0 且未序列化 Left/RightBounds → m_Underwear=0」
+ *  的钝化 quirk：反编译（UB:2553-2599）无任何按序列化 bounds 钝化 underwear 的逻辑，
+ *  `UseUnderwear = m_Underwear` 直读字段（UB:2559），Flip=0 帧型（随从/武器/英雄/英雄技能/
+ *  地标 desc）的防护罩在引擎里是活的，其收窄判据 = 完成行 bounds ∩ 角盒
+ *  （textlayout.ts engineWrapSegments 对译 UB:4109-4186）。
+ *  旧 quirk 曾把随从 desc 的 underwear 关掉 → resizeToFit 停档偏早 → 文字整体偏大 ~10%。 */
 export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettings> {
   const nodes = loadUberTextNodes(pack);
   const worldByPath = new Map<string, number[][]>();
@@ -77,10 +82,6 @@ export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettin
       Math.hypot(w[0][j], w[1][j], w[2][j]);
     const scale = (colNorm(0) + colNorm(1) + colNorm(2)) / 3;
     const fields: Record<string, unknown> = { ...node.fields };
-    if (fields['m_Underwear'] && !fields['m_UnderwearFlip']
-      && !('m_UnderwearLeftBounds' in fields)) {
-      fields['m_Underwear'] = 0;
-    }
     const loc = localizedWorldOffset(w, fields);
     out[role] = {
       fields,

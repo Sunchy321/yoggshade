@@ -1,10 +1,31 @@
-/** UberText 布局引擎（uber_text.py 布局段逐行对译；纯逻辑，无字体依赖之外的 IO）。 */
+/** UberText 布局引擎 —— 引擎语义对译（Wrap / ReduceText_CharSize / SetLineSpacing 状态机）。
+ *
+ * 2026-10-06 重写（explore/2026-10-06-text-align/findings.md）：旧实现的 resizeToFit 停档
+ * 与引擎不同（desc 字形整体偏大 ~10%、块首行偏上、断行不同），根因 =
+ * (a) underwear（desc 防护罩）只实现了 Flip=1 的 y 阈值分支且在 ally 装载层被钝化——
+ *     Flip=0 帧型（随从/武器/英雄/英雄技能/地标）走「完成行 TextMesh bounds ∩ 左右角盒」路径；
+ * (b) fit 判据不同：引擎首轮 y 用 intra 修正、循环内用 raw bounds（UB:2417 vs :2460）；
+ * (c) 行高口径：LH = round((asc−desc)×fs/upem)（font.ts），非 py 链的 ceil/floor 组合。
+ * 反编译依据（UB = explore/ilspy/UberText.Runtime.full.cs）：
+ * - Wrap 主循环/逐词容器重评        UB:3612-3747
+ * - GetFinalContainerWidth Flip 分支 UB:4171-4186
+ * - GetUnderwearBounds 角盒几何      UB:4109-4128
+ * - PrepareTextForUnderwear          UB:3909-3915（GO y=H×0.25）+ UpperCenter（UB:3630）
+ * - AdjustUnderwearForLocale         UB:2573-2599（narrow = W×(1−Uw)）
+ * - ReduceText_CharSize              UB:2400-2463（循环内 raw y、minCs floor、×0.95、40 轮）
+ * - Measure_IntraLine_Height         UB:2389-2398（bounds("|\n|")−2×bounds("|")，实证 y=行框）
+ * - SetLineSpacing 语义              UB:2241-2245（multi ×LineSpaceMod / single +SingleLineAdj）
+ * - 字号链                           UB:1840-1928（unbound 修饰在 resize 之后才乘）
+ * 布局判据：y = 行框 (n−1)pitch+LH；x = ink/advance 混合（lineInkWidthFp）；渲染仍走 PIL 位图框。
+ */
 import type { FontMetricsLike } from './font.js';
 
-export const CHARACTER_SIZE_SCALE = 0.01; // UB:109
-export const RESIZE_SHRINK = 0.95; // UB ReduceText_CharSize:2423
-export const RESIZE_MAX_ITERS = 40; // UB:2421
-export const BOLD_SIZE_CAP = 10.0; // UB Bold():2690
+interface LaidChar { ch: string, bold: boolean }
+
+const CHARACTER_SIZE_SCALE = 0.01; // UB:109
+const RESIZE_SHRINK = 0.95; // UB:2434
+const RESIZE_MAX_ITERS = 40; // UB:2430
+export const BOLD_SIZE_CAP = 10.0; // UB Bold():2692
 
 // CanWrapBetween（UB:3949-4107）zhCN 生效分支
 const WRAP_AFTER_FORBIDDEN = new Set([
@@ -28,7 +49,7 @@ function isCjk(cp: number): boolean {
   return WRAP_CJK_RANGES.some(([lo, hi]) => lo <= cp && cp <= hi);
 }
 
-export function canWrapBetween(lastCp: number, wideCp: number, _nextCp: number): boolean {
+function canWrapBetween(lastCp: number, wideCp: number, _nextCp: number): boolean {
   if (lastCp === 45) return !(48 <= wideCp && wideCp <= 57);
   if (lastCp === 59) return true;
   if (wideCp === 124) return true;
@@ -40,7 +61,7 @@ export function canWrapBetween(lastCp: number, wideCp: number, _nextCp: number):
   return isCjk(wideCp);
 }
 
-export function splitRich(text: string): { plain: string, bold: boolean[] } {
+function splitRich(text: string): { plain: string, bold: boolean[] } {
   const chars: string[] = [];
   const bold: boolean[] = [];
   let cur = false;
@@ -70,75 +91,156 @@ export function splitRich(text: string): { plain: string, bold: boolean[] } {
   return { plain: chars.join(''), bold };
 }
 
-export function breakIntoWords(
-  text: string, fm: FontMetricsLike, k: number, _container: number,
-): string[] {
-  const words: string[] = [];
-  let buf = text[0];
-  let _num = fm.advance(text[0]) * k;
-  for (let i = 1; i < text.length; i++) {
-    const c = text[i];
-    _num += fm.advance(c) * k;
-    const lastCp = text.codePointAt(i - 1)!;
-    const wideCp = c.codePointAt(0)!;
-    const nextCp = i < text.length - 1 ? text.codePointAt(i + 1)! : 0;
+/** TextMesh bounds x = xMin₀ + (n−1)×adv + xMax_last（ink 框，UB Wrap 逐词 SetText 实测语义）。 */
+function lineInkWidthFp(line: LaidChar[], fm: FontMetricsLike): number {
+  if (!line.length) return 0;
+  let adv = 0;
+  for (let i = 0; i < line.length - 1; i++) adv += fm.advance(line[i].ch);
+  const a = fm.inkChar(line[0].ch);
+  const b = fm.inkChar(line[line.length - 1].ch);
+  return a.minX + adv + b.maxX;
+}
+
+function maxInkWidthFp(lines: LaidChar[][], fm: FontMetricsLike): number {
+  let width = 0;
+  for (const l of lines) {
+    const w = lineInkWidthFp(l, fm);
+    if (w > width) width = w;
+  }
+  return width;
+}
+
+/** TextMesh bounds.y = **行框**口径：(n−1)×pitch + LH（fp，自首行行框顶向下）。
+ *  出处：引擎 Measure_IntraLine_Height（UB:2389-2398）实测 bounds("|") = LH（非 ink）→
+ *  Unity 把 TextMesh mesh.bounds 设为 TextGenerator 行框；Angelia 1929 实证的
+ *  (n−2)pitch+2LH resize 判据同口径。x 方向仍是字形 ink/advance 混合（lineInkWidthFp）。 */
+function meshLineBoxHeightFp(lineCount: number, pitchFp: number, fm: FontMetricsLike): number {
+  if (lineCount <= 0) return 0;
+  return (lineCount - 1) * pitchFp + fm.lineHeight;
+}
+
+interface WrapCtx {
+  fm:             FontMetricsLike;
+  k:              number; // cs×0.1（world/fontpx）
+  pitchFp:        number; // fm.lineHeight × 当前 lineSpacing 状态（underwear y 度量用）
+  width:          number; // OriginalWidth = GetWidth()
+  height:         number; // settings.Height = GetHeight()
+  useUnderwear:   boolean;
+  flip:           boolean;
+  uwWidth:        number; // m_UnderwearWidth（RAW，角盒几何用，UB:4115）
+  uwHeight:       number; // m_UnderwearHeight（RAW）
+  uwNarrow:       number; // UnderwearWidthLocaleAdjustment = width×(1−Uw)（UB:2598）
+  uwHeightLocale: number; // flip: H×Uh；!flip: H×(1−Uh)（UB:2592/2596）
+}
+
+/** 引擎 Wrap 的逐词换行（UB:3648-3741；单段）。done = 已完成行（跨段共享 + 本段已断行者）。 */
+function wrapSegment(
+  seg: LaidChar[], ctx: WrapCtx, done: LaidChar[][], underwearOn: boolean,
+): LaidChar[][] {
+  const { fm, k } = ctx;
+  const words = breakIntoWords(seg);
+  const lines: LaidChar[][] = [];
+  let cur: LaidChar[] = [];
+  let anyOutput = false;
+  // GetFinalContainerWidth（UB:4171-4186）：按 s_newText（已完成行 + 当前行已接受词，
+  // 不含候选词——UB:3655/3659 的 SetText 次序）bounds 重评容器宽
+  const containerOf = (): number => {
+    if (!underwearOn || (done.length === 0 && cur.length === 0)) return ctx.width;
+    const n = done.length + (cur.length ? 1 : 0);
+    if (n === 0) return ctx.width;
+    const widthFp = maxInkWidthFp([...done, cur], fm);
+    if (!ctx.flip) {
+      // 角盒相交（UB:4109-4128 几何 + UB:4181 Intersects）；测量态 UpperCenter + GO y=H×0.25
+      // （UB:3630/3913）→ 行框顶挂 GO 原点：bounds.y ∈ [0, (n−1)pitch+LH]（y-down）
+      const goY = ctx.height * 0.25;
+      const topW = goY;
+      const botW = goY - meshLineBoxHeightFp(n, ctx.pitchFp, fm) * k;
+      const cY = (topW + botW) / 2;
+      const eY = (topW - botW) / 2; // y-up：topW > botW
+      const eX = (widthFp * k) / 2;
+      const halfW = ctx.width * ctx.uwWidth * 0.25;
+      const halfH = ctx.height * ctx.uwHeight * 0.25;
+      const cxB = ctx.width * 0.5 - ctx.width * 0.5 * ctx.uwWidth * 0.5;
+      const cyB = -ctx.height * 0.5 + ctx.height * ctx.uwHeight * 0.5;
+      const hit = (bcx: number): boolean =>
+        Math.abs(0 - bcx) <= eX + halfW && Math.abs(cY - cyB) <= eY + halfH;
+      return (hit(cxB) || hit(-cxB)) ? ctx.uwNarrow : ctx.width;
+    }
+    const y = meshLineBoxHeightFp(n, ctx.pitchFp, fm) * k;
+    return (y - (ctx.height - y) * 0.2 < ctx.uwHeightLocale) ? ctx.uwNarrow : ctx.width;
+  };
+  for (const word of words) {
+    const cand = [...cur, ...word];
+    const x = lineInkWidthFp(cand, fm) * k;
+    const container = containerOf();
+    if (x < container) {
+      cur = cand;
+      continue;
+    }
+    // 断行（UB:3721-3731）：s_newText 非空则补 '\n'（空行也占槽）；新行词 TrimStart(' ')
+    if (anyOutput || cur.length) {
+      lines.push(cur);
+      done.push(cur);
+    }
+    anyOutput = true;
+    let w = word;
+    while (w.length && w[0].ch === ' ') w = w.slice(1);
+    cur = w;
+  }
+  lines.push(cur);
+  return lines;
+}
+
+/** 分段 wrap（'\n' 硬换行分段；跨段共享 underwear 已完成行状态）。 */
+function engineWrapSegments(segments: LaidChar[][], ctx: WrapCtx): LaidChar[][] {
+  const { fm, k } = ctx;
+  // IsUnderwearNeeded（UB:4188-4216）：!flip 恒 true；flip 走逐词溢出测试
+  let underwearOn = false;
+  if (ctx.useUnderwear) {
+    if (!ctx.flip) {
+      underwearOn = true;
+    } else {
+      let acc: LaidChar[] = [];
+      outer:
+      for (const seg of segments) {
+        for (const word of breakIntoWords(seg)) {
+          acc = [...acc, ...word];
+          if (lineInkWidthFp(acc, fm) * k >= ctx.width) {
+            underwearOn = true;
+            break outer;
+          }
+        }
+      }
+    }
+  }
+  const out: LaidChar[][] = [];
+  let completed: LaidChar[][] = [];
+  for (const seg of segments) {
+    const segLines = wrapSegment(seg, ctx, completed, underwearOn);
+    out.push(...segLines);
+    completed = out.slice();
+  }
+  return out;
+}
+
+function breakIntoWords(chars: LaidChar[]): LaidChar[][] {
+  if (!chars.length) return [];
+  const words: LaidChar[][] = [];
+  let buf: LaidChar[] = [chars[0]];
+  for (let i = 1; i < chars.length; i++) {
+    const c = chars[i];
+    const lastCp = chars[i - 1].ch.codePointAt(0)!;
+    const wideCp = c.ch.codePointAt(0)!;
+    const nextCp = i < chars.length - 1 ? chars[i + 1].ch.codePointAt(0)! : 0;
     if (canWrapBetween(lastCp, wideCp, nextCp)) {
       words.push(buf);
-      buf = c;
-      _num = fm.advance(c) * k;
+      buf = [c];
     } else {
-      buf += c; // m_ForceWrapLargeWords=0（zhCN）：num 与 container 不比较，继续粘
+      buf.push(c); // m_ForceWrapLargeWords=0（zhCN）：不比 container，继续粘
     }
   }
   words.push(buf);
   return words;
-}
-
-/** TextMesh bounds x = xMin₀ + (n−1)×adv + xMax_last。 */
-export function lineMeshWidth(line: string, fm: FontMetricsLike, k: number): number {
-  if (!line) return 0;
-  const i0 = fm.charInfo(line[0]).info;
-  const il = fm.charInfo(line[line.length - 1]).info;
-  let inner = 0;
-  for (const c of line.slice(0, -1)) inner += fm.advance(c);
-  return (i0.minX + inner + il.maxX) * k;
-}
-
-export function lineAdvanceWidth(line: string, fm: FontMetricsLike, k: number): number {
-  let s = 0;
-  for (const c of line) s += fm.advance(c);
-  return s * k;
-}
-
-export function wrapLines(
-  text: string, fm: FontMetricsLike, k: number, width: number, height: number,
-  lineSpacing: number, underwear: { w: number, h: number } | null,
-): string[] {
-  const words = breakIntoWords(text, fm, k, width);
-  const underW = underwear ? width * (1.0 - underwear.w) : null;
-  const underH = underwear ? height * underwear.h : null;
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const cand = cur + w;
-    const x = lineMeshWidth(cand, fm, k);
-    let container = width;
-    if (underH !== null) {
-      const nDone = lines.length ? lines.length + 1 : 0;
-      const y = nDone
-        ? ((nDone - 1) * fm.lineHeight * lineSpacing + fm.lineHeight) * k
-        : 0.0;
-      if (y - (height - y) * 0.2 < underH) container = underW!;
-    }
-    if (x < container) {
-      cur = cand;
-    } else {
-      lines.push(cur);
-      cur = w;
-    }
-  }
-  if (cur) lines.push(cur);
-  return lines;
 }
 
 export interface LaidGlyph { ch: string, penX: number, bold: boolean }
@@ -152,13 +254,8 @@ export interface Layout {
   lineHeightPx: number;
 }
 
-export interface TextFields {
-  f(key: string, d?: number): number;
-  f(key: string, d?: number | null): number | null;
-}
-
 /** 字段读取器：py ns.f(key, default)（None 透传）。 */
-export function fieldGetter(fields: Record<string, unknown>) {
+function fieldGetter(fields: Record<string, unknown>) {
   return (key: string, d: number | null = null): number | null => {
     const v = fields[key];
     return typeof v === 'number' ? v : d;
@@ -177,97 +274,110 @@ export function layoutText(inp: LayoutInputs): Layout {
   const { fields, locale, fontdef: fd, fm } = inp;
   const f = fieldGetter(fields) as (key: string, d?: number | null) => number | null;
   const plainBold = splitRich(inp.text);
+
   const fs = Math.trunc(
     (fd['m_FontSizeModifier'] ?? 1) * (locale['m_FontSizeModifier'] ?? 1) * (f('m_FontSize') ?? 0));
   let cs = (f('m_CharacterSize') ?? 1) * (fd['m_CharacterSizeModifier'] ?? 1) * CHARACTER_SIZE_SCALE;
-  cs *= (fd['m_UnboundCharacterSizeModifier'] ?? 1) * (locale['m_UnboundCharacterSizeModifier'] ?? 1);
-  let k = cs * 0.1;
   const width = f('m_Width') ?? 0;
   const height = f('m_Height') ?? 0;
   const wordWrap = !!(f('m_WordWrap') ?? 0);
+  const resizeToFit = !!(f('m_ResizeToFit') ?? 0);
+  const mLineSpacing = f('m_LineSpacing') ?? 0;
 
-  const spSingle = (f('m_LineSpacing') ?? 0) + (f('m_SingleLineAdjustment') ?? 0)
-    + (locale['m_SingleLineAdjustment'] ?? 0);
-  const spMulti = (f('m_LineSpacing') ?? 0)
-    * ((fd['m_LineSpaceModifier'] ?? 1) * (locale['m_LineSpaceModifier'] ?? 1));
+  // SetLineSpacing（UB:2241-2245）：multi → v×(FontDef×locale LineSpaceMod)；single → v+SingleLineAdj
+  const spMultiOf = (v: number): number =>
+    v * ((fd['m_LineSpaceModifier'] ?? 1) * (locale['m_LineSpaceModifier'] ?? 1));
+  const spSingleOf = (v: number): number =>
+    v + ((fd['m_SingleLineAdjustment'] ?? 0) + (locale['m_SingleLineAdjustment'] ?? 0));
 
-  let underwear: { w: number, h: number } | null = null;
-  if (wordWrap && f('m_Underwear')) {
-    underwear = { w: f('m_UnderwearWidth') ?? 0, h: f('m_UnderwearHeight') ?? 0 };
+  // 硬换行分段（TextMesh '\n' 硬语义；空段=空行占槽）
+  const segments: LaidChar[][] = [];
+  {
+    let cursor = 0;
+    for (const segStr of plainBold.plain.split('\n')) {
+      const segBold = plainBold.bold.slice(cursor, cursor + segStr.length);
+      cursor += segStr.length + 1;
+      segments.push(segStr.split('').map((ch, i) => ({ ch, bold: segBold[i] ?? false })));
+    }
   }
-  const nHard = plainBold.plain.split('\n').length;
-  const spEff = wordWrap ? spMulti : (nHard === 1 ? spSingle : spMulti);
-  const wrap = () => hardBreakWrap(plainBold, wordWrap, fm, k, width, height, spEff, underwear);
-  let { texts: lineTexts, bolds: lineBolds } = wrap();
 
-  if (f('m_ResizeToFit')) {
-    for (let it = 0; it < RESIZE_MAX_ITERS; it++) {
-      const y = lineTexts.length > 1
-        ? (lineTexts.length - 2) * fm.lineHeight * k * spEff + 2 * fm.lineHeight * k
-        : fm.lineHeight * k;
-      const x = Math.max(...lineTexts.map(t => lineMeshWidth(t, fm, k)));
-      if (y <= height && x <= width) break;
+  // underwear 上下文（UpdateWordWrapSettings UB:2553 + AdjustUnderwearForLocale UB:2573）
+  const useUnderwear = wordWrap && !!(f('m_Underwear') ?? 0);
+  const flip = !!(f('m_UnderwearFlip') ?? 0);
+  const uwWidth = f('m_UnderwearWidth') ?? 0;
+  const uwHeight = f('m_UnderwearHeight') ?? 0;
+
+  // 初始 lineSpacing 状态：RenderText:1768 SetLineSpacing(m_LineSpacing) 按空文本（single 公式）
+  let spEff = spSingleOf(mLineSpacing);
+  let k = cs * 0.1;
+
+  const doWrap = (curK: number, sp: number): LaidChar[][] => engineWrapSegments(segments, {
+    fm, k:              curK, pitchFp:        fm.lineHeight * sp, width, height,
+    useUnderwear, flip, uwWidth, uwHeight,
+    uwNarrow:       width * (1 - uwWidth),
+    uwHeightLocale: flip ? height * uwHeight : height * (1 - uwHeight),
+  });
+
+  let wrapped: LaidChar[][];
+
+  if (wordWrap && !resizeToFit) {
+    // UB:1888-1897：wrap 一轮；行数比硬行数多才重设 lineSpacing（UB:1893-1896）
+    wrapped = doWrap(k, spEff);
+    if (wrapped.length > segments.length) spEff = spMultiOf(mLineSpacing);
+  } else if (resizeToFit) {
+    // ResizeTextToFit（UB:2299-2336）→ ReduceText_CharSize（UB:2400-2463）
+    wrapped = wordWrap ? doWrap(k, spEff) : segments;
+    // 入口按当前文本行数重设（UB:2405-2412）
+    spEff = wrapped.length > 1 ? spMultiOf(mLineSpacing) : spSingleOf(0);
+    const minCs = (f('m_MinCharacterSize') ?? 0) * CHARACTER_SIZE_SCALE;
+    const locW = locale['m_ResizeToFitWidthModifier'];
+    const resizeWMod = locW && locW > 0 ? locW : 1;
+    // intra = bounds("|\n|") − 2×bounds("|") = pitch − LH（UB:2389-2398，行框口径）
+    const meshH = (): number => meshLineBoxHeightFp(wrapped.length, fm.lineHeight * spEff, fm) * k;
+    const meshW = (): number => maxInkWidthFp(wrapped, fm) * k;
+    let x = meshW();
+    // 首判 y = raw − intra（UB:2417）
+    let y = meshH() - (fm.lineHeight * spEff - fm.lineHeight) * k;
+    let iters = 0;
+    while (y > height || x > width * resizeWMod) {
+      iters++;
+      if (iters > RESIZE_MAX_ITERS) break;
       cs *= RESIZE_SHRINK;
-      const floorCs = (f('m_MinCharacterSize') ?? 0) * CHARACTER_SIZE_SCALE;
-      if (cs <= floorCs) {
-        cs = floorCs;
+      if (cs <= minCs) {
+        cs = minCs;
         k = cs * 0.1;
-        if (wordWrap) ({ texts: lineTexts, bolds: lineBolds } = wrap());
+        if (wordWrap) wrapped = doWrap(k, spEff); // floor 分支（UB:2439-2443，ellipses 本仓未触发）
         break;
       }
       k = cs * 0.1;
-      if (wordWrap) ({ texts: lineTexts, bolds: lineBolds } = wrap());
+      if (wordWrap) wrapped = doWrap(k, spEff);
+      spEff = wrapped.length > 1 ? spMultiOf(mLineSpacing) : spSingleOf(0); // UB:2450-2457
+      x = meshW();
+      y = meshH(); // 循环内 raw bounds（UB:2460）
     }
+    spEff = wrapped.length > 1 ? spMultiOf(mLineSpacing) : spSingleOf(mLineSpacing); // UB:2462
+  } else {
+    wrapped = segments;
   }
+
+  // unbound 修饰在 resize 之后才乘（UB:1920-1928）
+  cs *= (fd['m_UnboundCharacterSizeModifier'] ?? 1) * (locale['m_UnboundCharacterSizeModifier'] ?? 1);
+  k = cs * 0.1;
 
   const pitch = fm.lineHeight * k * spEff;
   const lines: LaidGlyph[][] = [];
   const lineWidths: number[] = [];
-  for (let li = 0; li < lineTexts.length; li++) {
-    const lt = lineTexts[li];
-    const lb = lineBolds[li];
+  for (const lt of wrapped) {
     const row: LaidGlyph[] = [];
     let pen = 0;
-    for (let ci = 0; ci < lt.length; ci++) {
-      row.push({ ch: lt[ci], penX: pen, bold: lb[ci] ?? false });
-      pen += fm.advance(lt[ci]) * k;
+    for (const c of lt) {
+      row.push({ ch: c.ch, penX: pen, bold: c.bold });
+      pen += fm.advance(c.ch) * k;
     }
     lines.push(row);
-    lineWidths.push(lineAdvanceWidth(lt, fm, k));
+    let s = 0;
+    for (const c of lt) s += fm.advance(c.ch);
+    lineWidths.push(s * k);
   }
-  return { lines, lineWidths, pitch, boxH: lineTexts.length * pitch, fs, k, lineHeightPx: fm.lineHeight };
-}
-
-/** 硬换行 + 行内 word wrap（TextMesh 语义）：`UberTextRendering.SetText` 直接把字符串赋给
- * `m_textMesh.text`（UB:6397），Unity TextMesh 原生把 '\n' 当**硬换行**，word wrap 只在硬行内生效；
- * 空段（如 "a\n\nb" 的中段）占一个空行槽、不产出字形。此前整串直接丢给 wrapLines，'\n' 既不断行
- * 又被算进 advance，英雄技能描述（`<b>英雄技能</b>\n…`）会整块错行。
- * 返回逐行文本 + 逐行逐字符 bold（行内顺序 == plain 顺序；'\n' 本身不占字形槽故不带走 bold）。 */
-function hardBreakWrap(
-  plainBold: { plain: string, bold: boolean[] },
-  wordWrap: boolean, fm: FontMetricsLike, k: number, width: number, height: number,
-  spEff: number, underwear: { w: number, h: number } | null,
-): { texts: string[], bolds: boolean[][] } {
-  const texts: string[] = [];
-  const bolds: boolean[][] = [];
-  let cursor = 0;
-  for (const seg of plainBold.plain.split('\n')) {
-    const segBold = plainBold.bold.slice(cursor, cursor + seg.length);
-    cursor += seg.length + 1; // +1 = 跳过分隔用 '\n' 自身
-    let segLines: string[];
-    if (seg === '') {
-      segLines = ['']; // 空段 = 空行占槽（不产出字形）
-    } else if (wordWrap) {
-      segLines = wrapLines(seg, fm, k, width, height, spEff, underwear);
-    } else {
-      segLines = [seg];
-    }
-    let c = 0;
-    for (const line of segLines) {
-      texts.push(line);
-      bolds.push(segBold.slice(c, c + line.length));
-      c += line.length;
-    }
-  }
-  return { texts, bolds };
+  return { lines, lineWidths, pitch, boxH: wrapped.length * pitch, fs, k, lineHeightPx: fm.lineHeight };
 }

@@ -23,6 +23,14 @@ export interface GlyphMask {
   data: Float64Array; // 0..1（已按 uint8 级量化）
 }
 
+/** Unity CharacterInfo 语义的 ink 框（int 字体像素）——布局判据专用（wrap/fit/underwear）。 */
+export interface InkBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 interface Pt { x: number, y: number }
 
 const SS = 8; // 每轴子采样数（64 级覆盖度，逼近 FreeType 256 级 AA）
@@ -40,6 +48,11 @@ export class FontMetrics implements FontMetricsLike {
     return this.charInfo(ch).info.advance;
   }
 
+  inkChar(ch: string): InkBounds {
+    const { info } = this.charInfo(ch);
+    return { minX: info.minX, maxX: info.maxX, minY: info.minY, maxY: info.maxY };
+  }
+
   constructor(ttfPath: string, fontSize: number) {
     const buf = readFileSync(ttfPath);
     this.font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
@@ -47,7 +60,11 @@ export class FontMetrics implements FontMetricsLike {
     this.upem = this.font.unitsPerEm;
     this.ascent = Math.ceil((this.font.ascender / this.upem) * this.size);
     this.descent = Math.floor((this.font.descender / this.upem) * this.size);
-    this.lineHeight = this.ascent - this.descent;
+    // 行高 = round((asc−desc)×fs/upem)（Unity TextGenerator 口径）。旧 ceil(asc)−floor(desc)
+    // 组合得 49（BG@40），但 resizeToFit 停档与基准断行（GDB_142 12/12/12/7、DMF 10/10/9/8
+    // 逐字一致）只在 48（round(48.05)）下复现——行高与基线（ascent/descent）是两个量，
+    // TextGenerator 的行进用 round 的整行高。explore/2026-10-06-text-align/findings.md §5。
+    this.lineHeight = Math.round(((this.font.ascender - this.font.descender) / this.upem) * this.size);
   }
 
   charInfo(ch: string): { info: CharInfo, mask: GlyphMask } {
@@ -182,6 +199,10 @@ export interface FontMetricsLike {
   readonly lineHeight: number;
   charInfo(ch: string): { info: CharInfo, mask: GlyphMask };
   advance(ch: string): number;
+  /** 布局判据用 ink 框（Unity CharacterInfo 语义，UB:3930 GetCharacterInfo）。
+   *  与渲染用的 PIL 位图框分离：PIL 包横向存的是 advance 框（'1' minX=0/maxX=22=advance），
+   *  不能作 ink；引擎 wrap/fit/underwear 判据全部按 TextMesh ink bounds 计。 */
+  inkChar(ch: string): InkBounds;
 }
 
 interface PackGlyphMeta {
@@ -200,14 +221,13 @@ export class PackFontMetrics implements FontMetricsLike {
 
   constructor(private dir: string, fontStem: string, fontSize: number,
     private fallback: FontMetrics) {
+    // 行高用 fallback 的 round 口径（meta.line_height 是 py 提取层的 ceil/floor 口径=49，
+    // 与引擎 TextGenerator 行高 48 不符——GDB_142 停档实证，见 font.ts 构造器注释）。
     this.ascent = fallback.ascent;
     this.descent = fallback.descent;
     this.lineHeight = fallback.lineHeight;
     try {
       this.meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf-8')) as PackGlyphMeta;
-      if (typeof this.meta['line_height'] === 'number') {
-        this.lineHeight = this.meta['line_height'] as number;
-      }
     } catch {
       this.meta = null;
     }
@@ -237,5 +257,15 @@ export class PackFontMetrics implements FontMetricsLike {
 
   advance(ch: string): number {
     return this.charInfo(ch).info.advance;
+  }
+
+  /** ink 框：优先 PIL 包度量（glyphs/ 提取层 = 引擎 RequestCharactersInTexture 直采的
+   *  CharacterInfo，含 Unity 图集 padding——'每' 0..40 全宽框，比 opentype ink 宽 ~3fp；
+   *  wrap/fit 的停档临界对此敏感，GDB_142 差一档即由此来）。无包字符回退 opentype ink。 */
+  inkChar(ch: string): InkBounds {
+    const m = this.meta?.[String(ch.codePointAt(0))] as
+      { minX: number, maxX: number, minY: number, maxY: number } | undefined;
+    if (m) return { minX: m.minX, maxX: m.maxX, minY: m.minY, maxY: m.maxY };
+    return this.fallback.inkChar(ch);
   }
 }
