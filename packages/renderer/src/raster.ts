@@ -3,6 +3,22 @@ import type { RGBAImage } from './types.js';
 import { sampleBilinearClamp } from './image.js';
 
 const scratch = new Float64Array(4);
+const scratchW = new Float64Array(4);
+
+/** desc 卡集水印第二纹理参数（Unlit_2Texture2uv；plan.WatermarkSpec + 材质序列化合成，
+ *  见 render.ts rasterBucketZbuf 的 wm 装配）。UV1 几何随 triUv1 传参。 */
+export interface WatermarkLayer {
+  tex:   RGBAImage;
+  /** _SecondTex_ST：(scale.x, scale.y, 运行时 offset.x, 运行时 offset.y)。
+   *  VS：o1.zw = UV1×_SecondTex_ST（插值仿射 → 逐像素施加等价）。 */
+  st:    [number, number, number, number];
+  /** _SecondTint.rgb（材质序列化；.a 由运行时写点替代 → alpha 字段） */
+  tint:  number[];
+  /** 运行时 _SecondTint.a（99/128 或 0） */
+  alpha: number;
+  /** _BlendIntensity（材质序列化，2.0） */
+  blend: number;
+}
 
 /**
  * 单三角形：barycentric 覆盖（eps -1e-6）→ 世界 Y 深度插值 → LEqual(>=) z-test →
@@ -16,6 +32,14 @@ const scratch = new Float64Array(4);
  *
  * multiply=true：乘法混合（Hero/Multiply/*，见 types.PlanSlot.blend）。FS 输出 rgb=_MainTex.rgb+COLOR0.rgb、
  * a=0；VS 的 COLOR0=顶点色×_Color（本仓网格无顶点色 → 白 → COLOR0=_Color）。
+ *
+ * wm 存在：desc 卡集水印 pass（Unlit_2Texture2uv PS 逐指令；textless-align findings §1）：
+ *   second_t = _SecondTex@UV1 × _SecondTint × _BlendIntensity；
+ *   out = second_t.a×(main×second_t − main) + main（rgb/a 同式）；
+ *   尾 min(out,(out+0.15)×COLOR0) 恒 no-op（color0 全白 + _Color≤1 → 阈值 ≥1.446 > 1，
+ *   逐指令证明）。**main 不乘 _Color**（PS 从不乘；location 0.906 灰 tint 是旧离线偏差）。
+ *   合成寄生于 desc 三角形自身光栅（同一 tri2d/triZ/zbuf）——desc 可见域即水印写域，
+ *   引擎 pass One/Zero 纯替换语义由「写合成后 src」达成，混合路径与 alpha/zbuf 行为不变。
  */
 export function rasterZbuf(
   canvas: Float64Array,
@@ -32,6 +56,8 @@ export function rasterZbuf(
   multiply = false,
   additive = false,
   wrapRepeat = false, // _MainTex wrap=repeat（引擎材质默认；缺省 clamp，见 PlanSlot.wrap_repeat）
+  wm?: WatermarkLayer, // desc 水印第二纹理（见函数头注释）
+  triUv1?: number[][], // [3][2] UV1（水印采样通道；与 triUv 同层级几何）
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -50,6 +76,11 @@ export function rasterZbuf(
   const u1 = triUv[1][0], v1 = triUv[1][1];
   const u2 = triUv[2][0], v2 = triUv[2][1];
   const tr = tint[0], tg = tint[1], tb = tint[2], ta = tint[3];
+  // wm 每三角形固定项（UV1 三顶点 / ST）；见函数头注释的水印 pass 语义
+  const wu0 = triUv1?.[0][0] ?? 0, wv0 = triUv1?.[0][1] ?? 0;
+  const wu1 = triUv1?.[1][0] ?? 0, wv1 = triUv1?.[1][1] ?? 0;
+  const wu2 = triUv1?.[2][0] ?? 0, wv2 = triUv1?.[2][1] ?? 0;
+  const wsx = wm?.st[0] ?? 1, wsy = wm?.st[1] ?? 1, wox = wm?.st[2] ?? 0, woy = wm?.st[3] ?? 0;
 
   for (let y = ymin; y <= ymax; y++) {
     const gy = y + 0.5;
@@ -92,6 +123,27 @@ export function rasterZbuf(
         canvas[ci + 2] = Math.min(canvas[ci + 2] + scratch[2] * tb * sa, 1);
         continue;
       }
+      // desc 水印合成（Unlit_2Texture2uv PS 逐指令；wm 缺省时三值恒等主采样，路径不变）：
+      // main = 主纹理采样**不乘 _Color**；second_t = 水印 × _SecondTint × _BlendIntensity；
+      // out = second_t.a×(main×second_t − main) + main（rgb 逐信道；a 通道走下方既有写路径）。
+      let srcR = scratch[0], srcG = scratch[1], srcB = scratch[2];
+      let wtr = tr, wtg = tg, wtb = tb;
+      if (wm) {
+        const su = (l0 * wu0 + l1 * wu1 + l2 * wu2) * wsx + wox;
+        const sv = (l0 * wv0 + l1 * wv1 + l2 * wv2) * wsy + woy;
+        sampleBilinearClamp(wm.tex, su * wm.tex.w - 0.5, (1.0 - sv) * wm.tex.h - 0.5, scratchW);
+        const stR = scratchW[0] * wm.tint[0] * wm.blend;
+        const stG = scratchW[1] * wm.tint[1] * wm.blend;
+        const stB = scratchW[2] * wm.tint[2] * wm.blend;
+        const stA = scratchW[3] * wm.alpha * wm.blend;
+        srcR = stA * (scratch[0] * stR - scratch[0]) + scratch[0];
+        srcG = stA * (scratch[1] * stG - scratch[1]) + scratch[1];
+        srcB = stA * (scratch[2] * stB - scratch[2]) + scratch[2];
+        // main 不乘 _Color（尾 min 恒 no-op 证明，见函数头注释）
+        wtr = 1;
+        wtg = 1;
+        wtb = 1;
+      }
       const sa = opaque ? 1.0 : scratch[3] * ta;
       // 全透明纹素（sa=0）：引擎里要么 ZWrite Off 要么 alpha-test discard，**绝不产生遮挡**。
       // 离线链此前无条件写深度，饰品格子纹章（Trinket_Medallion）被 TrinketLevelIndicatorRing
@@ -100,9 +152,9 @@ export function rasterZbuf(
       const dstA = canvas[ci + 3];
       const outA = sa + dstA * (1 - sa);
       const safe = outA > 1e-6 ? outA : 1.0;
-      canvas[ci] = (scratch[0] * tr * sa + canvas[ci] * dstA * (1 - sa)) / safe;
-      canvas[ci + 1] = (scratch[1] * tg * sa + canvas[ci + 1] * dstA * (1 - sa)) / safe;
-      canvas[ci + 2] = (scratch[2] * tb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
+      canvas[ci] = (srcR * wtr * sa + canvas[ci] * dstA * (1 - sa)) / safe;
+      canvas[ci + 1] = (srcG * wtg * sa + canvas[ci + 1] * dstA * (1 - sa)) / safe;
+      canvas[ci + 2] = (srcB * wtb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
       canvas[ci + 3] = outA;
       zbuf[pi] = z;
     }

@@ -7,10 +7,14 @@ export interface RGBAImage {
   data: Float64Array;
 }
 
-/** mesh_data.npz 的单键：顶点 / uv0 / 各 submesh 三角形索引。 */
+/** mesh_data.npz 的单键：顶点 / uv0 / uv1 / 各 submesh 三角形索引。
+ *  uv1 = desc 水印采样通道（Unlit_2Texture2uv 第二纹理）；mesh 无 UV1 通道时回退 uv0
+ *  （引擎语义——hero desc mesh 无 UV1，采样 = uv0×ST(5,5,−2.01,−0.54)，水印 5× 放大窗
+ *  可见，参照 AV_205 实证）。 */
 export interface MeshEntry {
   verts: number[][];
   uv0:   number[][];
+  uv1?:  number[][];
   subs:  number[][][];
 }
 
@@ -49,6 +53,21 @@ export interface PlanSlot {
   skip?:        boolean;
 }
 
+/** desc 卡集水印运行时写点（Actor.UpdateWatermark，Actor.cs:5075-5135 对译）；
+ *  编译期由 plan.ts resolveWatermark 产出，渲染期由 rasterZbuf wm 参数消费。 */
+export interface WatermarkSpec {
+  /** 水印纹理（资产包相对路径 watermarks/{stem}_{guid8}.png）；
+   *  null = 纹理裁决空串（引擎不换纹理、alpha 恒 0） */
+  tex_file: string | null;
+  /** 运行时 `_SecondTint.a`：WATERMARK_ALPHA_VALUE=99/128（Actor.cs:183）；
+   *  HIDE_WATERMARK(1107) 或裁决空 → 0（:5106/:5113-5118） */
+  alpha:    number;
+  /** OffsetDescriptionTexture（Actor.cs:6188 + 常量 :599-601）的运行时 y：
+   *  withRace ? 0 : 0.07；null = IsHero 早退（:6217，x/y 保留序列化值）。
+   *  x 恒保留序列化值，由渲染端从材质 _SecondTex.offset 读取。 */
+  offset_y: number | null;
+}
+
 export interface PlanComponent {
   path:            string;
   node?:           string;
@@ -57,6 +76,8 @@ export interface PlanComponent {
   /** 网格键覆盖（如法术学派板：neutral → extra/m_spellDescriptionMeshSchool）。 */
   mesh?:           string;
   material_slots?: PlanSlot[];
+  /** desc 水印写点（仅 Description_mesh 组件携带；渲染端再按材质 _SecondTex 槽判 gate）。 */
+  watermark?:      WatermarkSpec;
 }
 
 export interface StatGem {

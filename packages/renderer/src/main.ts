@@ -13,7 +13,7 @@ import {
 } from './render.js';
 import type { OverlayGemSource } from './gems.js';
 import { encodePng } from './image.js';
-import { compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT, type FixtureCard, type StaticTables } from './plan.js';
+import { compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT, type FixtureCard, type StaticTables, type WatermarkTables } from './plan.js';
 
 function arg(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);
@@ -37,11 +37,27 @@ if (cardId || fixtureFile) {
     readFileSync(fixtureFile ?? join(dataDir, 'fixtures', `${cardId}.json`), 'utf-8'),
   ) as FixtureCard;
   const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as StaticTables;
+  // 卡集水印三表（scripts/extract_watermarks.py 产物；缺失即 fail-fast——数据缺口
+  // 不能静默渲染成"无水印"）
+  let wmTables: WatermarkTables;
+  try {
+    const meta = (f: string): Record<string, unknown> =>
+      JSON.parse(readFileSync(join(dataDir, 'card_meta', f), 'utf-8'));
+    wmTables = {
+      sets:      meta('card_set_watermarks.json').sets as WatermarkTables['sets'],
+      timings:   meta('card_set_timings.json').timings as WatermarkTables['timings'],
+      overrides: meta('card_watermark_overrides.json').overrides as WatermarkTables['overrides'],
+    };
+  } catch (err) {
+    throw new Error(
+      `[watermark] data/card_meta 三表缺失或不可读（uv run scripts/extract_watermarks.py）`,
+      { cause: err });
+  }
   // 卡型 → 手牌帧 slot（TAG_CARDTYPE；actor_names.csv/ActorNames.cs）；未知卡型回落随从帧
   const slot = slotOverride ?? CARD_TYPE_TO_SLOT[fixture.tags['202'] ?? 4] ?? 'hand-minion';
   pack = loadPack(packDir, slot);
   pack.plan = pack.prefabReport
-    ? compileFramePlan(fixture, tables, pack, packDir, slot)
+    ? compileFramePlan(fixture, tables, pack, packDir, slot, wmTables)
     : compilePlan(fixture, tables, pack, packDir);
   // 取景锚（exporter FrameCamera 主体网格中心口径；camera.ts 同源注释）：渲染前设置，
   // 本进程内所有投影（网格/肖像/overlay/宝石/文字）统一跟随。逐卡进程，无串卡风险。

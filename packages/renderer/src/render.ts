@@ -1,6 +1,6 @@
 /** P0 渲染主流程：build_render_list_ally + raster_bucket_zbuf + 肖像公式层（dz_render 对译）。 */
 import { projectX, projectY, SIZE } from './camera.js';
-import { rasterZbuf } from './raster.js';
+import { rasterZbuf, type WatermarkLayer } from './raster.js';
 import { renderPortraitSubmesh } from './portrait.js';
 import { walkWithKey, TextureStore } from './assets.js';
 import { renderStatGems, renderRarityGemWrap, type OverlayGemSource } from './gems.js';
@@ -56,7 +56,14 @@ interface BucketTri {
   multiply: boolean;
   additive: boolean;
   wrap:     boolean;
+  /** desc 卡集水印（仅 Description_mesh + 材质 _SecondTex 槽；见装配处注释） */
+  wm?:      WatermarkLayer;
+  triUv1?:  number[][];
 }
+
+/** 水印纹理裁决空串占位（引擎不换纹理 → _SecondTex 保持序列化占位、alpha=0；
+ *  1×1 全零 → stA=0 → out=main——desc「main 不乘 _Color」的引擎语义仍生效）。 */
+const EMPTY_TEX = { w: 1, h: 1, data: new Float64Array(4) };
 
 /** raster_bucket_zbuf：收集全部三角形 → (mean 世界 Y, DFS 序) 排序 → z-buffer 光栅。 */
 export function rasterBucketZbuf(
@@ -115,6 +122,28 @@ export function rasterBucketZbuf(
         : uv0;
 
       const tris = mesh.subs[si];
+      // desc 卡集水印装配（plan.WatermarkSpec + 材质序列化；Actor.cs:5075-5135 写点对译）：
+      // gate = comp.watermark（Description_mesh 组件）× 材质 _SecondTex 槽（BG trinket 的
+      // Description_Spell_Combined 无此槽，不命中）。序列化 ST 从材质 _SecondTex 读，
+      // 运行时 y（withRace 规则 / hero 保留序列化）由 plan 写点携带（offset_y）。
+      let wm: WatermarkLayer | undefined;
+      let uv1Arr: number[][] | null = null;
+      const secTex = mat.tex?.['_SecondTex'];
+      if (comp.watermark && secTex) {
+        const scale = secTex.scale ?? [1, 1];
+        const serOff = secTex.offset ?? [0, 0];
+        wm = {
+          tex: comp.watermark.tex_file ? textures.get(comp.watermark.tex_file) : EMPTY_TEX,
+          st:  [scale[0] ?? 1, scale[1] ?? 1, serOff[0] ?? 0,
+            comp.watermark.offset_y ?? serOff[1] ?? 0],
+          tint:  (mat.colors?.['_SecondTint'] ?? [1, 1, 1]).slice(0, 3),
+          alpha: comp.watermark.alpha,
+          blend: mat.floats?.['_BlendIntensity'] ?? 2.0,
+        };
+        // mesh 无 UV1 通道 → 回退 uv0（引擎语义：hero desc mesh 无 UV1，采样 =
+        // uv0×ST(5,5,−2.01,−0.54)，水印 5× 放大窗可见——参照 AV_205 实证，2026-10-07）
+        uv1Arr = mesh.uv1 ?? mesh.uv0;
+      }
       for (const t of tris) {
         const a = t[0], b = t[1], c = t[2];
         trisOut.push({
@@ -128,6 +157,7 @@ export function rasterBucketZbuf(
           multiply: slotPlan?.blend === 'multiply',
           additive: slotPlan?.blend === 'additive',
           wrap:     slotPlan?.wrap_repeat ?? false,
+          wm, triUv1:   uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
         });
       }
     }
@@ -136,7 +166,8 @@ export function rasterBucketZbuf(
   trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
   for (const e of trisOut) {
     rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
-      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap);
+      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
+      e.wm, e.triUv1);
   }
   return trisOut.length;
 }

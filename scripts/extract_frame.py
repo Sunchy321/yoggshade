@@ -13,7 +13,7 @@
 
 每个帧输出到 PACK/frames/{slot}/：
   frame_recon.json       帧层级（world 矩阵 / active_in_hierarchy / mesh_stats / renderers+材质）
-  meshes.json            网格（npz_key → verts/uv0/subs；extra/{actor字段} 为 actor 直引网格）
+  meshes.json            网格（npz_key → verts/uv0/uv1/subs；extra/{actor字段} 为 actor 直引网格）
   portrait.json          肖像网格通道（verts/uv0/uv1/sub0/sub1，肖像公式层消费）
   material_props.json    肖像材质 _SecondTint/_BlendIntensity（+ second_tex 纹理名）
   curved.json            名字 RTT 载体网格（m_RenderOnObject 指向；武器帧无 → 平面 fallback）
@@ -22,7 +22,7 @@
   manifest.json          frame_root / role_paths / portrait_node_key / second_tex / carrier
   textures/*.png         帧引用纹理（材料 refs 重写为 pack 根相对 frames/{slot}/textures/…）
 
-不变式（照 ally_recon.py 逐行同构；出处见 explore/hs-render 与 Angelia 实验）：
+不变式（照 ally_recon.py 逐行同构；出处见 Angelia 实验）：
   - 根平移归零：prefab 根位置=场景摆位残留，canonical 快照位姿=恒等根（Ability 帧原点实证）
   - uv1 走 MeshHandler.m_UV1（portrait _SecondTex 采样用；武器帧另有单补脚本先例）
   - 类色图集/原画/glyph 不随帧提取（TS 编译期按卡解析）
@@ -204,6 +204,7 @@ class Recon:
             tris_per_sub = [np.array([t for t in sub if len(t) == 3], dtype=np.int32)
                             for sub in h.get_triangles()]
             return {"name": mesh.m_Name, "verts": verts, "uv0": uv0, "uv1": uv1,
+                    "uv1_present": bool(h.m_UV1),
                     "submeshes": tris_per_sub,
                     "bbox_min": verts.min(axis=0).tolist(), "bbox_max": verts.max(axis=0).tolist(),
                     "bundle": mbundle, "path_id": mesh_reader.path_id}
@@ -394,7 +395,14 @@ def ref_pptr_path(rec: Recon, ptr: dict, owner) -> str | None:
 
 
 def tris_json(mesh: dict) -> dict:
+    # uv1：desc 水印采样通道（Unlit_2Texture2uv VS `o1.zw = UV1×_SecondTex_ST`）。
+    # mesh 无 UV1 通道时回退 uv0 = 引擎语义（hero desc mesh 实测仅 channel4=UV0、
+    # channel5=UV1 缺位；hero 序列化 _SecondTex_ST=(5,5,−2.01,−0.54) → 采样 =
+    # uv0×(5,5)+offset → 水印 5× 放大窗出现在 desc 框中部——2026-10-07 用户指认
+    # AV_205 参照明确有水印、uv0 回退渲染与参照匹配，(0,0) 零填假设被参照证伪）。
+    # portrait.json 不经此处，肖像网格恒有真 uv1。
     return {"verts": mesh["verts"].tolist(), "uv0": mesh["uv0"].tolist(),
+            "uv1": mesh["uv1"].tolist(),
             "subs": [t.tolist() for t in mesh["submeshes"]]}
 
 

@@ -5,7 +5,7 @@
  * 种族板、六个文字角色。推导规则与 py 链同源（decomp 出处见 py 注释，此处不重复）。 */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AssetPack, FrameMaterial, PlanComponent, PrefabReport, RenderPlan } from './types.js';
+import type { AssetPack, FrameMaterial, PlanComponent, PrefabReport, RenderPlan, WatermarkSpec } from './types.js';
 import { resolveFixtureText } from '@tcg-cards/hs-text-builder';
 
 /** 文本重建（@tcg-cards/hs-text-builder）——fail-fast：resolve 抛错 = 数据/实现缺口，
@@ -20,13 +20,27 @@ function resolveDescText(fixture: FixtureCard, cardId: string): string {
 }
 
 export interface FixtureCard {
-  cardId:          string;
-  dbfId:           number;
-  preset:          { label: string, premium: string, template: string, zone: string, reason: string };
-  textBuilderType: number;
-  name:            Record<string, string>;
-  textInHand:      Record<string, string>;
-  tags:            Record<string, number>;
+  cardId:                    string;
+  dbfId:                     number;
+  preset:                    { label: string, premium: string, template: string, zone: string, reason: string };
+  textBuilderType:           number;
+  name:                      Record<string, string>;
+  textInHand:                Record<string, string>;
+  tags:                      Record<string, number>;
+  /** CARD DBF m_watermarkTextureOverride 的逐卡镜像（exporter 导出；空串 = 无逐卡覆盖） */
+  watermarkTextureOverride?: string;
+}
+
+/** 卡集水印三表（scripts/extract_watermarks.py → data/card_meta/，findings
+ *  watermark-rendering-2026-10-07 §5）。 */
+export interface WatermarkTables {
+  /** CARD_SET 全表：set → 水印纹理 ref / core 标记（Actor.cs:5096-5104 消费） */
+  sets:      Record<string, { m_isCoreCardSet: number, m_cardWatermarkTexture: string }>;
+  /** CARD_SET_TIMING 全表（dbf 表序）：card_id → [[set_id, event], ...]；
+   *  GetCardSet = 按序首条 event==203（EntityBase.cs:1351-1377 离线复刻） */
+  timings:   Record<string, [number, number][]>;
+  /** CARD DBF m_watermarkTextureOverride 非空全集（EntityDef.cs:258-261） */
+  overrides: Record<string, string>;
 }
 
 export interface StaticTables {
@@ -87,6 +101,66 @@ function textureFamily(cardType: number): string {
 
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
+}
+
+// ============================================================================
+// 卡集水印裁决（Actor.UpdateWatermark，Actor.cs:5075-5135 逐条复刻；
+// 研究/证据：docs/findings/watermark-rendering-2026-10-07.md；Angelia 参照 =
+// ta_watermark.resolve_watermark_ref。写点 = desc 材质 _SecondTex + _SecondTint.a）
+// ============================================================================
+
+/** GAME_TAG.HIDE_WATERMARK（game_tag.csv；Actor.cs:5106）。 */
+const TAG_HIDE_WATERMARK = 1107;
+/** WATERMARK_ALPHA_VALUE（Actor.cs:183）。 */
+const WATERMARK_ALPHA = 99 / 128;
+/** SPECIAL_EVENT_ALWAYS（EventTimingManager.IsEventActive_Impl：203 恒活、164 恒假、
+ *  服务器窗口事件离线判假——冻结参照口径，findings §1）。 */
+const EVENT_ALWAYS = 203;
+/** 年标 CoreIcon_Even（SetRotationIcon.cs:33-40；奇偶 = 轮换年%2，冻结口径=偶数轮，
+ *  78325 参照圣甲虫目检裁决）。 */
+const YEAR_ICON_EVEN_REF = 'CoreIcon_Even.tif:8f398522346ce634bb1e26b2f556403f';
+
+/** 水印纹理 ref（"Name.ext:guid"）→ 资产包路径（extract_watermarks.py 命名
+ *  {资产实名}_{guid8}.png；官方 47 refs 资产实名与 ref 名一致，探针实证）。 */
+function watermarkRefFile(ref: string): string {
+  const i = ref.indexOf(':');
+  const [name, guid] = i >= 0 ? [ref.slice(0, i), ref.slice(i + 1)] : [ref, ''];
+  return `watermarks/${name.replace(/\.[^.]+$/, '')}_${guid.slice(0, 8)}.png`;
+}
+
+function resolveWatermark(
+  fixture: FixtureCard,
+  wmTables: WatermarkTables,
+  tags: Record<string, number>,
+  ctx: { raceText: string, schoolText: string, cardType: number, isHeroCard: boolean },
+): WatermarkSpec {
+  const dbfId = String(fixture.dbfId);
+  // GetCardSet（EntityBase.cs:1351-1377）：tag 183 恒缺省（CARD_TAG 表 0 行）→
+  // CARD_SET_TIMING 按序首条活跃 timing；全不活跃 → INVALID → set 纹理空 → alpha 0。
+  // （actor 级 m_watermarkCardSetOverride = 协议 overrideWatermark →
+  // WATERMARK_OVERRIDE_CARD_SET，Actor.cs:5085-5087；TS fixture 链暂无该输入，留 TODO。）
+  const setId = (wmTables.timings[dbfId] ?? []).find(([, ev]) => ev === EVENT_ALWAYS)?.[0] ?? null;
+  const setRow = setId !== null ? wmTables.sets[String(setId)] : undefined;
+  // 纹理四级优先（Actor.cs:5083-5104）：逐卡 override（fixture 字段镜像优先，余查
+  // CARD DBF 全表；与 set 活跃性无关）→ 活跃 set 的 CardWatermarkTexture；
+  // IsCoreCard（= 活跃 set 行 m_isCoreCardSet，EntityBase.cs:1068-1081）→ 无条件年标。
+  let ref = fixture.watermarkTextureOverride || wmTables.overrides[dbfId] || '';
+  if (!ref && setRow) ref = setRow.m_cardWatermarkTexture || '';
+  if (setRow?.m_isCoreCardSet) ref = YEAR_ICON_EVEN_REF;
+  // alpha（:5106/:5113-5118）：HIDE_WATERMARK 或纹理裁决空串 → 0。
+  const hide = (tags[TAG_HIDE_WATERMARK] ?? 0) !== 0 || !ref;
+  // offset（OffsetDescriptionTexture，Actor.cs:6188 + 常量 :599-601）：
+  // y = withRace ? 0 : 0.07；withRace = GetRaceText 非空（随从种族名/法术学派名，
+  // EntityBase.cs:1251-1264）|| IsWeapon || IsLocation（:6254）；
+  // IsHero 早退（:6217）→ null（x/y 保留序列化值，渲染端从材质读取）。
+  const withRace = ctx.isHeroCard
+    ? null
+    : !!ctx.raceText || !!ctx.schoolText || ctx.cardType === 7 || ctx.cardType === 39;
+  return {
+    tex_file: ref ? watermarkRefFile(ref) : null,
+    alpha:    hide ? 0 : WATERMARK_ALPHA,
+    offset_y: withRace === null ? null : (withRace ? 0 : 0.07),
+  };
 }
 
 // ============================================================================
@@ -406,6 +480,7 @@ export function compileFramePlan(
   base: AssetPack,
   packDir: string,
   slot: string,
+  wmTables: WatermarkTables,
 ): RenderPlan {
   const report = base.prefabReport!;
   const rules = FRAME_RULES[slot];
@@ -464,6 +539,9 @@ export function compileFramePlan(
   const raceCount = raceId === 0 ? 0 : 1;
   const schoolId = tags[TAG2.SPELL_SCHOOL] ?? 0;
   const schoolText = schoolId === 0 ? '' : (tables.schoolZh?.[schoolId] ?? 'UNKNOWN');
+  // desc 卡集水印写点（引擎对译见 resolveWatermark 上方注释块；仅 desc 组件消费）
+  const watermark: WatermarkSpec = resolveWatermark(fixture, wmTables, tags,
+    { raceText, schoolText, cardType, isHeroCard });
 
   // ---- 战棋模板 spell 视觉（exporter ApplyBattlegroundsHandVisualSetup 逐卡型分支对译，
   //      ExporterController.cs:5056-5620；gem 替换 = Actor.UpdateManaGemComponent 隐藏
@@ -612,6 +690,9 @@ export function compileFramePlan(
       && base.meshes['extra/m_spellDescriptionMeshSchool']) {
       comp.mesh = 'extra/m_spellDescriptionMeshSchool'; // 学派板网格替换（Actor.cs:6240-6252）
     }
+    // UpdateDescriptionMesh 恒调 UpdateWatermark（Actor.cs:5071）——alpha=0 的阴性卡
+    // 也携带写点（desc 整框走引擎语义，见 rasterZbuf wm 分支）
+    if (name === 'Description_mesh') comp.watermark = watermark;
     if (comp.visible) byName.set(name, comp);
     components.push(comp);
   }
