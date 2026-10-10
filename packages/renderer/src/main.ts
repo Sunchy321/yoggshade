@@ -8,7 +8,7 @@ import { dirname } from 'node:path';
 import { loadPack, TextureStore } from './assets.js';
 import { SIZE } from './camera.js';
 import { encodePngBytes } from './image.js';
-import { fsSource } from './source.js';
+import { fsSource } from './source-fs.js';
 import { renderCard, renderPackToRgba8, type RenderStage } from './render-card.js';
 import type { FixtureCard } from './plan.js';
 

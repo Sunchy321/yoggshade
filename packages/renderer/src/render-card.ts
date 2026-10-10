@@ -22,6 +22,7 @@ import {
   compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT,
   type FixtureCard, type StaticTables, type WatermarkTables,
 } from './plan.js';
+import { initFreeTypeBackend } from './freetype-metrics.js';
 import { type AssetSource } from './source.js';
 import type { AssetPack, RenderPlan, RGBAImage } from './types.js';
 
@@ -168,6 +169,13 @@ export async function renderPackToRgba8(
       pack.frameRecon.hierarchy, plan, lateNames, new Set([name]));
     const nodeZbuf = new Float64Array(W * H).fill(-Infinity); // 激活序合成：不与兄弟互 z
     rasterBucketZbuf(passNodes, pack, textures, canvas, nodeZbuf);
+  }
+
+  // FreeType WASM 后端就绪（字形直渲的初始化；wasm 二进制优先取部署资产，本地回落包内解析）
+  try {
+    await initFreeTypeBackend({ wasmBinary: dirs.pack.bytes('fonts/freetype.wasm') });
+  } catch {
+    await initFreeTypeBackend();
   }
 
   let rgba8: Uint8Array;

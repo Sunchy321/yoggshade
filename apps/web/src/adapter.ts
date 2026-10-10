@@ -51,7 +51,10 @@ const EMPTY_BASE: FixtureCard = {
 export function decodePortrait(dataUrl: string): RGBAImage {
   const m = /^data:image\/png;base64,(.+)$/s.exec(dataUrl);
   if (!m) throw new CardRequestError('原画必须是 PNG dataURL（由前端裁剪后导出 PNG）');
-  const bytes = Buffer.from(m[1]!, 'base64');
+  // base64 → 字节（浏览器端跑 adapter，ADR-0002：无 Node Buffer，用 atob）
+  const bin = atob(m[1]!);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   let dims: { w: number, h: number };
   try {
     dims = peekPngSize(bytes);

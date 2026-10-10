@@ -5,7 +5,7 @@
  *  GameStrings 以**静态 JSON import** 内联（ticket 10）：历史上的 import.meta.url 相对
  *  readFileSync 在 Workers bundle 里解析不到（VFS 非 JS 资产被改名），会静默退化成空表
  *  ——builder 文本（关键词着色等）悄悄偏离基准；bun/esbuild 对 JSON import 原生内联。 */
-import gamestringsJson from '../data/gamestrings.json';
+import gamestringsJson from '../data/gamestrings.json' with { type: 'json' };
 import { TAG } from './tags.js';
 import type { TextLookupHooks } from './lookup.js';
 

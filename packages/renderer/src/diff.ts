@@ -4,7 +4,7 @@
  * 输出的对齐口径）；不透明输入（a=255）逐位等价于直比，历史基线数值口径不变。 */
 import { readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
-import { encodePng } from './image.js';
+import { encodePng } from './png-file.js';
 
 function readU8(p: string) {
   const png = PNG.sync.read(readFileSync(p));

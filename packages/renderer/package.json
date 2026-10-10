@@ -9,18 +9,24 @@
     "./plan": "./src/plan.ts",
     "./image": "./src/image.ts",
     "./types": "./src/types.ts",
-    "./source": "./src/source.ts"
+    "./source": "./src/source.ts",
+    "./source-fs": "./src/source-fs.ts",
+    "./png-file": "./src/png-file.ts",
+    "./freetype-asset": "./src/freetype-asset.ts",
+    "./font": "./src/font.ts"
   },
   "scripts": {
     "render": "bun src/main.ts",
     "diff": "bun src/diff.ts"
   },
   "dependencies": {
-    "opentype.js": "^2.0.0",
-    "pngjs": "^7.0.0",
-    "@tcg-cards/hs-text-builder": "workspace:*"
+    "@tcg-cards/hs-text-builder": "workspace:*",
+    "@zkl2333/freetype-wasm": "^2.14.3",
+    "fflate": "^0.8.2",
+    "opentype.js": "^2.0.0"
   },
   "devDependencies": {
-    "@types/pngjs": "^6.0.5"
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0"
   }
 }

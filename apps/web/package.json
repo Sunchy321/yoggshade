@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "bun src/dev.ts",
-    "api": "bun src/server.ts",
     "build": "bun scripts/build-worker.ts",
     "build:web": "vite build",
     "deploy": "bun scripts/build-worker.ts && wrangler deploy",
@@ -14,7 +13,6 @@
   "dependencies": {
     "@tcg-cards/hs-text-builder": "workspace:*",
     "@yoggraph/renderer": "workspace:*",
-    "hono": "^4.9.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

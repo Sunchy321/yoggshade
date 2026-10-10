@@ -20,9 +20,12 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
     if (entry.node_path) ns = nodeSettingsByPath(pack, entry.node_path) ?? ns;
     const layer = renderText(pack, entry.text, ns, scene, [0.0, 0.0],
       entry.role === 'name' ? pack.curved : undefined);
-    if (process.env.DEBUG_LAYER === entry.role) {
+    // DEBUG_LAYER 仅 CLI 调试用（浏览器无 process，条件恒假——ADR-0002）
+    if (globalThis.process?.env.DEBUG_LAYER === entry.role) {
       const { encodePng } = await import('./image.js');
-      const { mkdirSync } = await import('node:fs');
+      // node:fs 经变量 + @vite-ignore 引入：不出现在浏览器依赖图
+      const fsMod = 'node:fs';
+      const { mkdirSync } = await import(/* @vite-ignore */ fsMod);
       mkdirSync('out', { recursive: true });
       const u8 = new Uint8Array(layer.w * layer.h * 4);
       for (let i = 0; i < u8.length; i++) u8[i] = Math.trunc(layer.data[i] * 255);

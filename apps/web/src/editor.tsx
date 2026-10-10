@@ -3,6 +3,7 @@
  *  不出现任何实现词汇；卡牌预览是视觉中心。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardFields, MetaResponse, PresetInfo, RenderRequest } from './shared.js';
+import { loadMetaClient, renderClient } from './render-client.js';
 
 const EMPTY_FIELDS: CardFields = {
   cardType: 4,
@@ -138,9 +139,8 @@ export function Editor() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch('/api/meta');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        setMeta(await res.json() as MetaResponse);
+        // 首次装载：预取 /data/**（表枚举 + 预设 fixture），首次出图再取帧纹理/字体
+        setMeta(await loadMetaClient());
       } catch (err) {
         setMetaError('工坊没能准备好，请刷新页面再试。');
         console.error(err);
@@ -220,22 +220,19 @@ export function Editor() {
       const body: RenderRequest = {
         ...fields, presetId: presetId || undefined, name, text: readDesc(), portrait,
       };
-      const res = await fetch('/api/render', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({ error: '' })) as { error?: string };
-        throw new Error(detail.error ?? `HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      // 浏览器内渲染（ADR-0002）：首次出图会先拉 wasm/字体/帧纹理，之后走缓存
+      const { url } = await renderClient(body);
       if (pngRef.current) URL.revokeObjectURL(pngRef.current);
       pngRef.current = url;
       setPng(url);
     } catch (err) {
-      setError(friendlyError((err as Error).message));
+      console.error('[render] 出图失败', err);
+      if ((err as Error).name === 'TtfMissingError') {
+        const ch = (err as Error & { char?: string }).char;
+        setError(`卡牌文字包含暂不支持的字（${ch ?? '特殊字符'}），请改用常见汉字/字母/数字。`);
+      } else {
+        setError(friendlyError((err as Error).message));
+      }
     } finally {
       setBusy(false);
     }

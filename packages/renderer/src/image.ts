@@ -1,16 +1,12 @@
 /** PNG 读写与双线性采样（对齐 py 侧两套采样语义）。
  *
- * 解码器（ticket 19）：pngjs 的 `PNG.sync.read` 在 workerd 抛
- * `Class constructor Inflate cannot be invoked without 'new'`（pngjs 实例化 zlib.Inflate
- * 类，workerd 的 node:zlib 不兼容该路径）——解码改为「chunk 解析 + zlib.inflateSync +
- * 手写 unfilter」；explore/2026-10-08-diy-workers-port §6 实测 inflateSync 在 workerd
- * 可用且 1024² 解码 49 ms。**编码保持 pngjs**（`PNG.sync.write` 在 workerd 实测 ✅，
- * 只走 deflateSync 不碰 Inflate 类）——fixture 全集渲染 PNG 字节因此与历史逐位一致。
- * 解码等价性门禁：assets/ 全部 PNG 双解码器 RGBA 逐字节一致 +
- * fixture 渲染字节门禁（explore/2026-10-08-workers-deploy）。 */
-import { readFileSync, writeFileSync } from 'node:fs';
-import { inflateSync } from 'node:zlib';
-import { PNG } from 'pngjs';
+ * 编解码依赖（ADR-0002 前端渲染改造）：渲染链要跑在浏览器里，node:zlib / pngjs
+ * （全模块静态 require('zlib')、无 browser 字段）都进不了浏览器包——统一改 fflate
+ * （纯 JS，bun/浏览器同字节）：解码 = chunk 解析 + unzlibSync + 手写 unfilter
+ * （原 workerd 改造的管线不变，2026-10-09）；编码 = 手写 chunk + zlibSync（filter 0，
+ * zlib 包装 deflate）。PNG 无损，换 deflate 实现只变字节不改像素；历史上「与 pngjs
+ * 输出逐位一致」的字节级锚点自此作废，像素级 L2 判据不受影响。 */
+import { unzlibSync, zlibSync } from 'fflate';
 import type { RGBAImage } from './types.js';
 
 const PNG_SIGNATURE = 0x89504e47;
@@ -105,7 +101,7 @@ export function decodePngBytes(bytes: Uint8Array): RGBAImage {
     off += part.length;
   }
   const stride = w * ch;
-  const raw = inflateSync(z) as unknown as Uint8Array;
+  const raw = unzlibSync(z);
   if (raw.length < (stride + 1) * h) throw new Error('PNG pixel data truncated');
 
   // 逐行 unfilter（PNG spec filter 0-4）；原地恢复采样值
@@ -177,20 +173,58 @@ export function decodePngBytes(bytes: Uint8Array): RGBAImage {
   return { w, h, data };
 }
 
-export function decodePng(path: string): RGBAImage {
-  return decodePngBytes(readFileSync(path));
+/** ---- PNG 编码（手写 chunk + fflate zlibSync）----
+ * PNG chunk = len(BE) + type + data + crc32(type+data)。 */
+const CRC_TABLE = new Uint32Array(256);
+for (let n = 0; n < 256; n++) {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  CRC_TABLE[n] = c >>> 0;
+}
+function crc32(data: Uint8Array): number {
+  let c = 0xffffffff;
+  for (let i = 0; i < data.length; i++) c = CRC_TABLE[(c ^ data[i]!) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const out = new Uint8Array(12 + data.length);
+  new DataView(out.buffer).setUint32(0, data.length);
+  for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+  out.set(data, 8);
+  new DataView(out.buffer).setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)));
+  return out;
 }
 
-/** uint8 RGBA（h×w×4，行主序）→ PNG 字节。 */
+/** uint8 RGBA（h×w×4，行主序）→ PNG 字节（8-bit RGBA、filter 0 逐行、zlib 包装 deflate）。 */
 export function encodePngBytes(w: number, h: number, rgba: Uint8Array): Uint8Array<ArrayBuffer> {
-  const png = new PNG({ width: w, height: h });
-  png.data.set(rgba);
-  return new Uint8Array(PNG.sync.write(png)) as Uint8Array<ArrayBuffer>;
-}
-
-/** uint8 RGBA（h×w×4，行主序）→ PNG。 */
-export function encodePng(path: string, w: number, h: number, rgba: Uint8Array): void {
-  writeFileSync(path, encodePngBytes(w, h, rgba));
+  const ihdr = new Uint8Array(13);
+  const dv = new DataView(ihdr.buffer);
+  dv.setUint32(0, w);
+  dv.setUint32(4, h);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // color type RGBA
+  // 每行前置 filter 字节 0（None）：无损、简单；体积略大于自适应滤波
+  const stride = w * 4;
+  const raw = new Uint8Array((stride + 1) * h);
+  for (let y = 0; y < h; y++) {
+    raw[y * (stride + 1)] = 0;
+    raw.set(rgba.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1);
+  }
+  const idat = zlibSync(raw, { level: 6 });
+  const bytes = [
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', idat),
+    pngChunk('IEND', new Uint8Array(0)),
+  ];
+  const total = bytes.reduce((n, b) => n + b.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const b of bytes) {
+    out.set(b, off);
+    off += b.length;
+  }
+  return out;
 }
 
 /**

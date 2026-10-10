@@ -1,6 +1,6 @@
 /** UberText 渲染主流程（uber_text.render_text / _render_rtt + ally 版装载器对译）。 */
 import { PX_PER_UNIT, HALF_W, HALF_H, SIZE, getFrameAnchor } from './camera.js';
-import { FontMetrics, PackFontMetrics, ITALIC_SHEAR, type FontMetricsLike } from './font.js';
+import { createFontMetrics, ITALIC_SHEAR, type FontMetricsLike } from './font.js';
 import { glyphOutlineShader, glyphQuad, composite, pyRound } from './glyph.js';
 import { resampleImage, resampleImageSub } from './resize.js';
 import { layoutText, BOLD_SIZE_CAP, type Layout } from './textlayout.js';
@@ -149,17 +149,10 @@ function getFontMetrics(pack: AssetPack, ttfPath: string, fs: number): FontMetri
   const key = `${ttfPath}:${fs}`;
   let fm = fmCache.get(key);
   if (!fm) {
-    const raster = new FontMetrics(pack.src, ttfPath, fs);
+    const ftMetrics = createFontMetrics(pack.src, ttfPath, fs);
     const injected = (globalThis as { __fontBackendFactory?: FontBackendFactory }).__fontBackendFactory
-      ?.(ttfPath, fs, raster) ?? null;
-    if (injected) {
-      fm = injected;
-    } else {
-      const stem = ttfPath.split('/').pop()!.replace(/\.(ttf|otf)$/i, '');
-      const glyphDir = `glyphs/${stem}-${fs}`;
-      const hasMeta = pack.src.has(`${glyphDir}/meta.json`);
-      fm = hasMeta ? new PackFontMetrics(pack.src, glyphDir, stem, fs, raster) : raster;
-    }
+      ?.(ttfPath, fs, ftMetrics) ?? null;
+    fm = injected ?? ftMetrics;
     fmCache.set(key, fm);
   }
   return fm;
@@ -167,14 +160,11 @@ function getFontMetrics(pack: AssetPack, ttfPath: string, fs: number): FontMetri
 
 /** 斜体字形 metrics（<i> 跑字；剪切合成见 font.ts ITALIC_SHEAR）。布局 advance 不走它——
  *  引擎斜体不改 advance（字形剪切、minX/maxX 位移），排布全按正体度量。 */
-function getItalicMetrics(pack: AssetPack, ttfPath: string, fs: number, normal: FontMetricsLike): FontMetricsLike {
+function getItalicMetrics(pack: AssetPack, ttfPath: string, fs: number, _normal: FontMetricsLike): FontMetricsLike {
   const key = `${ttfPath}:${fs}:italic`;
   let fm = fmCache.get(key);
   if (!fm) {
-    const stem = ttfPath.split('/').pop()!.replace(/\.(ttf|otf)$/i, '');
-    const glyphDir = `glyphs/${stem}-${fs}`;
-    const hasMeta = pack.src.has(`${glyphDir}/meta.json`);
-    fm = hasMeta ? new PackFontMetrics(pack.src, glyphDir, stem, fs, normal, ITALIC_SHEAR) : normal;
+    fm = createFontMetrics(pack.src, ttfPath, fs, ITALIC_SHEAR);
     fmCache.set(key, fm);
   }
   return fm;
@@ -357,7 +347,8 @@ function renderRtt(
     }
   }
   quantTruncBuf(rt);
-  const rtArr = resampleImage(rt, rtw, rth, 4, rtW, rtH, process.env.RT_BILINEAR ? 'bilinear' : 'lanczos', true);
+  // 采样器覆盖（CLI 标定用；浏览器无 process，经 globalThis 可选链取默认——ADR-0002）
+  const rtArr = resampleImage(rt, rtw, rth, 4, rtW, rtH, globalThis.process?.env.RT_BILINEAR ? 'bilinear' : 'lanczos', true);
 
   const W = SIZE[0], H = SIZE[1];
   const layer = new Float64Array(H * W * 4);

@@ -1,10 +1,8 @@
-/** 卡图网站骨架（框架待定）。
-
-集成模型（推荐，见仓库规划）：渲染器以协议 v1（POST /render、GET /status）暴露为
-独立 Worker，网站通过 service binding 调用；本包当前只是占位，等框架选定后填充。
-
-渲染器以 workspace 包引入：@yoggraph/renderer（packages/renderer）。
-资产包（assets/）与冻结数据（data/）不属于本包，部署时经 R2 或
-Worker 静态资产注入渲染器，路径由 YOGGRAPH_PACK / YOGGRAPH_DATA 环境变量指定。
- */
+/** 卡图网站（@yoggraph/web）。
+ *
+ * 形态（ADR-0002，2026-10-09 裁定）：纯前端站点——渲染链在用户浏览器内跑
+ * （@yoggraph/renderer 经 vite 打包进前端产物），资产与冻结数据作为同源静态文件
+ * 下发（/pack/**、/data/**），无 Worker/API 计算面。
+ * 入口：src/main.tsx（React）；渲染管线：src/render-client.ts；
+ * 部署：wrangler assets（dist/ = build-worker.ts 产物）。 */
 export {};
