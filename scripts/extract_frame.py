@@ -66,6 +66,14 @@ SLOT_TO_ACTOR_KEY = {
     # 注意 BG 法术(42)/任务奖励(40) 走 HAND_SPELL（复用 hand-spell 帧），BG 随从走 HAND_MINION。
     "hand-bg-anomaly": "BIG_CARD_BG_ANOMALY",
     "hand-bg-trinket": "BIG_CARD_BG_TRINKET",
+    # 佣兵（Lettuce）四族（GetHandActorByTags，ActorNames.cs:570-591 组合判定；
+    # 谓词与 prefab 拆解见 docs/findings/lettuce-frame-teardown-2026-10-10.md）：
+    # CARDTYPE 23 无特殊 tag → spell；+LETTUCE_ABILITY_SUMMONED_MINION(1676) → minion；
+    # +LETTUCE_IS_EQUPIMENT(1855) → equipment；TAG_LETTUCE_MERCENARY(1665)>0 → mercenary。
+    "hand-lettuce-ability": "BIG_CARD_LETTUCE_ABILITY_SPELL",
+    "hand-lettuce-ability-minion": "BIG_CARD_LETTUCE_ABILITY_MINION",
+    "hand-lettuce-equipment": "BIG_CARD_LETTUCE_EQUIPMENT",
+    "hand-mercenary": "HAND_MERCENARY",
 }
 
 # UberText 节点名 → 物理角色（TS plan 编译按卡型决定渲染与否与文本来源）
@@ -77,6 +85,9 @@ ROLE_BY_NODE = {
     "HealthUberText": "health",   # 武器/地标 = 耐久（HEALTH tag）
     "ArmorUberText": "armor",
     "RaceUberText": "race",       # 随从=种族；法术=学派板（同节点名）
+    # 佣兵技能冷却配置数字（LettuceAbilityActor.UpdateCooldownConfigText；
+    # 两个 ability prefab 该 actor 引用序列化为空 → 文本恒空、Hourglass 恒隐）
+    "CooldownConfigUberText": "cooldown",
 }
 
 
@@ -537,6 +548,24 @@ def extract_one(pack: Path, slot: str) -> int:
             print(f"[warn] material ref {field}: {exc}")
 
     # ---- role_paths（UberText 节点名 → 角色；路径相对帧根）----
+    # 失活子树豁免（runtime-driven texts）：序列化失活子树里的 UberText 若 (a) 节点自身
+    # 激活（active_self）、(b) 被 actor 文本字段直引（m_attackTextMesh 等的 PPtr 命中该
+    # UberText 组件），仍登记角色——运行时 UpdateXxxTextMesh 会对非空引用写文本并把
+    # GemObject.Show()（= base.gameObject.SetActive(true)，GemObject.cs:55-58）把失活
+    # 父级翻正。实证：佣兵技能 BigCard_LettuceAbility 的 AttackObject/HealthObject 出厂
+    # 失活，但 UpdateAttackTextMesh/UpdateHealthTextMesh（Actor.cs:3415-3418/3462-3487）
+    # 无条件 Show + GetTag-0 → 游戏对所有佣兵技能（含非召唤）画攻血 "0"
+    # （docs/findings/lettuce-frame-teardown-2026-10-10.md §9）。
+    TEXT_FIELD_TO_ROLE = {
+        "m_costTextMesh": "cost", "m_attackTextMesh": "attack",
+        "m_healthTextMesh": "health", "m_nameTextMesh": "name",
+        "m_powersTextMesh": "desc", "m_raceTextMesh": "race",
+        "m_cooldownConfigText": "cooldown",
+    }
+    bound_ubertext_pids = {
+        refs[f]["path_id"] for f in TEXT_FIELD_TO_ROLE
+        if refs.get(f, {}).get("path_id")
+    }
     role_paths: dict[str, str] = {}
     for n in rec.iter_nodes(hierarchy):
         if not n.get("ubertext"):
@@ -545,7 +574,10 @@ def extract_one(pack: Path, slot: str) -> int:
         if not role or role in role_paths:
             continue
         if not n.get("active_in_hierarchy"):
-            continue   # 序列化失活子树（如 BG_TrinketMesh）里的同名文本节点不渲染
+            runtime_driven = bool(n.get("active_self")) and \
+                n["ubertext"].get("path_id") in bound_ubertext_pids
+            if not runtime_driven:
+                continue   # 序列化失活子树（如 BG_TrinketMesh）里的同名文本节点不渲染
         rel = n["path"]
         if rel.startswith(f"{frame_root}/"):
             rel = rel[len(frame_root) + 1:]
