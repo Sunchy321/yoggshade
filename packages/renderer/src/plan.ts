@@ -3,8 +3,6 @@
  * 静态基底（components 几何/材质、camera、stat_gems、gem 相位）来自资产包 plan.json（帧级，
  * 卡牌无关）；本模块只推导卡牌 delta：类色图集、原画、稀有度宝石、ELITE 龙、攻/血宝石显隐、
  * 种族板、六个文字角色。推导规则与 py 链同源（decomp 出处见 py 注释，此处不重复）。 */
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import type { AssetPack, FrameMaterial, PlanComponent, PrefabReport, RenderPlan, WatermarkSpec } from './types.js';
 import { resolveFixtureText } from '@tcg-cards/hs-text-builder';
 
@@ -133,6 +131,7 @@ function resolveWatermark(
   wmTables: WatermarkTables,
   tags: Record<string, number>,
   ctx: { raceText: string, schoolText: string, cardType: number, isHeroCard: boolean },
+  hasAsset: (key: string) => boolean = () => true,
 ): WatermarkSpec {
   const dbfId = String(fixture.dbfId);
   // GetCardSet（EntityBase.cs:1351-1377）：tag 183 恒缺省（CARD_TAG 表 0 行）→
@@ -156,9 +155,18 @@ function resolveWatermark(
   const withRace = ctx.isHeroCard
     ? null
     : !!ctx.raceText || !!ctx.schoolText || ctx.cardType === 7 || ctx.cardType === 39;
+  // 序列化占位 ref 不渲染水印（ticket 20）：佣兵等集合的 m_cardWatermarkTexture 是
+  // 短 guid 序列化占位（GenFX_Set1_Icon.psd:9996d2ef… 家族），不在提取 catalog——
+  // extract_watermarks.py 头注释「运行时恒被 UpdateWatermark 改写」。改写结果以基准图
+  // 为准：reference/LT23_802P2、LT23_803P2 desc 区 3× 放大目检无水印（对照 GDB_142
+  // 同区域有清晰涡纹）= 「纹理空串」语义（Actor.cs:5113-5118 → alpha 0）。故包内无该
+  // 纹理文件 → 按空串裁决；catalog 内 47 refs 均已提取，此分支只命中占位家族，
+  // 不会掩盖真实提取缺口。
+  const file = ref ? watermarkRefFile(ref) : null;
+  const placeholderMissing = file !== null && !hasAsset(file);
   return {
-    tex_file: ref ? watermarkRefFile(ref) : null,
-    alpha:    hide ? 0 : WATERMARK_ALPHA,
+    tex_file: file !== null && !placeholderMissing ? file : null,
+    alpha:    hide || placeholderMissing ? 0 : WATERMARK_ALPHA,
     offset_y: withRace === null ? null : (withRace ? 0 : 0.07),
   };
 }
@@ -215,7 +223,6 @@ export function compilePlan(
   fixture: FixtureCard,
   tables: StaticTables,
   base: AssetPack,
-  packDir: string,
 ): RenderPlan {
   const plan = clone(base.plan!) as RenderPlan;
   const tags = fixture.tags;
@@ -236,9 +243,9 @@ export function compilePlan(
 
   // ---- 原画（fixture 提取的新路径优先，EX1_350 时代的旧布局兜底；PET 类无原画 → 置空槽，
   //      对应引擎 PET 卡型 SetMaterialNormal 的 no-op 分支 Actor.cs SetMaterial switch）----
-  const portraitFile = existsSync(join(packDir, 'portraits', `${fixture.cardId}.png`))
+  const portraitFile = base.src.has(`portraits/${fixture.cardId}.png`)
     ? `portraits/${fixture.cardId}.png`
-    : existsSync(join(packDir, 'textures', `portrait_${fixture.cardId}.png`))
+    : base.src.has(`textures/portrait_${fixture.cardId}.png`)
       ? `textures/portrait_${fixture.cardId}.png`
       : null;
 
@@ -547,7 +554,6 @@ export function compileFramePlan(
   fixture: FixtureCard,
   tables: StaticTables,
   base: AssetPack,
-  packDir: string,
   slot: string,
   wmTables: WatermarkTables,
 ): RenderPlan {
@@ -572,9 +578,9 @@ export function compileFramePlan(
     const [stem, guid] = atlasRef.split(':');
     atlasFile = `textures/${stem.replace(/\.tif$/, '')}_${guid.slice(0, 8)}.png`;
   }
-  const portraitFile = existsSync(join(packDir, 'portraits', `${fixture.cardId}.png`))
+  const portraitFile = base.src.has(`portraits/${fixture.cardId}.png`)
     ? `portraits/${fixture.cardId}.png`
-    : existsSync(join(packDir, 'textures', `portrait_${fixture.cardId}.png`))
+    : base.src.has(`textures/portrait_${fixture.cardId}.png`)
       ? `textures/portrait_${fixture.cardId}.png`
       : null;
 
@@ -615,7 +621,8 @@ export function compileFramePlan(
   const schoolText = schoolId === 0 ? '' : (tables.schoolZh?.[schoolId] ?? 'UNKNOWN');
   // desc 卡集水印写点（引擎对译见 resolveWatermark 上方注释块；仅 desc 组件消费）
   const watermark: WatermarkSpec = resolveWatermark(fixture, wmTables, tags,
-    { raceText, schoolText, cardType, isHeroCard });
+    { raceText, schoolText, cardType, isHeroCard },
+    key => base.src.has(key));
 
   // ---- 战棋模板 spell 视觉（exporter ApplyBattlegroundsHandVisualSetup 逐卡型分支对译，
   //      ExporterController.cs:5056-5620；gem 替换 = Actor.UpdateManaGemComponent 隐藏

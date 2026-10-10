@@ -1,4 +1,5 @@
 /** 资产与渲染计划的类型（对应 py 侧 JSON 产物；P0 范围：帧 + 肖像）。 */
+import type { AssetSource } from './source.js';
 
 /** RGBA 图像（uint8 0..255，行主序 h×w×4）。
  *  内存口径：PNG 源本就是 8bit，历史上曾展开成 float64（0..1）缓存——单卡纹理常驻
@@ -226,7 +227,8 @@ export interface FactionMaterialSt {
 }
 
 export interface AssetPack {
-  dir:      string;
+  /** 资产源（键 = 包内相对路径；CLI=fsSource、Workers=预取 mapSource）。 */
+  src:      AssetSource;
   slot?:    string;
   manifest: {
     size:              [number, number];

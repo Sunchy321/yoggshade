@@ -1,10 +1,11 @@
 /** 内置缺省数据（"尽可能内置"）：反编译硬编码表 + GameStrings 提取（data/gamestrings.json，
  *  scripts/extract_textbuilder_strings.py 从 hsdata/Strings 14 语言提取）。
  *  优先级：调用方显式钩子 > 本模块内置缺省 > key 透传（调试可见）。
- *  可变化部分（游戏更新会漂移的表/文本）按同一键名经钩子动态替换（DIY 覆盖点）。 */
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+ *  可变化部分（游戏更新会漂移的表/文本）按同一键名经钩子动态替换（DIY 覆盖点）。
+ *  GameStrings 以**静态 JSON import** 内联（ticket 10）：历史上的 import.meta.url 相对
+ *  readFileSync 在 Workers bundle 里解析不到（VFS 非 JS 资产被改名），会静默退化成空表
+ *  ——builder 文本（关键词着色等）悄悄偏离基准；bun/esbuild 对 JSON import 原生内联。 */
+import gamestringsJson from '../data/gamestrings.json';
 import { TAG } from './tags.js';
 import type { TextLookupHooks } from './lookup.js';
 
@@ -57,13 +58,7 @@ let cachedGameStrings: GameStringsTable | null = null;
 
 function loadGameStrings(): GameStringsTable {
   if (cachedGameStrings) return cachedGameStrings;
-  try {
-    const here = dirname(fileURLToPath(import.meta.url));
-    cachedGameStrings = JSON.parse(
-      readFileSync(join(here, '..', 'data', 'gamestrings.json'), 'utf-8')) as GameStringsTable;
-  } catch {
-    cachedGameStrings = {};
-  }
+  cachedGameStrings = gamestringsJson as unknown as GameStringsTable;
   return cachedGameStrings;
 }
 

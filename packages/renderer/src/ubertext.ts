@@ -1,6 +1,4 @@
 /** UberText 渲染主流程（uber_text.render_text / _render_rtt + ally 版装载器对译）。 */
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { PX_PER_UNIT, HALF_W, HALF_H, SIZE, getFrameAnchor } from './camera.js';
 import { FontMetrics, PackFontMetrics, ITALIC_SHEAR, type FontMetricsLike } from './font.js';
 import { glyphOutlineShader, glyphQuad, composite, pyRound } from './glyph.js';
@@ -40,15 +38,17 @@ interface UberTextNode { path: string, fields?: Record<string, unknown>, font_na
 
 function loadUberTextNodes(pack: AssetPack): UberTextNode[] {
   if (pack.ubertext) return pack.ubertext.nodes as UberTextNode[]; // 帧包（frames/{slot}）
-  const p = join(pack.dir, 'prefab_ubertext_ally.json');
-  const data = JSON.parse(readFileSync(p, 'utf-8')) as { nodes: UberTextNode[] };
+  const data = JSON.parse(pack.src.text('prefab_ubertext_ally.json')) as { nodes: UberTextNode[] };
   return data.nodes;
 }
 
 export function loadFontdef(pack: AssetPack, name: string): FontDef {
-  const data = JSON.parse(readFileSync(join(pack.dir, 'fontdefs.json'), 'utf-8'));
-  const side = data['fontdefs'][name]['zhcn'];
-  return { fields: side['fontdef'], ttfPath: join(pack.dir, side['font_object']['saved_to']) };
+  const data = JSON.parse(pack.src.text('fontdefs.json')) as {
+    fontdefs: Record<string, { zhcn: { fontdef: Record<string, number>, font_object: { saved_to: string } } }>;
+  };
+  const side = data['fontdefs'][name]!['zhcn'];
+  // saved_to 是包内相对键（'fonts/Xxx.ttf'，posix）——AssetSource 直接消费
+  return { fields: side['fontdef'], ttfPath: side['font_object']['saved_to'] };
 }
 
 /** Ally 版节点装载。2026-10-06 撤销旧「Flip=0 且未序列化 Left/RightBounds → m_Underwear=0」
@@ -149,16 +149,16 @@ function getFontMetrics(pack: AssetPack, ttfPath: string, fs: number): FontMetri
   const key = `${ttfPath}:${fs}`;
   let fm = fmCache.get(key);
   if (!fm) {
-    const raster = new FontMetrics(ttfPath, fs);
+    const raster = new FontMetrics(pack.src, ttfPath, fs);
     const injected = (globalThis as { __fontBackendFactory?: FontBackendFactory }).__fontBackendFactory
       ?.(ttfPath, fs, raster) ?? null;
     if (injected) {
       fm = injected;
     } else {
       const stem = ttfPath.split('/').pop()!.replace(/\.(ttf|otf)$/i, '');
-      const glyphDir = join(pack.dir, 'glyphs', `${stem}-${fs}`);
-      const hasMeta = existsSync(join(glyphDir, 'meta.json'));
-      fm = hasMeta ? new PackFontMetrics(glyphDir, stem, fs, raster) : raster;
+      const glyphDir = `glyphs/${stem}-${fs}`;
+      const hasMeta = pack.src.has(`${glyphDir}/meta.json`);
+      fm = hasMeta ? new PackFontMetrics(pack.src, glyphDir, stem, fs, raster) : raster;
     }
     fmCache.set(key, fm);
   }
@@ -172,9 +172,9 @@ function getItalicMetrics(pack: AssetPack, ttfPath: string, fs: number, normal: 
   let fm = fmCache.get(key);
   if (!fm) {
     const stem = ttfPath.split('/').pop()!.replace(/\.(ttf|otf)$/i, '');
-    const glyphDir = join(pack.dir, 'glyphs', `${stem}-${fs}`);
-    const hasMeta = existsSync(join(glyphDir, 'meta.json'));
-    fm = hasMeta ? new PackFontMetrics(glyphDir, stem, fs, normal, ITALIC_SHEAR) : normal;
+    const glyphDir = `glyphs/${stem}-${fs}`;
+    const hasMeta = pack.src.has(`${glyphDir}/meta.json`);
+    fm = hasMeta ? new PackFontMetrics(pack.src, glyphDir, stem, fs, normal, ITALIC_SHEAR) : normal;
     fmCache.set(key, fm);
   }
   return fm;

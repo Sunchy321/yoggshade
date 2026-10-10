@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "bun src/dev.ts",
     "api": "bun src/server.ts",
-    "build": "vite build",
+    "build": "bun scripts/build-worker.ts",
+    "build:web": "vite build",
+    "deploy": "bun scripts/build-worker.ts && wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tcg-cards/hs-text-builder": "workspace:*",
     "@yoggraph/renderer": "workspace:*",
     "hono": "^4.9.7",
     "react": "^19.1.1",
@@ -20,6 +23,7 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.2",
-    "vite": "^7.1.5"
+    "vite": "^7.1.5",
+    "wrangler": "^4.149.0"
   }
 }

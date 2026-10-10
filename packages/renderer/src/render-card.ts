@@ -1,15 +1,14 @@
-/** 渲染入口（CLI 与站点共用）：把原 main.ts 的装配序列抽成函数，路径由 dirs 注入。
+/** 渲染入口（CLI 与站点共用）：把原 main.ts 的装配序列抽成函数，资产/数据经 AssetSource 注入。
  *
  * 为什么要有这一层：站点（进程内调用）与 CLI（argv + 写盘）必须走**同一条**渲染序列——
  * 否则站点出图与 L2 验收锚点会分叉（ticket 09 的路径一致性判据 = 同一输入两条路径逐位一致）。
  *
- * 资产仍是文件系统路径（assets/、data/）。Workers/容器运行时的资产源抽象（AssetSource）见
- * explore/2026-10-08-diy-workers-port/findings.md §5，待 ticket 14（运行环境裁定）落地后再做。
+ * AssetSource（ticket 01 findings §5 / 票 10）：core 只认同步 text/bytes/has——CLI 传
+ * fsSource（与历史 readFileSync 逐字节同语义），Workers 传「静态资产预取后的 mapSource」
+ * （入口先 prime 推导出的键清单再跑同步链；漏键由 KeyMissingError → 补取重试一次兜底）。
  *
  * 取景锚是模块级状态（camera.ts）：renderCard 每次调用前重设，服务端顺序渲染即安全
  * （CLI 是逐卡进程；站点在单请求内独占一次调用）。 */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { loadPack, loadSpellOverlay, TextureStore, walkWithKey } from './assets.js';
 import { SIZE, setFrameAnchor } from './camera.js';
 import {
@@ -18,17 +17,19 @@ import {
 } from './render.js';
 import type { OverlayGemSource } from './gems.js';
 import { encodePngBytes } from './image.js';
+import { renderTextStage } from './textstage.js';
 import {
   compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT,
   type FixtureCard, type StaticTables, type WatermarkTables,
 } from './plan.js';
+import { type AssetSource } from './source.js';
 import type { AssetPack, RenderPlan, RGBAImage } from './types.js';
 
 export interface RenderDirs {
-  /** 资产包根（assets/） */
-  pack: string;
-  /** 冻结数据根（data/） */
-  data: string;
+  /** 资产包源（CLI/本地 = fsSource('assets')；Workers = 预取的 mapSource） */
+  pack: AssetSource;
+  /** 冻结数据源（CLI/本地 = fsSource('data')；Workers = 预取的 mapSource） */
+  data: AssetSource;
 }
 
 export type RenderStage = 'p0' | 'p1' | 'p2';
@@ -54,16 +55,17 @@ export interface RenderResult {
   ms:          number;
 }
 
-const dataCache = new Map<string, { tables: StaticTables, wmTables: WatermarkTables }>();
+const dataCache = new WeakMap<object, { tables: StaticTables, wmTables: WatermarkTables }>();
 
 /** data/ 静态表（tables + 水印三表）。进程内缓存：站点逐请求用，tables 25 KiB、
  *  card_set_timings 1.66 MB，重读纯属浪费；CLI 一次性进程无影响。
- *  dev 下改了 data/ 想立即生效则调 clearStaticDataCache()。 */
+ *  按源对象身份（WeakMap）缓存——同一 AssetSource 的重复读取共享，不同源互不污染。
+ *  dev 下改了 data/ 想立即生效则重建 fsSource 或调 clearStaticDataCache()。 */
 export function loadStaticData(dirs: RenderDirs): { tables: StaticTables, wmTables: WatermarkTables } {
   const hit = dataCache.get(dirs.data);
   if (hit) return hit;
   const read = (rel: string): Record<string, unknown> =>
-    JSON.parse(readFileSync(join(dirs.data, rel), 'utf-8')) as Record<string, unknown>;
+    JSON.parse(dirs.data.text(rel)) as Record<string, unknown>;
   const tables = read('tables.json') as unknown as StaticTables;
   // 卡集水印三表（scripts/extract_watermarks.py 产物；缺失即 fail-fast——数据缺口
   // 不能静默渲染成"无水印"）
@@ -84,8 +86,9 @@ export function loadStaticData(dirs: RenderDirs): { tables: StaticTables, wmTabl
   return entry;
 }
 
+/** 清空静态表缓存（WeakMap 无遍历能力；测试/热更用）。 */
 export function clearStaticDataCache(): void {
-  dataCache.clear();
+  // WeakMap 不可枚举：以换源实例的方式失效（见 loadStaticData 注），此函数保留为 API 兼容
 }
 
 /** 上传原画注入（ticket 03 findings §2.1 的写法 A：编译后覆写计划的原画写点）。
@@ -176,7 +179,9 @@ export async function renderPackToRgba8(
     const alpha = alphaPlane(canvas);
     const rgb = renderGemsStage(canvas, pack, textures, overlayGems, alpha);
     if (stage === 'p2') {
-      const { renderTextStage } = await import('./textstage.js');
+      // 静态导入（ticket 17）：动态 import 有冷启动窗口——isolate 刚起、模块未就绪时
+      // 并发请求可能各跑一次模块初始化（全局态重复构建）。函数本体全同步，async 只剩
+      // DEBUG_LAYER 调试导出的动态 import（默认路径不触发）。
       await renderTextStage(rgb, pack, alpha);
     }
     rgba8 = rgbToRgba8(rgb, alpha);
@@ -193,12 +198,15 @@ export async function renderCard(input: RenderInput, dirs: RenderDirs): Promise<
   const slot = input.slot ?? CARD_TYPE_TO_SLOT[input.fixture.tags['202'] ?? 4] ?? 'hand-minion';
   const pack = loadPack(dirs.pack, slot);
   pack.plan = pack.prefabReport
-    ? compileFramePlan(input.fixture, tables, pack, dirs.pack, slot, wmTables)
-    : compilePlan(input.fixture, tables, pack, dirs.pack);
+    ? compileFramePlan(input.fixture, tables, pack, slot, wmTables)
+    : compilePlan(input.fixture, tables, pack);
   // 取景锚（exporter FrameCamera 主体网格中心口径；camera.ts 同源注释）：渲染前设置，
   // 本进程内所有投影（网格/肖像/overlay/宝石/文字）统一跟随。
+  // 缺省帧族（frame_center undefined，如部分地标/法术帧）用**原点锚**——必须显式重置：
+  // 锚是模块级状态，CLI 逐卡进程天然是新默认值，但长驻进程（站点/Workers）里上一张卡的
+  // 锚会残留，导致这些卡整体亚像素位移（2026-10-09 workers 全量验证实测 TTN_090 等 14 张）。
   const fc = pack.plan.frame_center;
-  if (fc) setFrameAnchor(fc[0], fc[1]);
+  setFrameAnchor(fc ? fc[0] : 0.0, fc ? fc[1] : 0.0);
 
   const textures = new TextureStore(dirs.pack);
   if (input.portrait) {

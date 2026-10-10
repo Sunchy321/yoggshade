@@ -7,8 +7,7 @@
  *
  * 本文件是**首版最小集**：完整的 14 语言标签表（含系列名）由 ticket 11 落成
  * `scripts/extract_label_tables.py` + 仓内数据文件后替换这里的硬编码标签。 */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import type { AssetSource } from '@yoggraph/renderer/source';
 import { CARD_TYPE_TO_SLOT, type FixtureCard } from '@yoggraph/renderer/plan';
 import type { CardFields, CardTypeOption, LabelOption, MetaResponse, PresetInfo } from './shared.js';
 
@@ -57,27 +56,31 @@ export function rarities(): LabelOption[] {
 }
 
 /** 种族标签直接用渲染端表（data/tables.json → raceZh，42 项）；0 = 无种族。 */
-export function races(dataDir: string): LabelOption[] {
-  const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as {
-    raceZh: Record<string, string>;
-  };
+export function races(data: AssetSource): LabelOption[] {
+  const tables = JSON.parse(data.text('tables.json')) as { raceZh: Record<string, string> };
   return Object.entries(tables.raceZh ?? {}).map(([tag, label]) => ({ tag: Number(tag), label }));
 }
 
 /** 法术学派标签（data/tables.json → schoolZh，8 项；与渲染端能力严格一致，缺的不列）。 */
-export function schools(dataDir: string): LabelOption[] {
-  const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as {
-    schoolZh?: Record<string, string>;
-  };
+export function schools(data: AssetSource): LabelOption[] {
+  const tables = JSON.parse(data.text('tables.json')) as { schoolZh?: Record<string, string> };
   return Object.entries(tables.schoolZh ?? {}).map(([tag, label]) => ({ tag: Number(tag), label }));
 }
 
-export function loadPresets(dataDir: string, packDir: string): PresetInfo[] {
-  const dir = join(dataDir, 'fixtures');
+export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] {
+  // 键清单：有目录语义的源（fsSource）直接列；否则回落 fixtures/manifest.json
+  // （Workers 的 mapSource 无 list——manifest 的 presets 恰好就是全集）
+  const files = data.list?.('fixtures') ?? null;
+  const names = files
+    ?? (JSON.parse(data.text('fixtures/manifest.json')) as
+        { presets: { cardId: string }[] }).presets.map(p => `${p.cardId}.json`);
   const out: PresetInfo[] = [];
-  for (const f of readdirSync(dir).sort()) {
+  for (const f of names) {
     if (!f.endsWith('.json') || f === 'manifest.json') continue;
-    const fx = JSON.parse(readFileSync(join(dir, f), 'utf-8')) as FixtureCard;
+    // LT23 佣兵技能两张（ticket 20）：佣兵帧族不在 8 帧槽范围，按随从帧占位渲染出的
+    // 卡面是误导性的错误框架——不进站点预设列表；data/fixtures 冻结集保留不动（ADR-0001）。
+    if (f.startsWith('LT23_')) continue;
+    const fx = JSON.parse(data.text(`fixtures/${f}`)) as FixtureCard;
     const t = (k: number): number => fx.tags[String(k)] ?? 0;
     const fields: CardFields = {
       cardType: t(202),
@@ -96,7 +99,7 @@ export function loadPresets(dataDir: string, packDir: string): PresetInfo[] {
       label:       fx.preset?.label ?? fx.cardId,
       name:        fx.name?.zhCN ?? '',
       text:        fx.textInHand?.zhCN ?? '',
-      hasPortrait: presetHasPortrait(fx.cardId, packDir),
+      hasPortrait: pack.has(`portraits/${fx.cardId}.png`),
       fields,
     });
   }
@@ -104,11 +107,11 @@ export function loadPresets(dataDir: string, packDir: string): PresetInfo[] {
 }
 
 /** 预设原画是否存在（供出图前提示"这张卡自带哪张画"；站点不向用户暴露资产文件本身）。 */
-export function presetHasPortrait(cardId: string, packDir: string): boolean {
-  return existsSync(join(packDir, 'portraits', `${cardId}.png`));
+export function presetHasPortrait(pack: AssetSource, cardId: string): boolean {
+  return pack.has(`portraits/${cardId}.png`);
 }
 
-export function loadMeta(dirs: { pack: string, data: string }): MetaResponse {
+export function loadMeta(dirs: { pack: AssetSource, data: AssetSource }): MetaResponse {
   return {
     cardTypes: cardTypes(),
     classes:   classes(),

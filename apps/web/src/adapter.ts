@@ -9,10 +9,9 @@
  *  2. 战棋卡型 → `preset.template = 'Battlegrounds'`（plan.ts:626 消费，决定铸币/tier 图标视觉）；
  *  3. 用户文本走 `textBuilderType = 0`（DEFAULT builder：空白解码 + 富文本转换，不做机制重建），
  *     避免沿用预设卡的 builder 把自定义文本按原卡机制改写。 */
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { FixtureCard } from '@yoggraph/renderer/plan';
-import { decodePngBytes } from '@yoggraph/renderer/image';
+import { decodePngBytes, peekPngSize } from '@yoggraph/renderer/image';
+import { KeyMissingError, type AssetSource } from '@yoggraph/renderer/source';
 import type { RGBAImage } from '@yoggraph/renderer/types';
 import { BG_CARD_TYPES } from './meta.js';
 import type { RenderRequest } from './shared.js';
@@ -46,22 +45,31 @@ const EMPTY_BASE: FixtureCard = {
 /** dataURL（image/png）→ RGBAImage，并做上传规格校验（ticket 03 findings §0/§4）。
  *  必须 1:1（非方形会被按 W/H 拉伸、不补边）、边长 ≤1024、不含透明像素
  *  （六个帧槽的公式层忽略 alpha，但饰品槽走通用光栅会消费它 → 透明处穿孔）。
- *  前端已按规格裁切并压到不透明底，这里是服务端兜底守卫。 */
+ *  前端已按规格裁切并压到不透明底，这里是服务端兜底守卫。
+ *  ticket 17（先验后解码）：尺寸从 PNG IHDR 直读（peekPngSize，不 inflate、不大分配），
+ *  超规直接 400——此前「先整图解码再查宽高」，恶意超大 PNG 会在校验前吃掉数 GB 内存。 */
 export function decodePortrait(dataUrl: string): RGBAImage {
   const m = /^data:image\/png;base64,(.+)$/s.exec(dataUrl);
   if (!m) throw new CardRequestError('原画必须是 PNG dataURL（由前端裁剪后导出 PNG）');
-  let img: RGBAImage;
+  const bytes = Buffer.from(m[1]!, 'base64');
+  let dims: { w: number, h: number };
   try {
-    img = decodePngBytes(Buffer.from(m[1]!, 'base64'));
+    dims = peekPngSize(bytes);
   } catch (err) {
     throw new CardRequestError(`原画解码失败：${(err as Error).message}`);
   }
-  if (img.w !== img.h) {
+  if (dims.w !== dims.h) {
     throw new CardRequestError(
-      `原画必须是 1:1 正方形（当前 ${img.w}×${img.h}）：非方形会被拉伸填满画窗，不做补边`);
+      `原画必须是 1:1 正方形（当前 ${dims.w}×${dims.h}）：非方形会被拉伸填满画窗，不做补边`);
   }
-  if (img.w > PORTRAIT_MAX_SIDE) {
-    throw new CardRequestError(`原画边长不得超过 ${PORTRAIT_MAX_SIDE}px（当前 ${img.w}）`);
+  if (dims.w > PORTRAIT_MAX_SIDE) {
+    throw new CardRequestError(`原画边长不得超过 ${PORTRAIT_MAX_SIDE}px（当前 ${dims.w}）`);
+  }
+  let img: RGBAImage;
+  try {
+    img = decodePngBytes(bytes);
+  } catch (err) {
+    throw new CardRequestError(`原画解码失败：${(err as Error).message}`);
   }
   for (let i = 3; i < img.data.length; i += 4) {
     // uint8 口径（RGBAImage.data 自 ticket 18 起 0..255）：任一像素 alpha≠255 即不透明度不足。
@@ -79,22 +87,26 @@ function setOrDelete(tags: Record<string, number>, tag: number, value: number): 
   else delete tags[String(tag)];
 }
 
-function loadFixture(cardId: string, dataDir: string): FixtureCard | undefined {
-  const p = join(dataDir, 'fixtures', `${cardId}.json`);
-  if (!existsSync(p)) return undefined;
-  return JSON.parse(readFileSync(p, 'utf-8')) as FixtureCard;
+function loadFixture(cardId: string, data: AssetSource): FixtureCard | undefined {
+  try {
+    return JSON.parse(data.text(`fixtures/${cardId}.json`)) as FixtureCard;
+  } catch (e) {
+    if (e instanceof KeyMissingError) return undefined;
+    throw e;
+  }
 }
 
 /** 站点请求 → fixture（+ 可选上传原画）。presetId 给定时以该卡为底：
  *  未在表单管理的 tag（如 321 收藏标记）沿用预设，原画/水印也随预设。 */
 export function prepareCard(
   req: RenderRequest,
-  dirs: { pack: string, data: string },
+  dirs: { pack: AssetSource, data: AssetSource },
 ): { fixture: FixtureCard, portrait?: RGBAImage } {
   let fixture: FixtureCard;
   let presetBaseText = '';
+  let base: FixtureCard | undefined;
   if (req.presetId) {
-    const base = loadFixture(req.presetId, dirs.data);
+    base = loadFixture(req.presetId, dirs.data);
     if (!base) throw new CardRequestError(`预设不存在：${req.presetId}`);
     fixture = structuredClone(base);
     presetBaseText = base.textInHand?.zhCN ?? '';
@@ -123,11 +135,18 @@ export function prepareCard(
   // 一旦用户改了文案，就按原样渲染（DEFAULT builder：空白解码 + 富文本转换，不做机制重建）。
   const baseText = req.presetId ? (presetBaseText ?? '') : '';
   if (!req.presetId || req.text !== baseText) fixture.textBuilderType = 0;
+  // 战棋模板：卡型是战棋专属型（酒馆法术/畸变/饰品/任务奖励）→ Battlegrounds；
+  // 否则**保留预设自带的 Battlegrounds**（战棋随从 = 卡型 4 + 模板 Battlegrounds，
+  // 此前按卡型判定漏掉 → 覆写成 Normal，铸币/tier 视觉丢失，BG33_828/BG34 实测）；
+  // 改了卡型的预设不保留（模板跟随新卡型的常规视觉）。
+  const presetTemplate = req.presetId && base
+    ? (base.tags[TAG.CARDTYPE] === req.cardType ? base.preset.template : 'Normal')
+    : 'Normal';
   fixture.preset = {
     ...fixture.preset,
     premium:  'NORMAL',
     zone:     'Hand',
-    template: BG_CARD_TYPES.has(req.cardType) ? 'Battlegrounds' : 'Normal',
+    template: BG_CARD_TYPES.has(req.cardType) ? 'Battlegrounds' : presetTemplate,
   };
 
   const portrait = req.portrait ? decodePortrait(req.portrait) : undefined;

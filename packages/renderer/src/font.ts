@@ -4,10 +4,10 @@
  * TS 侧：hmtx/head/hhea 经 opentype.js；字形位图 = unhinted 轮廓 4×4 子采样 non-zero 填充。
  * 已知残差（py 作者自己登记）：Unity 走 FT hinted advance 有 ±1px_font 风险；TS unhinted
  * 位图与 PIL hinted 位图在 AA 边缘可能差 ±1——L1 回归里属可接受噪声。 */
-import { readFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
 import * as opentype from 'opentype.js';
-import { PNG } from 'pngjs';
+import { decodePngBytes } from './image.js';
+import { KeyMissingError, type AssetSource } from './source.js';
+import type { RGBAImage } from './types.js';
 
 export interface CharInfo {
   advance: number;
@@ -35,45 +35,60 @@ interface Pt { x: number, y: number }
 
 const SS = 8; // 每轴子采样数（64 级覆盖度，逼近 FreeType 256 级 AA）
 
-/** opentype.Font 按文件去重（ticket 18）：getFontMetrics 每个字号档 new 一个 FontMetrics，
+/** opentype.Font 按键去重（ticket 18）：getFontMetrics 每个字号档 new 一个 FontMetrics，
  * 同一 TTF（如 Belwe_Outline）会在 36/45/74 三档被重复 parse（5.7 MB 字体 ×3 ≈ 60+ MB
  * 驻留，实测 explore/2026-10-08-workers-mem-reduction 驻留曲线 141→165 MB 平台期）。
  * Font 对象只读（charToGlyph/getPath），跨 FontMetrics 共享安全；度量按 size 存实例。 */
 const otFontCache = new Map<string, opentype.Font>();
 
-function parseFontCached(ttfPath: string): opentype.Font {
-  let font = otFontCache.get(ttfPath);
+function parseFontCached(src: AssetSource, key: string): opentype.Font {
+  let font = otFontCache.get(key);
   if (!font) {
-    const buf = readFileSync(ttfPath);
-    font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
-    otFontCache.set(ttfPath, font);
+    const buf = src.bytes(key);
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+    font = opentype.parse(ab);
+    otFontCache.set(key, font);
   }
   return font;
 }
 
-/** 静态度量（hhea.ascender/descender + head.unitsPerEm）：assets/fonts/metrics.json
+/** 静态度量（hhea.ascender/descender + head.unitsPerEm）：fonts/metrics.json
  *  （scripts/extract_fonts.py 产出）。FontMetrics 用它提供 ascent/descent/lineHeight 并把
  *  opentype.parse **推迟到首个真正需要 fallback 字形的 charInfo**——pack 字形全覆盖的卡
  *  不再把 5.7-7.3 MB TTF parse 成 opentype 对象（ticket 18 实测 dedupe 后仍 ~20 MB 驻留）。
  *  数值与 opentype.js 运行时同源同表（font.ascender=hhea.ascender、descender=hhea.descender、
  *  unitsPerEm=head.unitsPerEm；实证 Belwe 900/−124/1024、Franklin 502/−113/512），
- *  fixtures 字节门禁验证。文件/键缺失 → null → 回落即时 parse，行为不变。 */
+ *  fixtures 字节门禁验证。文件/键缺失 → null → 回落即时 parse，行为不变。
+ *  Workers 路线（ticket 14/10）：TTF 不进部署包，fallback 触发即抛 UnsupportedGlyphError
+ *  （`ttf_missing`），站点层映射 400——字形 miss 语义的正式裁定仍归 ticket 15。 */
 interface FontStaticMetrics { ascender: number, descender: number, unitsPerEm: number }
+
+/** fallback 需要 opentype 而 TTF 不在源内（Workers 无字体包）时抛——站点映射 400。
+ *  char = 触发 fallback 的字符（诊断与用户提示用）。 */
+export class TtfMissingError extends Error {
+  char?: string;
+  constructor(public readonly key: string, char?: string) {
+    super(`font ttf not available in asset source: ${key}${char ? ` (char U+${char.codePointAt(0)!.toString(16)} '${char}')` : ''}`);
+    this.name = 'TtfMissingError';
+    this.char = char;
+  }
+}
 
 const staticMetricsCache = new Map<string, FontStaticMetrics | null>();
 
-function staticMetrics(ttfPath: string): FontStaticMetrics | null {
-  const hit = staticMetricsCache.get(ttfPath);
+function staticMetrics(src: AssetSource, key: string): FontStaticMetrics | null {
+  const hit = staticMetricsCache.get(key);
   if (hit !== undefined) return hit;
+  // eslint-disable-next-line no-useless-assignment
   let out: FontStaticMetrics | null = null;
   try {
-    const all = JSON.parse(readFileSync(join(dirname(ttfPath), 'metrics.json'), 'utf-8')) as
-      Record<string, FontStaticMetrics>;
-    out = all[basename(ttfPath)] ?? null;
+    const metricsKey = `${key.includes('/') ? key.slice(0, key.lastIndexOf('/')) : '.'}/metrics.json`;
+    const all = JSON.parse(src.text(metricsKey)) as Record<string, FontStaticMetrics>;
+    out = all[key.slice(key.lastIndexOf('/') + 1)] ?? null;
   } catch {
     out = null;
   }
-  staticMetricsCache.set(ttfPath, out);
+  staticMetricsCache.set(key, out);
   return out;
 }
 
@@ -81,15 +96,24 @@ export class FontMetrics implements FontMetricsLike {
   readonly ascent:     number;
   readonly descent:    number; // ≤0
   readonly lineHeight: number;
-  private ttfPath:     string;
+  private src:         AssetSource;
+  private key:         string;
   private _font:       opentype.Font | null = null;
   private upem:        number;
   private size:        number;
   private cache = new Map<string, { info: CharInfo, mask: GlyphMask }>();
 
-  /** 惰性 parse：metrics.json 提供度量时，直到首个 pack-miss 字形才真正 parse TTF。 */
+  /** 惰性 parse：metrics.json 提供度量时，直到首个 pack-miss 字形才真正 parse TTF；
+   * TTF 缺失（Workers 无字体包）→ TtfMissingError。 */
   private get font(): opentype.Font {
-    if (!this._font) this._font = parseFontCached(this.ttfPath);
+    if (!this._font) {
+      try {
+        this._font = parseFontCached(this.src, this.key);
+      } catch (e) {
+        if (e instanceof KeyMissingError) throw new TtfMissingError(`${e.key}@fs${this.size}`);
+        throw e;
+      }
+    }
     return this._font;
   }
 
@@ -102,10 +126,11 @@ export class FontMetrics implements FontMetricsLike {
     return { minX: info.minX, maxX: info.maxX, minY: info.minY, maxY: info.maxY };
   }
 
-  constructor(ttfPath: string, fontSize: number) {
-    this.ttfPath = ttfPath;
+  constructor(src: AssetSource, key: string, fontSize: number) {
+    this.src = src;
+    this.key = key;
     this.size = Math.trunc(fontSize);
-    const st = staticMetrics(ttfPath);
+    const st = staticMetrics(src, key);
     if (st) {
       this.upem = st.unitsPerEm;
       this.ascent = Math.ceil((st.ascender / this.upem) * this.size);
@@ -116,8 +141,7 @@ export class FontMetrics implements FontMetricsLike {
       // TextGenerator 的行进用 round 的整行高。explore/2026-10-06-text-align/findings.md §5。
       this.lineHeight = Math.round(((st.ascender - st.descender) / this.upem) * this.size);
     } else {
-      const f = parseFontCached(ttfPath);
-      this._font = f;
+      const f = this.font;
       this.upem = f.unitsPerEm;
       this.ascent = Math.ceil((f.ascender / this.upem) * this.size);
       this.descent = Math.floor((f.descender / this.upem) * this.size);
@@ -286,7 +310,7 @@ export class PackFontMetrics implements FontMetricsLike {
   private meta:        PackGlyphMeta | null = null;
   private cache = new Map<string, { info: CharInfo, mask: GlyphMask }>();
 
-  constructor(private dir: string, fontStem: string, fontSize: number,
+  constructor(private src: AssetSource, private dir: string, fontStem: string, fontSize: number,
     private fallback: FontMetricsLike,
     private shear = 0) {
     // 行高用 fallback 的 round 口径（meta.line_height 是 py 提取层的 ceil/floor 口径=49，
@@ -295,7 +319,7 @@ export class PackFontMetrics implements FontMetricsLike {
     this.descent = fallback.descent;
     this.lineHeight = fallback.lineHeight;
     try {
-      this.meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf-8')) as PackGlyphMeta;
+      this.meta = JSON.parse(src.text(`${dir}/meta.json`)) as PackGlyphMeta;
     } catch {
       this.meta = null;
     }
@@ -308,20 +332,24 @@ export class PackFontMetrics implements FontMetricsLike {
     const m = this.meta[String(ch.codePointAt(0))] as
       { advance: number, minX: number, maxX: number, minY: number, maxY: number, w: number, h: number } | undefined;
     if (!m) return null;
-    let png: import('pngjs').PNGWithMetadata;
+    const pngKey = `${this.dir}/${ch.codePointAt(0)}.png`;
+    let png: RGBAImage;
     try {
-      png = PNG.sync.read(readFileSync(join(this.dir, `${ch.codePointAt(0)}.png`)));
-    } catch {
-      // meta 幽灵条目（meta 有码位、PNG 缺失/损坏）：按「包内无此字形」处理，回退自研光栅。
-      // 这与 meta 缺条目的既有语义一致——不改变任何可完成的渲染，只是把 ENOENT 崩溃修复掉。
-      // 实证（拆包探查）：assets/glyphs/FranklinGothic-40 的 meta 含「伙/伴」条目而对应 PNG
-      // 缺失（BG24_Reward_310 描述文本复现 font.ts:253 ENOENT，`bun run fixtures` 因此中断）；
-      // Belwe_Outline-45 存在反向不一致（PNG 有而 meta 无 → 本就走 fallback）。
-      // 缓存扩容与 miss 语义的正式裁定仍归 ticket 15。
+      // 纯 TS 解码器（ticket 19）：pngjs 的 PNG.sync.read 在 workerd 抛
+      // `Class constructor Inflate cannot be invoked without 'new'`——字形读取是
+      // image.ts 之外的最后一处 pngjs 读取点（Workers 上表现为「字形全 miss →
+      // fallback → TTF 不在包内 → 400」）。字形 PNG 是 L 模式，解码为 RGBA 后取 R。
+      png = decodePngBytes(this.src.bytes(pngKey));
+    } catch (e) {
+      // 源里有这个键却读不到（Workers 未预取/IO 错误）→ 重抛给入口的补取重试；
+      // 键真不存在（meta 幽灵条目：meta 有码位、PNG 缺失——实证 FranklinGothic-40 的
+      // 「伙/伴」，BG24_Reward_310 复现）→ 按「包内无此字形」回退自研光栅，与 meta 缺
+      // 条目的既有语义一致。缓存扩容与 miss 语义的正式裁定仍归 ticket 15。
+      if (e instanceof KeyMissingError && this.src.has(pngKey)) throw e;
       return null;
     }
     const data = new Float64Array(m.w * m.h);
-    for (let i = 0; i < m.w * m.h; i++) data[i] = png.data[i * 4] / 255;
+    for (let i = 0; i < m.w * m.h; i++) data[i] = png.data[i * 4]! / 255;
     const info: CharInfo = { advance: m.advance, minX: m.minX, maxX: m.maxX, minY: m.minY, maxY: m.maxY };
     let mask: GlyphMask = { w: m.w, h: m.h, data };
     if (this.shear > 0) {
@@ -354,9 +382,14 @@ export class PackFontMetrics implements FontMetricsLike {
     const hit = this.cache.get(ch);
     if (hit) return hit;
     const loaded = this.load(ch);
-    const out = loaded ?? this.fallback.charInfo(ch);
-    this.cache.set(ch, out);
-    return out;
+    try {
+      const out = loaded ?? this.fallback.charInfo(ch);
+      this.cache.set(ch, out);
+      return out;
+    } catch (e) {
+      if (e instanceof TtfMissingError) throw new TtfMissingError(e.key, ch);
+      throw e;
+    }
   }
 
   advance(ch: string): number {
@@ -370,6 +403,11 @@ export class PackFontMetrics implements FontMetricsLike {
     const m = this.meta?.[String(ch.codePointAt(0))] as
       { minX: number, maxX: number, minY: number, maxY: number } | undefined;
     if (m) return { minX: m.minX, maxX: m.maxX, minY: m.minY, maxY: m.maxY };
-    return this.fallback.inkChar(ch);
+    try {
+      return this.fallback.inkChar(ch);
+    } catch (e) {
+      if (e instanceof TtfMissingError) throw new TtfMissingError(e.key, ch);
+      throw e;
+    }
   }
 }

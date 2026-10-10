@@ -17,6 +17,9 @@ build/
 coverage/
 *.log
 
+# Wrangler (local dev state; deploy artifacts live in dist/)
+.wrangler/
+
 # Environment variables and secrets
 .env
 .env.*

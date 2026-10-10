@@ -8,7 +8,8 @@
     "./render-card": "./src/render-card.ts",
     "./plan": "./src/plan.ts",
     "./image": "./src/image.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./source": "./src/source.ts"
   },
   "scripts": {
     "render": "bun src/main.ts",

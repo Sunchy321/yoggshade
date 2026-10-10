@@ -6,16 +6,16 @@
  *
  * 用法：bun apps/web/scripts/check-parity.ts
  * （第二轮判据 = DIY 组合冒烟矩阵 + fixture 全量走 HTTP，见 ticket 09 与地图 Not yet specified。） */
-import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { renderCard } from '@yoggraph/renderer/render-card';
+import { fsSource } from '@yoggraph/renderer/source';
 import type { FixtureCard } from '@yoggraph/renderer/plan';
 import { prepareCard } from '../src/adapter.js';
 import { loadPresets } from '../src/meta.js';
 import type { RenderRequest } from '../src/shared.js';
 
 const repoRoot = resolve(import.meta.dir, '../../..');
-const DIRS = { pack: join(repoRoot, 'assets'), data: join(repoRoot, 'data') };
+const DIRS = { pack: fsSource(join(repoRoot, 'assets')), data: fsSource(join(repoRoot, 'data')) };
 
 /** 每个帧槽一张代表卡（覆盖 8 槽；战棋模板另取一张） */
 const SLOT_REPS = [
@@ -31,7 +31,7 @@ const SLOT_REPS = [
 ];
 
 function fixtureOf(cardId: string): FixtureCard {
-  return JSON.parse(readFileSync(join(DIRS.data, 'fixtures', `${cardId}.json`), 'utf-8')) as FixtureCard;
+  return JSON.parse(DIRS.data.text(`fixtures/${cardId}.json`)) as FixtureCard;
 }
 
 /** 模拟前端：把 meta 的预设字段原样提交回来（文案不动 → 应保留原 textBuilderType） */
