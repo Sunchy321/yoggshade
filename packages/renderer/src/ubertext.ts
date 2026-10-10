@@ -310,7 +310,11 @@ function renderRtt(
     rtH = Math.trunc(res);
   }
   const rtSs = 2;
-  const q = (rtW / wBox) * ns.localScale * rtSs;
+  // RT 排版密度不含节点世界缩放：m_FontSize/m_Width/m_Height/m_Resolution 全是序列化的
+  // 纹理空间量，UberText 的节点变换只应经载体网格的世界矩阵进入一次（载体多为文本节点
+  // 子节点，世界尺寸已含缩放——此前乘 localScale 造成双重缩放：装备帧 NameUberText 世界
+  // 缩放 0.8，名字墨迹高度实测恰小 20%，39px vs 基准 49px；手牌帧缩放恒 1 故从未暴露）。
+  const q = (rtW / wBox) * rtSs;
   const kRt = q * layout.k;
   const rtw = rtW * rtSs, rth = rtH * rtSs;
   // 描边半径单位换算：m_OutlineSize = 最终画布 texel；网格画布宽 / (rtW×rtSs) = 画布 px/缓冲 px

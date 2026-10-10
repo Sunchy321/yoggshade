@@ -227,6 +227,77 @@ best-shift (0,0)、亚像素残差 ≤0.07 = 内容差非平移，残差主体�
 **LT23_802P2 4.442 / LT23_803P2 5.313**，进入原生槽收敛区间（同批 GDB_142 4.77、
 AV_205 4.56、REV_365 5.05）。其余 38 张 fixture 改动前后逐位零回归（字节比对）。
 
+## 10. 基准导出的机制 tag 覆盖语义（2026-10-10，ticket 03 排障记录）
+
+**现象**：LT24_021T1_01c（召唤型佣兵技能）首版基准图与 minion 帧渲染对不上（uniform 平移 +
+FrameMesh 纹理差）。BepInEx LogOutput.log 实证：该次导出加载的 actor 是
+`BigCard_LettuceAbility.prefab`（spell 帧），不是 Minion 变体。
+
+**根因**：exporter 结构化覆盖对**每个**机制 tag 无条件写值
+（`TryCreateCustomDisplayEntityDef`：`customizedEntityDef.SetTag((GAME_TAG)entry.Tag,
+mechanicValue ? 1 : 0)`；slug 表 ExporterController.cs:221-238）。导出请求「佣兵技能-召唤随从=否」
+→ `SetTag(1676, 0)` → `IsLettuceAbilityMinionSummoning`（HasTag 语义，EntityBase.cs:492）为假
+→ `GetHandActorByTags`（ActorNames.cs:586-588）落到 spell 帧。这与游戏内真手牌行为（原始 DBF
+tag 1676=94423 存活 → Minion 帧）不符，属导出侧工件。
+
+**裁决与处置**（用户 2026-10-10）：基准重导——「佣兵技能-召唤随从=是」→ tag 写回 1 → 正确解析
+`BigCard_LettuceAbility_Minion.prefab`（日志复证）+ FrameCamera = FrameMesh 中心 (−0.01,−0.08)。
+对照：LT23_036E2_04 导出时「佣兵装备=是」→ 正确装备帧；LT23_816H 无对应覆盖项（mechanic 表
+无 1665 佣兵本体条目）→ tag 存活 → 正确 `Card_Hand_Mercenary`。**后续任何 lettuce 系基准导出，
+机制开关必须按卡的真实 tag 勾选，否则 actor 解析会静默落到 spell 帧。**
+
+**票 03 附带修复**：三张新 fixture 的原画缺失（extract_fixture_data 只出 JSON；原画走
+extract_fixture_assets.py，票 02 漏跑）→ 渲染画占位白窗、L2 残差集中在画窗中央
+（x176-336/y120-290，15k 像素 SAD>60）。补跑后收敛。
+
+**L2（ticket 03 收口）**：LT24_021T1_01c mae_vis **3.502**（全套 fixture 最佳；锚对账 best-shift
+(0,0)、亚像素 −0.04）。原画缺失时 13.835、错帧+缺原画时 67.6。
+
+## 11. 装备槽（ticket 04）实现记录（2026-10-10）
+
+结构：39 节点全激活；瓦片布局 = `Mesh/PortraitMesh`（tile 16 tris 肖像面 + 156 tris 框，
+m_portraitMesh 绑定、portraitMatIdx=0、_SecondTex=Lettuce_Equipment_Frame）+ `FrameMesh`
+（432 tris，Custom/Card/UnlitTexture）；角色仅 name/desc（prefab role_paths 实测，无费用/
+攻血）；名字曲率载体 `Card_InHand_Equipment_CurvedText`（Adv_StoryMode_PageTitle_BendTextShape，
+manifest.carrier → renderText RTT 路径）；actor = LettuceAbilityActor（无攻血/冷却/速度翼绑定，
+相关逻辑自然 no-op）。
+
+**forcedHidden `Mesh`（像素证据，根因未决）**：装备 prefab 序列化了能力徽章环节点
+`Mesh`（Lettuce_Spells_Ring_Mesh，[6,208] tris，active+enabled）——技能帧的圆环在装备瓦片布局
+里没有视觉意义。基准图 reference/LT23_036E2_04.png 对应区域 alpha=0（不透明 bbox 顶 y55，
+我们 37，高出的 18px 全部来自该节点）；隐藏后整体 SAD 7.36 → 2.57。已按 `forcedHidden` 落码。
+**未决**：游戏/导出器正常路径均无该节点的隐藏代码出处（LettuceAbilityActor 不触及；
+exporter `ApplyPlaceholderGrayMaterials` 名单属 textless 路径不含 "Mesh"）——疑似真实游戏
+收藏 UI 装备瓦片装配代码（LettuceEquipmentTile 族）所为，反编译未及，待查。
+
+锚：FrameMesh 世界包围盒中心（与 exporter 日志 (−0.01, 0.10, −0.23) 一致），edge-align 对账
+best-shift (0,0)、亚像素 −0.07。
+
+### 11b. 名字走 builder 链（用户审查反馈修复，2026-10-10）
+
+用户审查装备槽时指出：部分佣兵装备/技能的名字受 textBuilderType 控制，不能渲染 DBF 原文。
+反编译确认（CardTextBuilder.cs）：**名字从来不是裸字符串**——`EntityDef.GetName()`
+（EntityDef.cs:368）→ `CardTextBuilder.BuildCardName(def)`（CardTextBuilder.cs:97-100）=
+`TextUtils.TryFormat(GetDefaultCardName(def), GetTag(CARD_NAME_DATA_1))`，其中
+GetDefaultCardName = `TransformCardText(原始名)`（:91 正常路径尾行）、CARD_NAME_DATA_1 = 2890
+（GAME_TAG.cs:373）。全部 builder 路线公式一致（Universal 兜底 :1930-1932 同式；type 7
+ScriptDataNum1CardTextBuilder 不覆写 BuildCardName，只覆写正文/瞄准箭头；唯一特例 INVESTIGATE
+:type 17 用 GetNamesText，fixture 集未用）。佣兵装备/技能名带的 `{0}` 占位由此展开——2890
+缺省 GetTag=0（「中立之心{0}」→「中立之心0」，LT23_036E2_04 实证）。
+
+**实现**：plan.ts 双处 name case（compileFramePlan + compilePlan 遗留路径）统一为
+`tryFormat(transformCardText(name), [tags[2890] ?? 0])`（包导出与 TextUtils.cs:28-44 同源）。
+波及面：全 43 fixture 仅 LT23_036E2_04 名字含占位符，其余名字原样通过、渲染逐位不变。
+
+**连带修复（用户审查「字体似乎小了」）**：曲率名字 RTT 排版密度 q 此前乘了
+`ns.localScale`（UberText 节点世界缩放）——但 m_FontSize/m_Width/m_Height/m_Resolution 全是
+纹理空间量，节点变换只应经载体网格世界矩阵进入一次（装备帧载体 Card_InHand_Equipment_
+CurvedText 是 NameUberText 的子节点，世界尺寸已含缩放）。装备帧名字节点世界缩放 0.8，
+双重应用使名字墨迹高度实测 39px vs 基准 49px（恰 0.8 倍）；去掉后 48 vs 49，整体 SAD 1.71。
+各曲率帧名字节点缩放序列化值均非精确 1.0（如 GDB_142 印为 1.000 实为 ±0.001 级），修复后
+单位缩放帧仅 2 像素 ±1 量化噪声（GDB_142 实测 2/393216 px、max 1）；hand-location 名字节点
+各向异性（0.9/1.0），其名字按引擎语义 +5%——同属双重缩放消除。
+
 ## 证据文件索引
 
 - 探针输出：`explore/2026-10-10-lettuce-frame/pack/frames/{lettuce-ability-spell,

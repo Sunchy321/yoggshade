@@ -4,7 +4,7 @@
  * 卡牌无关）；本模块只推导卡牌 delta：类色图集、原画、稀有度宝石、ELITE 龙、攻/血宝石显隐、
  * 种族板、六个文字角色。推导规则与 py 链同源（decomp 出处见 py 注释，此处不重复）。 */
 import type { AssetPack, FrameMaterial, PlanComponent, PrefabReport, RenderPlan, WatermarkSpec } from './types.js';
-import { resolveFixtureText } from '@tcg-cards/hs-text-builder';
+import { resolveFixtureText, transformCardText, tryFormat } from '@tcg-cards/hs-text-builder';
 
 /** 文本重建（@tcg-cards/hs-text-builder）——fail-fast：resolve 抛错 = 数据/实现缺口，
  *  带卡牌上下文重抛让 L2 在该卡上失败，而不是静默渲染错误文本。 */
@@ -306,7 +306,14 @@ export function compilePlan(
   const bodyFor = (role: string): string => {
     switch (role) {
     case 'cost': return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
-    case 'name': return fixture.name.zhCN ?? '';
+    case 'name':
+      // 名字不是裸 DBF 字符串：EntityDef.GetName → CardTextBuilder.BuildCardName
+      // （CardTextBuilder.cs:97-100；Universal 兜底 :1930-1932 同式；仅 INVESTIGATE 特例，
+      // fixture 集未用）= TryFormat(TransformCardText(原始名), GetTag(CARD_NAME_DATA_1))。
+      // 佣兵装备/技能名带的 {0} 占位由此展开——2890 缺省 GetTag=0（「中立之心{0}」→
+      // 「中立之心0」，LT23_036E2_04 实证）；无占位符名字原样通过。textBuilderType 对名字
+      // 的影响仅经此公共公式（type 7 不覆写 BuildCardName）。
+      return tryFormat(transformCardText(fixture.name.zhCN ?? ''), [tags[TAG3.CARD_NAME_DATA_1] ?? 0]);
     case 'desc': return resolveDescText(fixture, fixture.cardId); // textBuilderType 分派（@/{n}/$# 占位符），fail-fast
     case 'race': return raceText;
     case 'attack': return attackText;
@@ -359,40 +366,50 @@ export const CARD_TYPE_TO_SLOT: Record<number, string> = {
 /** 佣兵（Lettuce）行为 tag（GAME_TAG.cs:1047-1079；谓词 = EntityBase.cs:466-500 +
  *  LettuceAbilityActor.cs 消费，见 docs/findings/lettuce-frame-teardown-2026-10-10.md）。 */
 const TAG3 = {
-  LETTUCE_MERCENARY:            1665,
-  LETTUCE_COOLDOWN_CONFIG:      1669,
-  LETTUCE_CURRENT_COOLDOWN:     1670,
-  LETTUCE_PASSIVE_ABILITY:      1671,
+  LETTUCE_MERCENARY:               1665,
+  LETTUCE_COOLDOWN_CONFIG:         1669,
+  LETTUCE_CURRENT_COOLDOWN:        1670,
+  LETTUCE_PASSIVE_ABILITY:         1671,
   LETTUCE_ABILITY_SUMMONED_MINION: 1676,
-  LETTUCE_IS_EQUPIMENT:         1855, // 游戏内枚举拼写即 EQUPIMENT（GAME_TAG.cs:1066）
-  LETTUCE_START_OF_GAME_ABILITY: 2241,
+  LETTUCE_IS_EQUPIMENT:            1855, // 游戏内枚举拼写即 EQUPIMENT（GAME_TAG.cs:1066）
+  LETTUCE_START_OF_GAME_ABILITY:   2241,
+  CARD_NAME_DATA_1:                2890, // 名字 {0} 占位替换源（GAME_TAG.cs:373）
 } as const;
 
 /** 卡型 tag → 帧 slot 的单点入口（renderCard 与资产键收集器 keys.ts 共用，防口径漂移）。
  *  CARDTYPE 23 按 GetHandActorByTags（ActorNames.cs:570-591）做 tag 组合判定：
- *  召唤（+SUMMONED_MINION）/装备（+IS_EQUPIMENT）与佣兵本体（MERCENARY>0）的专属槽
- *  后续票落地，暂回落随从帧（回归基线口径，tickets 03/04/05 逐个收编）。 */
+ *  召唤（+SUMMONED_MINION）→ hand-lettuce-ability-minion（BigCard_LettuceAbility_Minion）；
+ *  装备（+IS_EQUPIMENT）→ hand-lettuce-equipment；佣兵本体（MERCENARY>0）的专属槽
+ *  后续票落地，暂回落随从帧（回归基线口径，ticket 05 收编）。 */
 export function slotForCardType(tags: FixtureCard['tags']): string {
   const t = tags['202'] ?? 4;
-  if (t === 23 && ((tags[String(TAG3.LETTUCE_ABILITY_SUMMONED_MINION)] ?? 0) !== 0
-    || (tags[String(TAG3.LETTUCE_IS_EQUPIMENT)] ?? 0) !== 0)) return 'hand-minion';
+  if (t === 23) {
+    if ((tags[String(TAG3.LETTUCE_ABILITY_SUMMONED_MINION)] ?? 0) !== 0) {
+      return 'hand-lettuce-ability-minion';
+    }
+    if ((tags[String(TAG3.LETTUCE_IS_EQUPIMENT)] ?? 0) !== 0) {
+      return 'hand-lettuce-equipment';
+    }
+  }
   if ((tags[String(TAG3.LETTUCE_MERCENARY)] ?? 0) > 0) return 'hand-minion';
   return CARD_TYPE_TO_SLOT[t] ?? 'hand-minion';
 }
 
 /** 帧 slot → 该帧的原生卡型（ActorNames 的 actor 归属；4=MINION，47=战棋英雄伙伴同用随从 actor，
- *  23=LETTUCE_ABILITY 施法型走 BigCard_LettuceAbility）。
- *  别型卡（召唤/装备佣兵技能、战棋法术/宠物等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
+ *  23=LETTUCE_ABILITY 施法/召唤型走 BigCard_LettuceAbility[_Minion]）。
+ *  别型卡（装备佣兵技能、战棋法术/宠物等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
 export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
-  'hand-lettuce-ability': [23],
-  'hand-minion':     [4, 47],
-  'hand-spell':      [5, 40, 42],
-  'hand-hero':       [3],
-  'hand-weapon':     [7],
-  'hand-location':   [39],
-  'hand-heropower':  [10],
-  'hand-bg-anomaly': [43],
-  'hand-bg-trinket': [44],
+  'hand-lettuce-ability':        [23],
+  'hand-lettuce-ability-minion': [23],
+  'hand-lettuce-equipment': [23],
+  'hand-minion':                 [4, 47],
+  'hand-spell':                  [5, 40, 42],
+  'hand-hero':                   [3],
+  'hand-weapon':                 [7],
+  'hand-location':               [39],
+  'hand-heropower':              [10],
+  'hand-bg-anomaly':             [43],
+  'hand-bg-trinket':             [44],
 };
 
 /** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）+ 战棋模板相关（GAME_TAG.cs 实测行号）：
@@ -421,18 +438,18 @@ const STATIC_HIDDEN = new Set([
 
 /** 逐帧 tag 规则（节点名 → 谓词键）。 */
 interface FrameRules {
-  elite:         string[];
-  rarity:        string[];
-  attack?:       string[];
-  health?:       string[]; // 耐久同（HEALTH tag）
-  armor?:        string[];
-  race?:         string[]; // 单种族板
-  multiRace?:    string[];
-  noGem?:        string; // !rarity 时显（地标替代件）
-  forcedHidden?: string[];
+  elite:             string[];
+  rarity:            string[];
+  attack?:           string[];
+  health?:           string[]; // 耐久同（HEALTH tag）
+  armor?:            string[];
+  race?:             string[]; // 单种族板
+  multiRace?:        string[];
+  noGem?:            string; // !rarity 时显（地标替代件）
+  forcedHidden?:     string[];
   /** 饰品等级徽章（TrinketLevelIndicatorRing 族）：SPELL_SCHOOL ∈ {LESSER,GREATER_TRINKET} 才显
    *  （GetTrinketLevel + UpdateBaconTrinketComponents，Actor.cs:5368-5420）。 */
-  trinketBadge?: string[];
+  trinketBadge?:     string[];
   /** 佣兵技能附件（LettuceAbilityActor 运行时子；teardown findings §3）：
    *  speedWing = 速度翼标（被动/开局技 tag 隐藏；m_updateVisualsOnCooldown ∧ 现冷却 tag 也隐）；
    *  hourglass = 冷却沙漏（UpdateHourglassObject：冷却配置/当前冷却文本任一非空才显——
@@ -440,7 +457,7 @@ interface FrameRules {
    *  两个 ability prefab 的引用序列化为空 → 恒隐，谓词按引用绑定建模而不是写死）。 */
   lettuceSpeedWing?: string[];
   lettuceHourglass?: string[];
-  roles:         string[];
+  roles:             string[];
 }
 
 const FRAME_RULES: Record<string, FrameRules> = {
@@ -516,11 +533,39 @@ const FRAME_RULES: Record<string, FrameRules> = {
   // race 角色 = 学派文本（UpdateRace flag5 与 spell 同支，Actor.cs:6143）；
   // 学派板双网格替换见 desc mesh swap（neutral = 整框几何原位重画，不能套 hand-spell 等价成立）。
   'hand-lettuce-ability': {
-    elite: [], rarity: [],
-    attack: ['Gem_Attack'], health: ['Gem_Health'],
+    elite:            [], rarity:           [],
+    attack:           ['Gem_Attack'], health:           ['Gem_Health'],
     lettuceSpeedWing: ['Speed_Wing'],
     lettuceHourglass: ['Hourglass'],
-    roles:  ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+    roles:            ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+  },
+  // 佣兵装备（BigCard_LettuceEquipment，LettuceAbilityActor；teardown findings §7.2）：
+  // 瓦片布局（m_portraitMesh=Mesh/PortraitMesh，portraitMatIdx=0，tile 16 tris + 框 156 tris）；
+  // 角色仅 name/desc（prefab role_paths 实测，装备无费用/攻血显示）；
+  // 名字走曲率载体 Adv_StoryMode_PageTitle_BendTextShape（manifest.carrier → renderText RTT）；
+  // 底影 ×3（CoinShadow/Shadow/ShadowUnique，Hero/Multiply/Multiply_AlphaFade）——乘法混合由
+  // markOpaqueEdgeSlots 按 shader 自动标注；Shadow/ShadowUnique 在 STATIC_HIDDEN（各手牌帧
+  // 接触阴影导出不可见的既有口径）。
+  // forcedHidden 'Mesh'：装备 prefab 序列化了能力徽章环节点（Lettuce_Spells_Ring_Mesh，[6,208]
+  // tris，active+enabled），但基准图（reference/LT23_036E2_04.png）对应区域 alpha=0（不透明
+  // bbox 顶 y55 vs 我们 37，高出的 18px 全部来自该节点）；隐藏后整体 SAD 7.36 → 2.57。像素
+  // 证据落实现；游戏/导出器代码中均未找到该节点的隐藏出处（LettuceAbilityActor 不触及、
+  // exporter 正常路径无名单命中——ApplyPlaceholderGrayMaterials 名单属 textless 路径），根因
+  // 未决登记（可能是真实游戏收藏 UI 的装备瓦片装配代码所为，反编译未及）。
+  'hand-lettuce-equipment': {
+    elite: [], rarity: [],
+    forcedHidden: ['Mesh'],
+    roles:  ['name', 'desc'],
+  },
+  // 召唤型佣兵技能（BigCard_LettuceAbility_Minion）：与 spell 变体仅两处差异
+  // （teardown findings §7.1）——攻/血对象层级激活（AttackObject/HealthObject 自身 True，
+  // 标准门控直接成立）；FrameMesh 换 Lettuce_Ability_MinionCaster_Frame 纹理。其余逐项同。
+  'hand-lettuce-ability-minion': {
+    elite:            [], rarity:           [],
+    attack:           ['Gem_Attack'], health:           ['Gem_Health'],
+    lettuceSpeedWing: ['Speed_Wing'],
+    lettuceHourglass: ['Hourglass'],
+    roles:            ['cost', 'name', 'desc', 'race', 'attack', 'health'],
   },
 };
 
@@ -661,7 +706,7 @@ export function compileFramePlan(
   // GetTag-0 补零 × 无条件 GemObject.Show 翻正的副产物（Actor.cs:3415-3418/3462-3487）。
   // 开启 = 缺 ATK/HEALTH tag 的佣兵技能不再画攻血（真实值不受影响）；默认关 = 1:1 复刻
   // 游戏内渲染（L2 验收基准）。浏览器/Workers 无 process → 恒关（YOGGSHADE_* env 惯例）。
-  const lettuceFix = slot === 'hand-lettuce-ability' && envFlag('YOGGSHADE_LETTUCE_STATS_FIX');
+  const lettuceFix = slot.startsWith('hand-lettuce-ability') && envFlag('YOGGSHADE_LETTUCE_STATS_FIX');
   const atkVal = tags[TAG.ATK];
   const attackVisible = !(hideStats || hide('HIDE_ATTACK')) && (!isHeroCard || (atkVal ?? 0) > 0)
     && !(lettuceFix && atkVal === undefined);
@@ -835,7 +880,7 @@ export function compileFramePlan(
     // 佣兵技能攻血宝石：出厂失活（active_self 的父级 AttackObject/HealthObject=False），
     // 运行时 GemObject.Show 翻正（见 FRAME_RULES 注释）→ 不吃层级失活态，可见性交
     // attackVisible/healthVisible（规则链内判定）。
-    const lettuceStatGem = slot === 'hand-lettuce-ability'
+    const lettuceStatGem = slot.startsWith('hand-lettuce-ability')
       && ((rules.attack ?? []).includes(name) || (rules.health ?? []).includes(name));
     let visible = (isActive || lettuceStatGem) && !STATIC_HIDDEN.has(name)
       && !(rules.forcedHidden ?? []).includes(name);
@@ -875,7 +920,7 @@ export function compileFramePlan(
     // 几何**（243 tris，desc 节点局部 Y +0.036 ≈ 世界 +0.011 原位重画）——与 hand-spell
     // 「序列化网格本就是中性网格」的等价成立情形不同，两分支都要真建模。此分支无基准
     // 覆盖（两张 fixture 均带学派 tag），按反编译口径实现、回归基线不验收。
-    if (slot === 'hand-lettuce-ability' && name === 'Description_Spell_Combined') {
+    if (slot.startsWith('hand-lettuce-ability') && name === 'Description_Spell_Combined') {
       if (schoolText && base.meshes['extra/m_spellDescriptionMeshSchool']) {
         comp.mesh = 'extra/m_spellDescriptionMeshSchool';
       } else if (base.meshes['extra/m_spellDescriptionMeshNeutral']) {
@@ -986,7 +1031,7 @@ export function compileFramePlan(
     // 序列化失活子树里的同名节点不采（战棋畸变帧 Gem_Mana 失活=无费用显示）；
     // 战棋模板下 mana gem 被 coin/tier spell 替换（UpdateManaGemComponent 隐藏 m_manaObject）。
     // 例外：佣兵技能攻血宝石出厂失活、运行时 GemObject.Show 翻正（见组件循环注释）→ 照采。
-    const lettuceGem = slot === 'hand-lettuce-ability' && (name === 'Gem_Attack' || name === 'Gem_Health');
+    const lettuceGem = slot.startsWith('hand-lettuce-ability') && (name === 'Gem_Attack' || name === 'Gem_Health');
     if (!(active.get(path) ?? true) && !lettuceGem) continue;
     if (gemReplaced && name === 'Gem_Mana') continue;
     const comp = byName.get(name);
@@ -1011,12 +1056,19 @@ export function compileFramePlan(
       if (bgHideCost) return ''; // 战棋模板：tier 徽章/铸币替换费用显示（见 spellOverlays 规则）
       if (slot === 'hand-hero') return String(tags[TAG.COST] ?? 0); // 英雄费用缺省显 "0"
       return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
-    case 'name': return fixture.name.zhCN ?? '';
+    case 'name':
+      // 名字不是裸 DBF 字符串：EntityDef.GetName → CardTextBuilder.BuildCardName
+      // （CardTextBuilder.cs:97-100；Universal 兜底 :1930-1932 同式；仅 INVESTIGATE 特例，
+      // fixture 集未用）= TryFormat(TransformCardText(原始名), GetTag(CARD_NAME_DATA_1))。
+      // 佣兵装备/技能名带的 {0} 占位由此展开——2890 缺省 GetTag=0（「中立之心{0}」→
+      // 「中立之心0」，LT23_036E2_04 实证）；无占位符名字原样通过。textBuilderType 对名字
+      // 的影响仅经此公共公式（type 7 不覆写 BuildCardName）。
+      return tryFormat(transformCardText(fixture.name.zhCN ?? ''), [tags[TAG3.CARD_NAME_DATA_1] ?? 0]);
     case 'desc': return resolveDescText(fixture, fixture.cardId); // textBuilderType 分派（@/{n}/$# 占位符），fail-fast
     case 'race':
-      // 法术与佣兵技能的 race 槽 = 学派文本（UpdateRace flag2||flag5 同支，
-      // GetRaceText → 学派名；Actor.cs:6143/6160-6166）
-      return slot === 'hand-spell' || slot === 'hand-lettuce-ability' ? schoolText : raceText;
+      // 法术与佣兵技能（施法/召唤两变体）的 race 槽 = 学派文本（UpdateRace flag2||flag5
+      // 同支，GetRaceText → 学派名；Actor.cs:6143/6160-6166）
+      return slot === 'hand-spell' || slot.startsWith('hand-lettuce-ability') ? schoolText : raceText;
     case 'attack': return attackText;
     case 'health': return healthText;
     case 'armor': return armorVal > 0 ? String(armorVal) : '';
@@ -1107,7 +1159,8 @@ function findFrameNodeWorld(
 const MESH_ANCHORED_SLOTS = new Set([
   'hand-minion', 'hand-spell', 'hand-hero', 'hand-weapon', 'hand-location',
   'hand-heropower', 'hand-bg-anomaly', 'hand-bg-trinket',
-  'hand-lettuce-ability',
+  'hand-lettuce-ability', 'hand-lettuce-ability-minion',
+  'hand-lettuce-equipment',
 ]);
 
 /** 根锚定特例（= location 帧全部基准）。exporter 对 normal 地标的 Mesh 世界包围盒中心被
