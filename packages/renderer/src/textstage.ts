@@ -22,8 +22,10 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
       entry.role === 'name' ? pack.curved : undefined);
     // DEBUG_LAYER 仅 CLI 调试用（浏览器无 process，条件恒假——ADR-0002）
     if (globalThis.process?.env.DEBUG_LAYER === entry.role) {
-      const { encodePng } = await import('./image.js');
-      // node:fs 经变量 + @vite-ignore 引入：不出现在浏览器依赖图
+      // encodePng（写盘）在 png-file.ts（node:fs 收容，ADR-0002 自 image.ts 拆出）：
+      // 变量 + @vite-ignore 引入，不进浏览器依赖图
+      const pfMod = './png-file.js';
+      const { encodePng } = await import(/* @vite-ignore */ pfMod);
       const fsMod = 'node:fs';
       const { mkdirSync } = await import(/* @vite-ignore */ fsMod);
       mkdirSync('out', { recursive: true });
