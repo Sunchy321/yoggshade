@@ -46,7 +46,8 @@ DATA = REPO / "data"
 
 # 卡型 → 手牌帧 slot（plan.ts CARD_TYPE_TO_SLOT 同源；未知卡型回落 hand-minion）
 CARD_TYPE_TO_SLOT = {4: "hand-minion", 5: "hand-spell", 3: "hand-hero", 7: "hand-weapon",
-                     39: "hand-location", 10: "hand-heropower"}
+                     39: "hand-location", 10: "hand-heropower", 40: "hand-bg-anomaly",
+                     42: "hand-bg-anomaly", 43: "hand-bg-anomaly", 44: "hand-bg-trinket"}
 FALLBACK_SLOT = "hand-minion"
 # 数字角色（费/攻/血/护甲）：渲染的是 tag 数字，逐帧字体字号取自对应 UberText 节点
 NUMERIC_ROLES = ("cost", "attack", "health", "armor")
@@ -55,6 +56,27 @@ DIGITS = "0123456789-"
 SPELL_SCHOOL_TAG = 1635
 CARD_RACE_TAG = 200
 ZHCN_LOCALE = 9
+# 可自由编辑的文本角色（DIY 语境：用户任意文本只会出现在这三个角色里；
+# cost/attack/health/armor 恒为数字）——--charset 扩容只覆盖这些角色的 (ttf, fs)
+CHARSET_ROLES = ("name", "desc", "race")
+# 全部帧槽（含战棋；与 packages/renderer/src/plan.ts 的 8 槽同源）——扩容要覆盖
+# 每个槽的 name/desc/race 字体字号组合
+ALL_SLOTS = ("hand-minion", "hand-spell", "hand-hero", "hand-weapon", "hand-location",
+             "hand-heropower", "hand-bg-anomaly", "hand-bg-trinket")
+
+
+def gb2312_l1_chars() -> list[str]:
+    """GB2312 一级汉字（0xB0A1–0xD7F9，3755 字）+ 一级符号区（0xA1A1–0xA9FE，
+    全角标点/数字/拉丁）——DIY 文本的高频闭集（ticket 15 的 T1 档）。"""
+    out: list[str] = []
+    for lead in range(0xA1, 0xD8):
+        for trail in range(0xA1, 0xFF):
+            try:
+                ch = bytes([lead, trail]).decode("gb2312")
+            except UnicodeDecodeError:
+                continue
+            out.append(ch)
+    return out
 
 
 class FontMetrics:
@@ -75,6 +97,10 @@ class FontMetrics:
         self.descent = math.floor(hhea.descent * self.size / upem)
         self.line_height = self.ascent - self.descent
         self._pil_ascent = self._pil.getmetrics()[0]
+
+    def has_glyph(self, ch: str) -> bool:
+        """字体 cmap 是否有该字符（--charset 扩容的门控：无字形不产 1×1 空 PNG）。"""
+        return self._cmap.get(ord(ch)) is not None
 
     def render(self, ch: str) -> tuple[dict, np.ndarray]:
         gname = self._cmap.get(ord(ch))
@@ -200,11 +226,31 @@ def main() -> int:
                     help="额外纳入的 fixture JSON 路径（实验卡；可重复）")
     ap.add_argument("--fix-stale", action="store_true",
                     help="改写既有条目的元数据：mask 字节一致但 advance/box 与 hmtx 不符的历史脏值")
+    ap.add_argument("--charset", choices=["none", "gb2312-l1"], default="none",
+                    help="DIY 自由文本扩容（ticket 15 T1）：GB2312 一级汉字+常用符号+ASCII，"
+                         "覆盖全部帧槽的 name/desc/race 角色字体组合（这些角色的文本是用户任意输入；"
+                         "cost/attack/health/armor 恒为数字，不在扩容面）")
     args = ap.parse_args()
     pack, data = Path(args.pack), Path(args.data)
 
     fdefs = fontdefs(pack)
     need = collect_texts(pack, data, fdefs, args.extra_card)
+    if args.charset == "gb2312-l1":
+        # 全部帧槽 × name/desc/race 角色的 (ttf, fs) 组合（与渲染期 getFontMetrics 的
+        # 字形目录推导同源）；字符集 = GB2312-L1 + ASCII。cmap 无字形的字符在渲染循环
+        # 里跳过（has_glyph 门控）。同时把字符集来源从「fixture 原文」升级为
+        # 「fixture 原文 ∪ 常用闭集」——fixture 原文是历史漂移根因（ticket 15 登记的
+        # 必做项）：builder 解析会改写文本（JADE 等机制重建），渲染的真文本 ≠ 原文，
+        # 闭集覆盖后不再依赖逐卡枚举。
+        charset = set(gb2312_l1_chars()) | {chr(c) for c in range(0x20, 0x7F)}
+        for slot in ALL_SLOTS:
+            try:
+                roles = role_fonts(pack, slot, fdefs)
+            except FileNotFoundError:
+                continue  # 未抽取的槽（离线链无该帧）→ 渲染回落随从帧，已覆盖
+            for role in CHARSET_ROLES:
+                if role in roles:
+                    need.setdefault(roles[role], set()).update(charset)
     if args.verify_all or args.fix_stale:
         # 覆盖 need 之外的既有字形（含 py 链历史产出）：--verify-all 用来自证与 py 链逐字节等价，
         # --fix-stale 用来把历史脏元数据（advance 等）一并纳入改写范围
@@ -233,6 +279,8 @@ def main() -> int:
         added = 0
         dirty = False
         for ch in sorted(c for c in chars if c != "\n"):
+            if args.charset == "gb2312-l1" and not fm.has_glyph(ch):
+                continue  # cmap 无字形（异体/私用区）→ 渲染期同样走 fallback，不产空 PNG
             cp = str(ord(ch))
             info, arr = fm.render(ch)
             if args.verify:
