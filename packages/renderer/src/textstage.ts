@@ -18,27 +18,27 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
   // 数"做法（其 (6,-4.5) 基座校准，text-rendering-pipeline.md）。逐卡散布 ±0.25px 是该
   // 路线的地板。常数取 1.55 = 六卡 desc 区 MAE 扫描谷底（1.25/1.35/1.45/1.50/1.55/1.60/1.65
   // → 总和 25.13/23.73/22.86/22.10/21.91/22.46/23.60，explore/2026-10-10-text-offset）。
-  // YOGGRAPH_DESC_CALIB 可覆盖（CLI/标定用；浏览器无 process 取默认）。
+  // YOGGSHADE_DESC_CALIB 可覆盖（CLI/标定用；浏览器无 process 取默认）。
   const CALIB: Partial<Record<string, [number, number]>> = {
-    desc: [0.0, Number(globalThis.process?.env.YOGGRAPH_DESC_CALIB ?? 1.55)],
+    desc: [0.0, Number(globalThis.process?.env.YOGGSHADE_DESC_CALIB ?? 1.55)],
     // cost 数字校准（2026-10-10，同 desc 方法论）：全量 26 张已锚定卡费用区白墨剖面
     // 亚像素互相关一致偏左上（dx +0.35~+0.95 / dy +0.05~+0.75，与位数无关；
     // explore/2026-10-10-text-offset px5.ts）。未锚定特殊帧（佣兵/事件/钻石 ±3px 无曲率）
-    // 与 BG 系（金币数字白墨阈值不适用）不在本校准适用域。YOGGRAPH_COST_CALIB="x,y" 覆盖。
+    // 与 BG 系（金币数字白墨阈值不适用）不在本校准适用域。YOGGSHADE_COST_CALIB="x,y" 覆盖。
     cost: [
-      Number(globalThis.process?.env.YOGGRAPH_COST_CALIB?.split(',')[0] ?? 0.7),
-      Number(globalThis.process?.env.YOGGRAPH_COST_CALIB?.split(',')[1] ?? 0.35),
+      Number(globalThis.process?.env.YOGGSHADE_COST_CALIB?.split(',')[0] ?? 0.7),
+      Number(globalThis.process?.env.YOGGSHADE_COST_CALIB?.split(',')[1] ?? 0.35),
     ],
     // attack/health 数字校准（2026-10-10，同上）：px6.ts 全量普查——attack 一致偏左上
     // （dx +0.65~0.95 / dy +0.05~0.70）、health（dx +0.05~0.90 / dy +0.05~0.65），扫描
-    // 定值见各常数。YOGGRAPH_ATTACK_CALIB / YOGGRAPH_HEALTH_CALIB="x,y" 覆盖。
+    // 定值见各常数。YOGGSHADE_ATTACK_CALIB / YOGGSHADE_HEALTH_CALIB="x,y" 覆盖。
     attack: [
-      Number(globalThis.process?.env.YOGGRAPH_ATTACK_CALIB?.split(',')[0] ?? 0.75),
-      Number(globalThis.process?.env.YOGGRAPH_ATTACK_CALIB?.split(',')[1] ?? 0.45),
+      Number(globalThis.process?.env.YOGGSHADE_ATTACK_CALIB?.split(',')[0] ?? 0.75),
+      Number(globalThis.process?.env.YOGGSHADE_ATTACK_CALIB?.split(',')[1] ?? 0.45),
     ],
     health: [
-      Number(globalThis.process?.env.YOGGRAPH_HEALTH_CALIB?.split(',')[0] ?? 0.75),
-      Number(globalThis.process?.env.YOGGRAPH_HEALTH_CALIB?.split(',')[1] ?? 0.35),
+      Number(globalThis.process?.env.YOGGSHADE_HEALTH_CALIB?.split(',')[0] ?? 0.75),
+      Number(globalThis.process?.env.YOGGSHADE_HEALTH_CALIB?.split(',')[1] ?? 0.35),
     ],
   };
 
