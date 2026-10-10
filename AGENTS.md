@@ -100,6 +100,7 @@ Bun workspaces monorepo: renderer and web app are separate packages; shared froz
 
 Use Conventional Commits for all commit messages: `type(scope): subject`.
 
+- Commit messages are written in English only. Quote zhCN game strings by their English keyword names (e.g. `Frost`, `Nature`, `Hero Power`), never the Chinese text.
 - Types: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
 - `fix` commits must describe the problem that was solved, not how it was fixed. State what was broken and why it mattered.
 - Keep commit messages to a single line by default. Rendering bug fixes are the exception: their bodies must carry the root cause, the fix, and the parity evidence (see Rendering Bug Fix Workflow).
