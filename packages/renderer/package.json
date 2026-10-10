@@ -7,6 +7,7 @@
     ".": "./src/render-card.ts",
     "./render-card": "./src/render-card.ts",
     "./plan": "./src/plan.ts",
+    "./keys": "./src/keys.ts",
     "./image": "./src/image.ts",
     "./types": "./src/types.ts",
     "./source": "./src/source.ts",

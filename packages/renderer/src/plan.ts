@@ -346,6 +346,11 @@ export const CARD_TYPE_TO_SLOT: Record<number, string> = {
   44: 'hand-bg-trinket',
 };
 
+/** 卡型 tag → 帧 slot 的单点入口（renderCard 与资产键收集器 keys.ts 共用，防口径漂移）。 */
+export function slotForCardType(tags: FixtureCard['tags']): string {
+  return CARD_TYPE_TO_SLOT[tags['202'] ?? 4] ?? 'hand-minion';
+}
+
 /** 帧 slot → 该帧的原生卡型（ActorNames 的 actor 归属；4=MINION，47=战棋英雄伙伴同用随从 actor）。
  * 别型卡（佣兵技能/战棋法术/宠物等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
 export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
