@@ -861,24 +861,40 @@ function findFrameNodeWorld(
 // exporter FrameCamera 以主体网格世界包围盒中心取景，基准图随之带每帧型常数平移；TS 复刻该
 // 口径 = L2 逐位对齐的取景前提（量化/对账/根因：explore/2026-10-06-l2-offset/findings.md）。
 
-/** 适用面 = 五大基本帧型 ∧ normal 品质 ∧ 帧原生卡型（用户 2026-10-06 裁定 scope：只对齐
- *  五大基本类别的基准）。金/钻/异画基准换用自家帧网格导出（取景锚随网格不同）、宠物基准
- *  导出时对 FrameCamera 后处理偏移（ExporterController.cs:7379）、佣兵技能走 BigCard——
- *  它们虽落五大 slot（卡型回落），基准口径都不是本锚，保持原点取景不动。 */
-const MESH_ANCHORED_SLOTS = new Set(['hand-minion', 'hand-spell', 'hand-hero', 'hand-weapon', 'hand-location']);
+/** 适用面 = 八个手牌帧型 ∧ normal 品质 ∧ 帧原生卡型。用户 2026-10-06 裁定先对齐五大
+ *  基本类别，2026-10-08 扩至异象/饰品/英雄技能三帧——三帧基准同为 exporter mesh-bounds
+ *  取景口径，锚预测与基准实测偏移对账残差 ≤0.3px（explore/2026-10-07-edge-align）。
+ *  金/钻/异画基准换用自家帧网格导出（取景锚随网格不同）、宠物基准导出时对 FrameCamera
+ *  后处理偏移（ExporterController.cs:7379）、佣兵技能走 BigCard——它们虽落手牌 slot
+ *  （卡型回落），基准口径都不是本锚，保持原点取景不动。 */
+const MESH_ANCHORED_SLOTS = new Set([
+  'hand-minion', 'hand-spell', 'hand-hero', 'hand-weapon', 'hand-location',
+  'hand-heropower', 'hand-bg-anomaly', 'hand-bg-trinket',
+]);
 
-/** 根锚定特例：SC_403 基准导出于 exporter「location 重锚回根」修复（4d45b89，2026-10-05
- *  22:32）生效的工作区（提交前 2 分钟）→ 相机在 actor 根 = 原点；TTN_090 基准导出（10-04
- *  20:38）早于该修复 → 仍按主体网格（画窗背景板节点 localPosition (+0.0310,−0.0150,+0.0600)，
- *  ExporterController.cs:11405-11447 注释自证）锚。同一地标帧两种基准口径只能逐卡标注。
- *  新增 location fixture 若按现行 exporter 重导（根锚）也应加入此表。 */
-const ROOT_ANCHORED_CARDS = new Set(['SC_403']);
+/** 根锚定特例（= location 帧全部基准）。exporter 对 normal 地标的 Mesh 世界包围盒中心被
+ *  节点摆放解释时重锚回 actor 根（locationRootAnchor，ExporterController.cs:11560-11579，
+ *  4d45b89 2026-10-05 22:32）。SC_403 基准导出即带此修复；TTN_090 基准首导于修复前
+ *  （10-04，节点锚），但 1c20554（2026-10-06 06:45）全量重导时工作区已带修复 → 现行
+ *  基准同为根锚（新旧基准差 = 背景板节点偏移 (+0.031,+0.060)·192，PNG 对 PNG 实证，
+ *  explore/2026-10-07-edge-align/findings.md §3）。此后按现行 exporter 重导的 location
+ *  基准恒为根锚，新增 location fixture 默认入此表。 */
+const ROOT_ANCHORED_CARDS = new Set(['SC_403', 'TTN_090']);
 
-/** 主体网格（RootObject[/NonQuestObjects]/Mesh）世界包围盒中心 = exporter 取景中心
- *  （TryGetActorFrameBounds：FrameMesh 缺席时 Actor.GetMeshRenderer() = "Mesh" 渲染器，
- *  ExporterController.cs:11329-11378）。顶点包围盒 ×节点世界矩阵，与基准图实测错位
- *  ≤0.2px 互证（explore/2026-10-06-l2-offset/verify_bounds.py）。不适用/找不到 →
- *  undefined（= 原点锚，渲染行为与既有链逐位一致）。 */
+/** exporter 取景中心 = 主体网格世界包围盒中心（TryGetActorFrameBounds，
+ *  ExporterController.cs:11483-11549）：先找**层级激活且 renderer 启用**的 FrameMesh
+ *  （FindEnabledMeshRendererByName；hand-bg-trinket 饰品框、hand-heropower 英雄技能框
+ *  走此支；hand-spell 的 BG_TrinketMesh/FrameMesh 序列化失活 → 被排除、回落 Mesh 支，
+ *  10-06 已验证的 25 张卡口径不变），找不到回落 Actor.GetMeshRenderer() = "Mesh" 渲染器
+ *  （RootObject[/NonQuestObjects]/Mesh）。英雄技能特例（heroPowerFrameAnchor，
+ *  :11510-11518）：2026-09-25 更新把 normal 帧 FrameMesh 换短（zCenter −0.10）而
+ *  premium 帧仍是装饰高框（zCenter +0.07），逐帧取自身中心会让两变体差 ~33px——
+ *  修法 = 取景中心 z 钉在 FrameMesh 世界包围盒 min.z + 3.18/2（装饰框半高，两帧底边
+ *  一致 → 恒 +0.07/+0.08，与更新前导出库对齐）。世界包围盒 = 局部包围盒 8 角 × 节点
+ *  世界矩阵（Unity renderer.bounds 语义；轴对齐矩阵下与仅变换中心点逐位一致）。
+ *  预测 vs 基准实测偏移对账残差 ≤0.3px（explore/2026-10-07-edge-align，资产只存
+ *  verts、引擎用 float32 AABB，残差在同批已验证帧型的 ≤0.2px 噪声内）。不适用/
+ *  找不到 → undefined（= 原点锚，渲染行为与既有链逐位一致）。 */
 function frameCenter(
   base: AssetPack,
   keyByPath: Map<string, string>,
@@ -890,14 +906,25 @@ function frameCenter(
   if (!MESH_ANCHORED_SLOTS.has(slot) || premium !== 'NORMAL') return undefined;
   if (!SLOT_NATIVE_CARD_TYPES[slot]?.includes(cardType)) return undefined;
   if (ROOT_ANCHORED_CARDS.has(cardId)) return undefined;
-  const path = [...keyByPath.keys()].find(p => {
+
+  const enabled = (path: string): boolean => {
+    const n = findNode(base.frameRecon.hierarchy, path) as
+      | { world?: number[][], mesh_stats?: unknown, active_in_hierarchy?: boolean,
+          renderers?: { enabled?: boolean }[] }
+      | null;
+    return !!n?.world && !!n.mesh_stats && n.active_in_hierarchy === true
+      && n.renderers?.[0]?.enabled === true;
+  };
+  // FrameMesh 优先；回落 "Mesh"（depth 3 或 NonQuestObjects 下 depth 4，同 10-06 口径）
+  const frameMeshPath = [...keyByPath.keys()].find(p => p.endsWith('/FrameMesh') && enabled(p));
+  const bodyPath = frameMeshPath ?? [...keyByPath.keys()].find(p => {
     const parts = p.split('/');
     const n = parts.length;
     return parts[n - 1] === 'Mesh' && (n === 3 || (n === 4 && parts[2] === 'NonQuestObjects'));
   });
-  if (!path) return undefined;
-  const node = findNode(base.frameRecon.hierarchy, path) as { world?: number[][] } | null;
-  const mesh = node?.world ? base.meshes[keyByPath.get(path)!] : undefined;
+  if (!bodyPath) return undefined;
+  const node = findNode(base.frameRecon.hierarchy, bodyPath) as { world?: number[][] } | null;
+  const mesh = node?.world ? base.meshes[keyByPath.get(bodyPath)!] : undefined;
   if (!mesh?.verts.length) return undefined;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
   for (const [vx, vy, vz] of mesh.verts) {
@@ -908,12 +935,26 @@ function frameCenter(
     if (vz < z0) z0 = vz;
     if (vz > z1) z1 = vz;
   }
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+  // 世界 AABB（8 角 × M）
   const M = node!.world!;
-  return [
-    M[0][0] * cx + M[0][1] * cy + M[0][2] * cz + M[0][3],
-    M[2][0] * cx + M[2][1] * cy + M[2][2] * cz + M[2][3],
-  ];
+  let wx0 = Infinity, wx1 = -Infinity, wz0 = Infinity, wz1 = -Infinity;
+  for (const cx of [x0, x1]) {
+    for (const cy of [y0, y1]) {
+      for (const cz of [z0, z1]) {
+        const wx = M[0][0] * cx + M[0][1] * cy + M[0][2] * cz + M[0][3];
+        const wz = M[2][0] * cx + M[2][1] * cy + M[2][2] * cz + M[2][3];
+        if (wx < wx0) wx0 = wx;
+        if (wx > wx1) wx1 = wx;
+        if (wz < wz0) wz0 = wz;
+        if (wz > wz1) wz1 = wz;
+      }
+    }
+  }
+  const anchorX = (wx0 + wx1) / 2;
+  let anchorZ = (wz0 + wz1) / 2;
+  // heroPowerFrameAnchor：英雄技能取景中心 z = FrameMesh 世界包围盒 min.z + 装饰框半高
+  if (frameMeshPath && cardType === 10) anchorZ = wz0 + 3.18 / 2;
+  return [anchorX, anchorZ];
 }
 
 /** 帧自己的 Gem_Mana 世界平移（铸币原位替换的锚点；UpdateManaGemComponent 语义）。
