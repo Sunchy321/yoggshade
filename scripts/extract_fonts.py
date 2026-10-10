@@ -4,10 +4,10 @@
 # ///
 """extract_fonts — 渲染字体进资产包（assets/fonts/ + assets/fontdefs.json）。
 
-来源：py 黄金链本地冻结数据 explore/hs-render/data/fonts_zhcn/（Belwe/Belwe_Outline/
-FranklinGothic + fontdefs.json）。该目录是历史产物的唯一现成来源——py 链
-export_asset_pack.py:134-144 正是从这里拷贝并改写 saved_to 后写进资产包；字体是
-Blizzard 原始二进制，按资产边界纪律只进 gitignored 资产包，不进 tracked data/。
+来源：Angelia 冻结数据 fonts_zhcn/（Belwe/Belwe_Outline/FranklinGothic + fontdefs.json，
+ANGELIA_HOME 指向 Angelia 工作区根）。该目录是历史产物的唯一现成来源——资产包导出链
+正是从这里拷贝并改写 saved_to 后写进资产包；字体是 Blizzard 原始二进制，按资产边界
+纪律只进 gitignored 资产包，不进 tracked data/。
 
 产出：
   assets/fonts/{Belwe,Belwe_Outline,FranklinGothic}.ttf
@@ -15,23 +15,27 @@ Blizzard 原始二进制，按资产边界纪律只进 gitignored 资产包，�
                                     从 data/fonts_zhcn/<name>.ttf 改写为 fonts/<name>.ttf
                                     （TS 侧唯一读取方 ubertext.ts loadFontdev 只读 zhcn 侧）
 
-用法：uv run scripts/extract_fonts.py [--src explore/hs-render/data/fonts_zhcn] [--pack assets]
+用法：uv run scripts/extract_fonts.py [--pack assets]
+      （源默认取 Angelia 的 fonts_zhcn，ANGELIA_HOME 或 --src 可覆盖）
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
+ANGELIA_HOME = Path(os.environ.get(
+    "ANGELIA_HOME", REPO.parent / "Angelia"))  # Angelia 工作区（py 渲染参照）
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=str(REPO / "explore" / "hs-render" / "data" / "fonts_zhcn"))
+    ap.add_argument("--src", default=str(ANGELIA_HOME / "data" / "fonts_zhcn"))
     ap.add_argument("--pack", default=str(REPO / "assets"))
     args = ap.parse_args()
 

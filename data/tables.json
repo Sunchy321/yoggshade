@@ -2,10 +2,10 @@
  "generatedAt": "2026-10-03T11:03:39.185383+00:00",
  "sources": {
   "class": "explore/ilspy/TAG_CLASS.cs",
-  "schoolZh": "explore/ilspy/TAG_SPELL_SCHOOL.cs + explore/hs-render/data/card_tags/tag_enum.csv",
-  "raceZh": "explore/hs-render/lab/2026-09-30-mana-gem-locator/output/decomp-gem/full/TAG_RACE.cs + explore/hs-render/lab/2026-09-30-mana-gem-locator/output/decomp-gem/full/GameStrings.cs + Strings/zhCN/GLOBAL.txt",
+  "schoolZh": "explore/ilspy/TAG_SPELL_SCHOOL.cs + Angelia tag_enum.csv",
+  "raceZh": "Angelia TAG_RACE.cs + Angelia GameStrings.cs + Strings/zhCN/GLOBAL.txt",
   "colorSwitcher": "Data/OSX/essential_base_global-prefab-0.unity3d",
-  "hideTags": "explore/hs-render/data/game_tag.csv",
+  "hideTags": "Angelia game_tag.csv",
   "factionIconSt": "CardColorSwitcher faction* 材质 m_SavedProperties（scripts/extract_banner_assets.py 探测）"
  },
  "class": {

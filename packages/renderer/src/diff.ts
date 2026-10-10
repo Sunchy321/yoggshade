@@ -1,6 +1,6 @@
 /** 像素 diff CLI：bun src/diff.ts <a.png> <b.png> [outPrefix]
  * 输出 mse/mae/maxAbs/超阈值像素计数 + 热区图（|d|×8）与并排对照图。
- * 比较口径：两侧先按各自 alpha 合成到黑底再逐通道比（透明背景输出 vs py 黄金链不透明
+ * 比较口径：两侧先按各自 alpha 合成到黑底再逐通道比（透明背景输出 vs 不透明
  * 输出的对齐口径）；不透明输入（a=255）逐位等价于直比，历史基线数值口径不变。 */
 import { readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';

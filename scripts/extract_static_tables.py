@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 
@@ -39,13 +40,15 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 HS_DATA = Path("/Applications/Hearthstone/Data/OSX")
-EXPLORE_DATA = REPO / "explore" / "hs-render" / "data"
+# 枚举/名称表冻结数据源：Angelia（data/ 枚举表 + lab decomp 缓存）
+ANGELIA_HOME = Path(os.environ.get("ANGELIA_HOME", REPO.parent / "Angelia"))
+EXPLORE_DATA = ANGELIA_HOME / "data"
 TAG_ENUM = EXPLORE_DATA / "card_tags" / "tag_enum.csv"
 GAME_TAG = EXPLORE_DATA / "game_tag.csv"
 ILSPY = REPO / "explore" / "ilspy"
 TAG_CLASS_CS = ILSPY / "TAG_CLASS.cs"
 TAG_SPELL_SCHOOL_CS = ILSPY / "TAG_SPELL_SCHOOL.cs"
-TAG_RACE_CS = REPO / "explore" / "hs-render" / "lab" / "2026-09-30-mana-gem-locator" / "output" / "decomp-gem" / "full" / "TAG_RACE.cs"
+TAG_RACE_CS = ANGELIA_HOME / "lab" / "2026-09-30-mana-gem-locator" / "output" / "decomp-gem" / "full" / "TAG_RACE.cs"
 SWITCHER_BUNDLE = HS_DATA / "essential_base_global-prefab-0.unity3d"
 
 
@@ -147,6 +150,18 @@ def switcher_lists() -> dict[str, list[str | None]]:
     raise SystemExit(f"{SWITCHER_BUNDLE}: 未找到 CardColorSwitcher 序列化（minionCardTextures）")
 
 
+def _rel(p: Path) -> str:
+    """展示用短写：REPO 内相对化；Angelia 内以 "Angelia/" 前缀短写；其余保留绝对形式。"""
+    try:
+        return str(p.relative_to(REPO))
+    except ValueError:
+        pass
+    try:
+        return "Angelia/" + str(p.relative_to(ANGELIA_HOME))
+    except ValueError:
+        return str(p)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(REPO / "data" / "tables.json"))
@@ -157,11 +172,11 @@ def main() -> int:
     tables = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "sources": {
-            "class": str(TAG_CLASS_CS.relative_to(REPO)),
-            "schoolZh": f"{TAG_SPELL_SCHOOL_CS.relative_to(REPO)} + {TAG_ENUM.relative_to(REPO)}",
-            "raceZh": f"{TAG_RACE_CS.relative_to(REPO)} + {GAMESTRINGS_CS.relative_to(REPO)} + Strings/zhCN/GLOBAL.txt",
+            "class": _rel(TAG_CLASS_CS),
+            "schoolZh": f"{_rel(TAG_SPELL_SCHOOL_CS)} + {_rel(TAG_ENUM)}",
+            "raceZh": f"{_rel(TAG_RACE_CS)} + {_rel(GAMESTRINGS_CS)} + Strings/zhCN/GLOBAL.txt",
             "colorSwitcher": str(SWITCHER_BUNDLE.relative_to("/Applications/Hearthstone")),
-            "hideTags": str(GAME_TAG.relative_to(REPO)),
+            "hideTags": _rel(GAME_TAG),
         },
         "class": parse_tag_class_enum(),
         "raceZh": race_zh,

@@ -4,7 +4,7 @@
 # ///
 """extract_class_atlases — 类色图集批量提取（帧渲染的运行时 _MainTex 源）。
 
-来源：colorswitcher 探针（explore/hs-render/lab/2026-09-30-render-chain-correspondence/
+来源：colorswitcher 探针（Angelia lab/2026-09-30-render-chain-correspondence/
 output/colorswitcher_probe.json，CardColorSwitcher 单例序列化表逆向，一次性冻结）。
 卡牌渲染器按 TAG_CARDTYPE 选族（minionCardTextures/spellCardTextures）、TAG_CLASS 选
 ColorType 下标取图集。本脚本把全部非空槽位提取进资产包，命名与 py 链同约定

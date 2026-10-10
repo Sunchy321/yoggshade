@@ -9,7 +9,7 @@
 TTN_090「尤格-萨隆的监狱」未命中=锯齿）。渲染期所用字形一次性格子化 → TS 命中缓存即与 py 链
 （L1 黄金）逐像素一致；未命中（DIY 任意文本）仍退回 TS 光栅并登记残差。
 
-栅格化语义 = explore/hs-render 的 uber_text.FontMetrics 逐行同构（setmask2/bitmap_left/bitmap_top
+栅格化语义 = Angelia 的 uber_text.FontMetrics 逐行同构（setmask2/bitmap_left/bitmap_top
 口径）：本脚本自带实现（不依赖 explore/ py 链目录），`--verify` 用资产包内已有字形复算并逐字节比对
 以证明两边等价。
 
@@ -58,7 +58,7 @@ ZHCN_LOCALE = 9
 
 
 class FontMetrics:
-    """FreeType 位图语义（explore/hs-render uber_text.FontMetrics 逐行同构）：
+    """FreeType 位图语义（Angelia uber_text.FontMetrics 逐行同构）：
     minX=bitmap_left, maxX=minX+width, maxY=bitmap_top, minY=maxY−rows；
     advance=int(round(线性 hmtx×fs/upem))；line_height=ceil(ascent)−floor(descent)。"""
 
