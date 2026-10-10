@@ -157,19 +157,21 @@ net 掩码对文字结构性失明，须并排图+分区逐项）。
 
 ## 6. 落地路线（建议顺序）
 
-1. **粗体**（零新数据依赖，纯 shader 仿真补全）：
-   - glyph.ts 增加 bold halo 路径：对 bold 字形 α = min(1, 0.23×Σ8 tap)（轴向 ±boldPx、
-     对角 ±0.6×boldPx，双线性采样字形 mask），rgb=填充色；quad 外扩 boldPx；
-   - 与描边叠加时（cost/plate 理论可出现 `<b>`）：半径改 (outline + 0.75×bold)、缺左 tap、
-     rgb=填充色（TextBoldOutline 语义）；desc（无描边）走纯 Text_Bold 语义；
-   - RTT（name 弧形）路径同语义（name m_BoldSize=0，实际不触发）。
-2. **斜体**（需一次图集直采）：
+1. **粗体**——**已实现**（2026-10-06，glyph.ts `glyphOutlineShader` 三分支重写）：
+   - 非 bold 字形路径逐位保持（TextOutline clamp(Σ9) mix 色 / 普通填充）；
+   - bold 无描边 = Text_Bold：8 tap（轴向 ±boldPx、对角 ±0.6×，无中心）×0.23、rgb=填充色、
+     quad 外扩 boldPx；bold+描边 = TextBoldOutline：中心+右/上/下+4×0.6 对角（缺左）、
+     半径 texel×(outline+0.75×boldPx)（UB:2678）、rgb=填充色；
+   - 验证（JAIL_407，minion 锚定帧，`<b>预备</b>`/`<b>战吼</b>`）：粗/普通词墨量比
+     ref 0.528 vs TS 0.523（差 1%），字重目视一致，断行逐字同；L2 全量无回归
+     （<b> 卡 z_desc 变化 ≤0.2，无 <b> 卡不动）。
+2. **斜体**（需一次图集直采，未做）：
    - 注入器扩展 `RequestCharactersInTexture(chars, 40, FontStyle.Italic)` → BlizzardGlobal@40
      斜体字形 + CharacterInfo 入 `assets/glyphs/BlizzardGlobal-40-italic/`；
    - splitRich 增加 italic 状态位（与 bold 并列逐字符标志）；FontMetricsLike 按 style 取
      metrics+mask；其余管线零改动（advance/换行/垂直全部不变）；
    - 顺手从直采图集反测 shear 常数备案（供无图集字号复用：斜体字号 ≠40 的节点）。
-3. **文本 resolve**（textstage 上游）：`{0}`(TryFormat/SCRIPT_DATA)、`@`(alternate/script)、
+3. **文本 resolve**（textstage 上游，未做）：`{0}`(TryFormat/SCRIPT_DATA)、`@`(alternate/script)、
    `$`/`#` 加成在 plan 层接 exporter 等价链——hearthstone-text-formatting.md 已有完整规格与
    反编译行号；fixture 冻结文本是未解析态，基准图是已解析态，二者必须过同一 resolve 链。
 
