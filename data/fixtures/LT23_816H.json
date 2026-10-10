@@ -1,0 +1,59 @@
+{
+ "cardId": "LT23_816H",
+ "dbfId": 89005,
+ "preset": {
+  "label": "佣兵本体基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "佣兵本体收集卡样例（加尔鲁什·地狱咆哮，Protector + Horde），用于验证 hand-mercenary 帧：职业横幅、阵营图标、种族板与卡集水印。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Garrosh Hellscream",
+  "deDE": "Garrosh Höllschrei",
+  "esES": "Garrosh Grito Infernal",
+  "esMX": "Garrosh Grito Infernal",
+  "frFR": "Garrosh Hurlenfer",
+  "itIT": "Garrosh Malogrido",
+  "jaJP": "ガロッシュ・ヘルスクリーム",
+  "koKR": "가로쉬 헬스크림",
+  "plPL": "Garosz Piekłorycz",
+  "ptBR": "Garrosh Grito Infernal",
+  "ruRU": "Гаррош Адский Крик",
+  "thTH": "แกร์รอช เฮลสครีม",
+  "zhCN": "加尔鲁什·地狱咆哮",
+  "zhTW": "卡爾洛斯‧地獄吼"
+ },
+ "textInHand": {
+  "enUS": "Restore #@ health to this Merc after another character casts a Shadow ability.",
+  "deDE": "Stellt bei diesem Söldner #@ Leben wieder her, nachdem ein anderer Charakter eine Schatten[d]fähigkeit eingesetzt hat.",
+  "esES": "[x]Restaura #@ p. de salud a\neste mercenario después de\nque otro personaje lance una\nfacultad de las Sombras.",
+  "esMX": "Restaura #@ de Salud a este Mercenario después de que otro personaje lanza una habilidad de las Sombras.",
+  "frFR": "Une fois qu’un autre personnage a lancé une capacité d’Ombre, rend #@_PV à ce mercenaire.",
+  "itIT": "[x]Rigenera #@ Salute a questo\nMercenario dopo che un altro\npersonaggio ha lanciato\nun'abilità d'Ombra.",
+  "jaJP": "[x]自身を除くキャラクターが\n影能力を使った後\nこの傭兵の体力を\n#@回復する。",
+  "koKR": "다른 캐릭터가 암흑 능력을 시전한 후에, 생명력을 #@ 회복시킵니다.",
+  "plPL": "Przywróć #@_pkt. zdrowia temu Najemnikowi, gdy inna postać użyje zdolności Cienia.",
+  "ptBR": "Recupere #@ de Vida deste Mercenário depois que outro personagem lançar uma habilidade de Sombra.",
+  "ruRU": "Этот наемник восполняет #@ ед. здоровья, когда другой наемник или существо применяет способность Тьмы.",
+  "thTH": "ฟื้นฟูพลังชีวิต_#@_แต้มให้ทหาร[b]รับจ้างตัวนี้หลังจากตัวละครอื่น[b]ร่ายความสามารถความมืด",
+  "zhCN": "在另一个角色施放暗影技能后，为此佣兵恢复#@点生命值。",
+  "zhTW": "在另一個角色施放暗影技能後，為此傭兵恢復#@點生命值"
+ },
+ "tags": {
+  "199": 12,
+  "114": 1,
+  "203": 5,
+  "200": 8,
+  "202": 4,
+  "1665": 1,
+  "1666": 3,
+  "47": 15,
+  "45": 300,
+  "2": 25,
+  "32": 1,
+  "2720": 2
+ }
+}

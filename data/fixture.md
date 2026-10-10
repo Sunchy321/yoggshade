@@ -43,6 +43,9 @@ exporter 侧新增基准卡时，在此表追加一行再重跑提取。
 | BG24_Reward_310 | 任务奖励基线2 | NORMAL | Battlegrounds | Hand | 战棋任务奖励样例 2（exporter 基准卡），验证任务奖励规则的泛化。 |
 | LT23_802P2 | 佣兵技能基线 | NORMAL | Normal | Hand | 佣兵技能样例，用于验证 LETTUCE_ABILITY 法术类技能 BigCard 渲染。 |
 | LT23_803P2 | 佣兵技能2 | NORMAL | Normal | Hand | 佣兵技能样例 2，用于验证另一张 LETTUCE_ABILITY 渲染。 |
+| LT24_021T1_01c | 佣兵召唤技基线 | NORMAL | Normal | Hand | 召唤型佣兵技能样例（LETTUCE_ABILITY_SUMMONED_MINION），用于验证 Minion 变体 BigCard 渲染与攻血显示。 |
+| LT23_036E2_04 | 佣兵装备基线 | NORMAL | Normal | Hand | 佣兵装备样例（LETTUCE_IS_EQUPIMENT），用于验证装备瓦片帧与曲率名字渲染。 |
+| LT23_816H | 佣兵本体基线 | NORMAL | Normal | Hand | 佣兵本体收集卡样例（加尔鲁什·地狱咆哮，Protector + Horde），用于验证 hand-mercenary 帧：职业横幅、阵营图标、种族板与卡集水印。 |
 | DED_004 | 可交易样例 | NORMAL | Normal | Hand | 可交易机制样例（武器帧·黑水弯刀），用于验证可交易横幅在武器帧的渲染。 |
 | TTN_477 | 锻造样例2 | NORMAL | Normal | Hand | 锻造机制法术样例（熔火符文），用于验证锻造横幅渲染与法术帧泛化。 |
 | JAIL_407 | 预备样例 | NORMAL | Normal | Hand | 准备机制样例（大头目梵妮莎），用于验证预备横幅渲染。 |

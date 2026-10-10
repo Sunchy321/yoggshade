@@ -1,0 +1,52 @@
+{
+ "cardId": "LT23_036E2_04",
+ "dbfId": 91186,
+ "preset": {
+  "label": "佣兵装备基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "佣兵装备样例（LETTUCE_IS_EQUPIMENT），用于验证装备瓦片帧与曲率名字渲染。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Heart of Neutrality {0}",
+  "deDE": "Herz der Neutralität {0}",
+  "esES": "Corazón de neutralidad {0}",
+  "esMX": "Corazón de neutralidad {0}",
+  "frFR": "Cœur de neutralité {0}",
+  "itIT": "Cuore della Neutralità {0}",
+  "jaJP": "中立の心{0}",
+  "koKR": "중립의 심장 {0}",
+  "plPL": "Serce neutralności {0}",
+  "ptBR": "Coração da Neutralidade {0}",
+  "ruRU": "Беспристрастное сердце {0}",
+  "thTH": "หัวใจแห่งความเป็นกลาง {0}",
+  "zhCN": "中立之心{0}",
+  "zhTW": "中庸之道{0}"
+ },
+ "textInHand": {
+  "enUS": "<b>Passive:</b> -@ Health.\n<b>Battlecry:</b> Become Neutral.",
+  "deDE": "<b>Passiv:</b> -@ Leben. <b>Kampfschrei:</b> Wird neutral.",
+  "esES": "<b>Pasivo:</b> -@ p. de salud. <b>Grito de batalla:</b>\nSe vuelve neutral.",
+  "esMX": "<b>Pasivo:</b> -@ de Salud.\n<b>Grito de batalla:</b> se convierte en neutral.",
+  "frFR": "<b>Effet Passif</b>\n-@_PV.\n<b>Cri de guerre_:</b> devient_neutre.",
+  "itIT": "<b>Passivo:</b> -@ Salute. <b>Grido di Battaglia:</b> diventa Generico.",
+  "jaJP": "[x]<b>常時発動</b>\n体力-@。\n<b>雄叫び:</b>_中立になる。",
+  "koKR": "[x]<b>지속 능력:</b> 생명력 -@\n<b>전투의 함성:</b>\n중립이 됩니다.",
+  "plPL": "<b>Działanie pasywne:</b> -@ do zdrowia. <b>Okrzyk bojowy:</b> Otrzymaj neutralną rolę.",
+  "ptBR": "<b>Passivo:</b> -@ de Vida. <b>Grito de Guerra:</b> Torne-se Neutro.",
+  "ruRU": "<b>Пассивный эффект:</b> -@ к здоровью. <b>Боевой клич:</b> получает нейтральную роль.",
+  "thTH": "<b>ติดตัว:</b> พลังชีวิต_-@ <b>คำรามสู้ศึก:</b>_กลายเป็น[b]สายเป็นกลาง",
+  "zhCN": "<b>被动：</b>-@生命值。<b>战吼：</b>变为中立。",
+  "zhTW": "<b>被動：</b>-@生命值。<b>戰吼：</b>成為中立"
+ },
+ "tags": {
+  "684": 1,
+  "202": 23,
+  "2": 10,
+  "1855": 1,
+  "2494": 4
+ }
+}

@@ -1,0 +1,53 @@
+{
+ "cardId": "LT24_021T1_01c",
+ "dbfId": 94422,
+ "preset": {
+  "label": "佣兵召唤技基线",
+  "premium": "NORMAL",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "召唤型佣兵技能样例（LETTUCE_ABILITY_SUMMONED_MINION），用于验证 Minion 变体 BigCard 渲染与攻血显示。"
+ },
+ "textBuilderType": 7,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Bishop",
+  "deDE": "Läufer",
+  "esES": "Alfil",
+  "esMX": "Alfil",
+  "frFR": "Benji",
+  "itIT": "Alf",
+  "jaJP": "ビショップ",
+  "koKR": "비숍",
+  "plPL": "Goniec",
+  "ptBR": "Bispo",
+  "ruRU": "Бишоп",
+  "thTH": "บิชอป",
+  "zhCN": "主教",
+  "zhTW": "主教"
+ },
+ "textInHand": {
+  "enUS": "At the end of the turn,\nrestore #@ Health\nto adjacent allies.",
+  "deDE": "Stellt am Ende des Zuges bei benachbarten Verbündeten #@_Leben wieder her.",
+  "esES": "[x]Al final del turno, restaura\n#@ p. de salud a los\naliados adyacentes.",
+  "esMX": "Al final del turno, restaura #@ de Salud a los aliados adyacentes.",
+  "frFR": "À la fin du tour, rend #@_PV à l’ensemble des alliés adjacents.",
+  "itIT": "Alla fine del turno, rigenera #@ Salute agli alleati adiacenti.",
+  "jaJP": "[x]ターンの終了時\n隣接する味方の\n体力を#@回復する。",
+  "koKR": "턴이 끝날 때, 양옆의 아군의 생명력을 #@ 회복시킵니다.",
+  "plPL": "Na koniec tury przywróć #@_pkt. zdrowia sąsiednim sojusznikom.",
+  "ptBR": "No final do turno, recupere #@ de Vida aos aliados adjacentes.",
+  "ruRU": "В конце хода восстанавливает соседям #@ ед. здоровья.",
+  "thTH": "เมื่อจบเทิร์น ฟื้นฟูพลังชีวิต #@_แต้มให้ฝ่ายเดียวกัน[b]ที่อยู่ติดกัน",
+  "zhCN": "在回合结束时，为相邻的友方角色恢复#@点生命值。",
+  "zhTW": "在回合結束時，為兩側的盟友恢復#@點生命值"
+ },
+ "tags": {
+  "1676": 94423,
+  "202": 23,
+  "48": 5,
+  "47": 5,
+  "45": 20,
+  "2": 15
+ }
+}

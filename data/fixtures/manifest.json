@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-05T13:22:26.513455+00:00",
+ "generatedAt": "2026-10-10T06:54:48.251637+00:00",
  "source": {
   "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
   "gameVersion": "36.6.253216",
@@ -262,6 +262,30 @@
    "cardId": "LT23_803P2",
    "dbfId": 87111,
    "label": "佣兵技能2",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "LT24_021T1_01c",
+   "dbfId": 94422,
+   "label": "佣兵召唤技基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "LT23_036E2_04",
+   "dbfId": 91186,
+   "label": "佣兵装备基线",
+   "premium": "NORMAL",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "LT23_816H",
+   "dbfId": 89005,
+   "label": "佣兵本体基线",
    "premium": "NORMAL",
    "template": "Normal",
    "zone": "Hand"
