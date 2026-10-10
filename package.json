@@ -12,7 +12,7 @@
     "fixtures": "bash scripts/render_fixtures.sh",
     "l2": "bun packages/renderer/src/compare-reference.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web"
   },
   "dependencies": {
     "canvas": "^3.2.3"

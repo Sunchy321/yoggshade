@@ -4,10 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "echo 'TODO: pick a framework (Workers-native) and wire dev server'",
-    "build": "echo 'TODO'"
+    "dev": "bun src/dev.ts",
+    "api": "bun src/server.ts",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@yoggraph/renderer": "workspace:*"
+    "@yoggraph/renderer": "workspace:*",
+    "hono": "^4.9.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "vite": "^7.1.5"
   }
 }

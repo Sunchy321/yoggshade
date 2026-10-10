@@ -12,7 +12,6 @@
     ]
   },
   "include": [
-    "packages/*/src",
-    "apps/*/src"
+    "packages/*/src"
   ]
 }

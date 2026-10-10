@@ -1,0 +1,513 @@
+/* 炉石卡牌工坊 —— 酒馆木桌上的暖色暗调。
+ * 卡牌是视觉中心；表单是羊皮纸质感的深色面板；金铜色做唯一强调色。 */
+
+:root {
+  --bg:        #161009;
+  --panel-hi:  #251c12;
+  --panel-lo:  #1d150d;
+  --line:      #3a2d1b;
+  --ink:       #efe6d4;
+  --muted:     #a8977d;
+  --gold:      #e0a83e;
+  --gold-hi:   #f2c56a;
+  --gold-deep: #7a4f13;
+  --danger:    #e2694f;
+  --danger-bg: #2b160f;
+  --input-bg:  #120d07;
+  --serif:     Georgia, "Times New Roman", "Songti SC", "STSong", "Noto Serif SC", "SimSun", serif;
+  --sans:      system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+html, body {
+  margin: 0;
+  overflow: hidden; /* 整页不滚动（窄屏媒体查询里放开） */
+  color: var(--ink);
+  font: 14px/1.65 var(--sans);
+  background:
+    radial-gradient(1100px 700px at 72% -8%, rgba(224, 168, 62, 0.09), transparent 62%),
+    radial-gradient(1500px 1100px at 50% 118%, rgba(0, 0, 0, 0.6), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.shell {
+  height: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 26px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- 抬头 ---- */
+
+.masthead {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.masthead h1 {
+  margin: 0;
+  font: 700 25px/1.2 var(--serif);
+  letter-spacing: 0.12em;
+  background: linear-gradient(180deg, #f6d998 8%, var(--gold) 55%, #b97f22 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 18px rgba(224, 168, 62, 0.18);
+}
+
+.masthead p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.28em;
+}
+
+/* ---- 主工作台 ---- */
+
+.workbench {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(540px, 620px) 1fr;
+  grid-template-rows: minmax(0, 1fr); /* 行高锁死在容器内：矮视口下表单面板内部滚动，页面不滚 */
+  gap: 32px;
+  align-items: stretch;
+}
+
+@media (max-width: 940px) {
+  html, body { overflow: auto; }
+  .shell { height: auto; }
+  .workbench { grid-template-columns: 1fr; grid-template-rows: auto; }
+  .bench { overflow-y: visible; }
+}
+
+.bench {
+  min-height: 0;
+  overflow-y: auto; /* 极矮窗口的兜底：面板内细滚动条，页面仍不滚 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  background: linear-gradient(180deg, var(--panel-hi), var(--panel-lo));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 13px 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 170, 0.05),
+    0 18px 50px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section { display: flex; flex-direction: column; gap: 7px; }
+
+.section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 600 12.5px/1 var(--sans);
+  letter-spacing: 0.22em;
+  color: var(--gold);
+}
+
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.field-row .field { flex: 1 1 110px; }
+
+.field-wide { width: 100%; }
+
+.field-label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+select,
+input[type="text"],
+input[type="number"],
+textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  padding: 7px 10px;
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(224, 168, 62, 0.16);
+}
+
+textarea { resize: vertical; min-height: 92px; }
+
+input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+
+/* 描述富文本（所见即所得）：空态占位 + 游戏式加粗 */
+.desc-edit {
+  width: 100%;
+  min-height: 74px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  padding: 8px 11px;
+  font: inherit;
+  line-height: 1.7;
+  word-break: break-word;
+  cursor: text;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.desc-edit:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(224, 168, 62, 0.16);
+}
+
+.desc-edit:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.desc-edit b {
+  font-weight: 700;
+  color: #f4d08a;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 2px;
+  cursor: pointer;
+  color: var(--ink);
+  user-select: none;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.tip {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.text-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.text-tool {
+  appearance: none;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--gold-hi);
+  font: 600 12px/1 var(--sans);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.text-tool:hover {
+  border-color: var(--gold);
+  background: rgba(224, 168, 62, 0.06);
+}
+
+/* ---- 画作 ---- */
+
+.dropzone {
+  position: relative; /* sr-only 文件输入的定位祖先：别让它把页面撑高 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 14px;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone:hover {
+  border-color: var(--gold);
+  background: rgba(224, 168, 62, 0.05);
+}
+
+.dropzone-main {
+  color: var(--gold-hi);
+  font-weight: 600;
+}
+
+.dropzone-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.art-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--input-bg);
+}
+
+.art-thumb {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--gold-deep);
+}
+
+.art-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.art-name {
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  text-align: left;
+  width: fit-content;
+}
+
+.link:hover { color: var(--danger); }
+
+/* ---- 生成按钮 ---- */
+
+.forge {
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px;
+  width: 100%;
+  font: 700 15px/1 var(--sans);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: #241503;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, #bd7f24);
+  box-shadow:
+    0 2px 0 var(--gold-deep),
+    0 10px 28px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 240, 200, 0.5);
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.forge:hover:enabled { filter: brightness(1.07); }
+
+.forge:active:enabled { transform: translateY(1px); }
+
+.forge:disabled {
+  filter: saturate(0.5) brightness(0.75);
+  cursor: progress;
+}
+
+/* ---- 错误 ---- */
+
+.error {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  border: 1px solid rgba(226, 105, 79, 0.35);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* ---- 卡牌舞台 ---- */
+
+.stage {
+  min-height: 0;
+  overflow: hidden; /* 卡槽光晕（::before 外扩）不许把文档撑高 */
+  display: grid;
+  place-items: center;
+}
+
+.stage-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+}
+
+/* 卡牌高度跟随视口（扣除抬头/落款/留白），宽度按 2:3 比例推算 */
+.card-slot {
+  position: relative;
+  width: min(calc((100vh - 210px) * 2 / 3), 470px, 100%);
+  aspect-ratio: 2 / 3;
+}
+
+.card-slot::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background: radial-gradient(closest-side, rgba(224, 168, 62, 0.12), transparent 72%);
+  pointer-events: none;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 26px 44px rgba(0, 0, 0, 0.62));
+  animation: card-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.card-empty {
+  width: 100%;
+  height: 100%;
+  border: 2px dashed var(--line);
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  line-height: 2.1;
+}
+
+.casting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border-radius: 20px;
+  background: rgba(12, 8, 4, 0.55);
+  backdrop-filter: blur(5px);
+  color: var(--gold-hi);
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  font-size: 13px;
+}
+
+.casting-ring {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid rgba(224, 168, 62, 0.22);
+  border-top-color: var(--gold-hi);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.save {
+  appearance: none;
+  display: inline-block;
+  padding: 9px 26px;
+  border-radius: 10px;
+  border: 1px solid var(--gold-deep);
+  color: var(--gold-hi);
+  background: rgba(224, 168, 62, 0.06);
+  font: 600 13.5px/1 var(--sans);
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.save:hover {
+  background: rgba(224, 168, 62, 0.14);
+  border-color: var(--gold);
+}
+
+/* ---- 落款 ---- */
+
+.colophon {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(58, 45, 27, 0.6);
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
