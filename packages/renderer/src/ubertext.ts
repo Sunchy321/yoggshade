@@ -102,9 +102,15 @@ export function nodeSettingsByPath(pack: AssetPack, path: string): NodeSettings 
 
 function settingsFromNode(node: { fields?: Record<string, unknown>, font_name?: string },
   w: number[][]): NodeSettings {
-  const colNorm = (j: number) =>
-    Math.hypot(w[0][j], w[1][j], w[2][j]);
-  const scale = (colNorm(0) + colNorm(1) + colNorm(2)) / 3;
+  // 节点文字缩放 = 面内轴（local X/Y 的 canvas 投影长度均值），禁止三列均值。
+  // 修复（2026-10-10）：随从帧名字整体缩 6.3%、字间距目视不匀——NameUberText 世界矩阵
+  // 列范数 [1,1,0.8122]（名牌网格后倾，z 列不投影到画布），三列均值 0.9374 把面内缩放
+  // 稀释 6.3%；其余文字节点三列相等不受影响，故症状仅名字可见。根因与修法承自 Angelia
+  // 字体管线（lab/2026-10-02-font-pipeline findings §5 根因① + 守则"禁止三列均值"：
+  // name[1,1,0.52]→0.84 同构案例，名字/desc 字形 19% 偏小破案）。画布投影 = 世界 x/z
+  // （camera.ts project 的两个轴），local 轴 j 的画布投影长度 = hypot(w[0][j], w[2][j])。
+  const inPlane = (j: number) => Math.hypot(w[0][j], w[2][j]);
+  const scale = (inPlane(0) + inPlane(1)) / 2;
   const fields: Record<string, unknown> = { ...(node.fields ?? {}) };
   const loc = localizedWorldOffset(w, fields);
   return {
