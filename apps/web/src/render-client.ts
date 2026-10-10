@@ -16,6 +16,7 @@ import { prepareCard } from './adapter.js';
 import { loadMeta } from './meta.js';
 import type { MetaResponse, RenderRequest } from './shared.js';
 import assetManifest from './asset-manifest.json';
+import { ASSET_VERSION } from './asset-version.js';
 import freetypeWasmUrl from '@yoggraph/renderer/freetype-asset';
 
 /** 构建期生成的已知键清单（pack/** + data/**；scripts/build-worker.ts 再生成）。 */
@@ -52,7 +53,9 @@ function makeSource(prefix: 'pack' | 'data'): Source {
       bytes.set(k, shared);
       return;
     }
-    const res = await fetch(`${prefix}/${canonical}`);
+    // ?v= = pack+data 内容哈希（build-worker.ts 生成）：部署层 immutable 缓存
+    // （dist/_headers）的失配保护——内容变则 URL 变，旧缓存条目自然过期
+    const res = await fetch(`${prefix}/${canonical}?v=${ASSET_VERSION}`);
     // HTML 响应 = 静态层没命中、SPA 回退接了盘（dev 回退 index.html）——按缺键处理，
     // 不许把 HTML 字节塞进缓存让下游 JSON.parse 炸出难懂的错误
     const ct = res.headers.get('content-type') ?? '';
