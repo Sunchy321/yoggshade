@@ -2,7 +2,7 @@
  *  设计原则：只讲游戏语言（卡型/职业/稀有度/费用/攻血/耐久/种族/学派），
  *  不出现任何实现词汇；卡牌预览是视觉中心。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CardFields, MetaResponse, RenderRequest } from './shared.js';
+import type { CardFields, MetaResponse, PresetInfo, RenderRequest } from './shared.js';
 
 const EMPTY_FIELDS: CardFields = {
   cardType: 4,
@@ -153,6 +153,17 @@ export function Editor() {
     [meta, presetId],
   );
 
+  /** 预设下拉的选项文案：卡名 +「稀有度 · 职业 · 卡型」——光看卡名/内部标签
+   *  分不清这张样板是什么（如「无界空宇」是随从、「默认烟测卡」是测试叫法）。 */
+  const presetTitle = useCallback((p: PresetInfo): string => {
+    const type = meta?.cardTypes.find(t => t.tag === p.fields.cardType)?.label;
+    const cls = meta?.classes.find(c => c.tag === p.fields.classTag)?.label;
+    const rarity = meta?.rarities.find(r => r.tag === p.fields.rarity)?.label;
+    const bits = [rarity, cls, type].filter(Boolean);
+    const base = p.name || p.label;
+    return bits.length ? `${base}（${bits.join(' · ')}）` : base;
+  }, [meta]);
+
   const applyPreset = useCallback((id: string) => {
     setPresetId(id);
     setError('');
@@ -261,7 +272,7 @@ export function Editor() {
               <select value={presetId} onChange={e => applyPreset(e.target.value)}>
                 <option value="">从空白开始</option>
                 {(meta?.presets ?? []).map(p => (
-                  <option key={p.cardId} value={p.cardId}>{p.name || p.label}</option>
+                  <option key={p.cardId} value={p.cardId}>{presetTitle(p)}</option>
                 ))}
               </select>
             </Field>
