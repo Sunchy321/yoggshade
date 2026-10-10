@@ -33,6 +33,11 @@ export interface WatermarkLayer {
  * multiply=true：乘法混合（Hero/Multiply/*，见 types.PlanSlot.blend）。FS 输出 rgb=_MainTex.rgb+COLOR0.rgb、
  * a=0；VS 的 COLOR0=顶点色×_Color（本仓网格无顶点色 → 白 → COLOR0=_Color）。
  *
+ * colorAsAlpha 存在：卡影（Effects/FX_Transparent_ColorAsAlpha，types.PlanSlot.color_as_alpha）。
+ * FS 反编译（Effects_FX_Transparent_ColorAsAlpha_FS.metal 逐指令）：
+ *   a  = dot((0.3, 0.59, 0.11), tex.rgb) × _AlphaIntensity；
+ *   rgb = tex.rgb × _Color.rgb；整体再 ×_Intensity。黑影、亮度即透明度（alpha-over 合成）。
+ *
  * wm 存在：desc 卡集水印 pass（Unlit_2Texture2uv PS 逐指令；textless-align findings §1）：
  *   second_t = _SecondTex@UV1 × _SecondTint × _BlendIntensity；
  *   out = second_t.a×(main×second_t − main) + main（rgb/a 同式）；
@@ -58,6 +63,7 @@ export function rasterZbuf(
   wrapRepeat = false, // _MainTex wrap=repeat（引擎材质默认；缺省 clamp，见 PlanSlot.wrap_repeat）
   wm?: WatermarkLayer, // desc 水印第二纹理（见函数头注释）
   triUv1?: number[][], // [3][2] UV1（水印采样通道；与 triUv 同层级几何）
+  colorAsAlpha?: { color: number[], intensity: number, alpha_intensity: number }, // 卡影（见函数头注释）
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -103,6 +109,28 @@ export function rasterZbuf(
       const vv = wrapRepeat ? v - Math.floor(v) : v;
       sampleBilinearClamp(tex, uu * tw - 0.5, (1.0 - vv) * th - 0.5, scratch);
       const ci = pi * 4;
+      if (colorAsAlpha) {
+        // 卡影（FS 反编译语义，见函数头注释）：a = 亮度×alphaIntensity×intensity，
+        // rgb = tex.rgb×color（_Color=(0,0,0) → 纯黑影）。alpha-over 合成、写深——
+        // 影面片在卡体后方（世界 Y 更低），zbuf 让卡体像素覆盖其上，影只在卡轮廓外存活，
+        // 与基准半透明外圈一致（BG32 94k 半透明像素，2026-10-08）。
+        const sa = Math.min(Math.max(
+          (0.3 * scratch[0] + 0.59 * scratch[1] + 0.11 * scratch[2])
+          * colorAsAlpha.alpha_intensity * colorAsAlpha.intensity, 0), 1);
+        if (sa <= 0) continue;
+        const sr = scratch[0] * colorAsAlpha.color[0];
+        const sg = scratch[1] * colorAsAlpha.color[1];
+        const sb = scratch[2] * colorAsAlpha.color[2];
+        const dstA = canvas[ci + 3];
+        const outA = sa + dstA * (1 - sa);
+        const safe = outA > 1e-6 ? outA : 1.0;
+        canvas[ci] = (sr * sa + canvas[ci] * dstA * (1 - sa)) / safe;
+        canvas[ci + 1] = (sg * sa + canvas[ci + 1] * dstA * (1 - sa)) / safe;
+        canvas[ci + 2] = (sb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
+        canvas[ci + 3] = outA;
+        zbuf[pi] = z;
+        continue;
+      }
       if (multiply) {
         // 乘法混合（Hero/Multiply/*）：dst.rgb *= 纹理色 + _Color。alpha 保持不变——乘法阴影只压暗，
         // 不产生遮盖（游戏在屏幕帧缓冲里 a=0 无副作用；离线链若让它清 alpha 会把卡角抠空）。

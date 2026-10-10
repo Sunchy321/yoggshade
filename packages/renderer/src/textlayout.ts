@@ -20,7 +20,7 @@
  */
 import type { FontMetricsLike } from './font.js';
 
-interface LaidChar { ch: string, bold: boolean }
+interface LaidChar { ch: string, bold: boolean, italic: boolean }
 
 const CHARACTER_SIZE_SCALE = 0.01; // UB:109
 const RESIZE_SHRINK = 0.95; // UB:2434
@@ -61,19 +61,34 @@ function canWrapBetween(lastCp: number, wideCp: number, _nextCp: number): boolea
   return isCjk(wideCp);
 }
 
-function splitRich(text: string): { plain: string, bold: boolean[] } {
+function splitRich(text: string): { plain: string, bold: boolean[], italic: boolean[] } {
+  // <b>/<i> 状态独立（可嵌套，CATA_190h "<i><b>兆示</b>…"）；其余 <...> tag 剥除。
+  // 斜体引擎语义：TextMesh 原生 FontStyle.Italic（UB 不处理 <i>），字形剪切合成、
+  // advance 不变——docs/findings/ubertext-text-rendering-2026-10-06.md §3。
   const chars: string[] = [];
   const bold: boolean[] = [];
-  let cur = false;
+  const italic: boolean[] = [];
+  let curB = false;
+  let curI = false;
   let i = 0;
   while (i < text.length) {
     if (text.startsWith('<b>', i)) {
-      cur = true;
+      curB = true;
       i += 3;
       continue;
     }
     if (text.startsWith('</b>', i)) {
-      cur = false;
+      curB = false;
+      i += 4;
+      continue;
+    }
+    if (text.startsWith('<i>', i)) {
+      curI = true;
+      i += 3;
+      continue;
+    }
+    if (text.startsWith('</i>', i)) {
+      curI = false;
       i += 4;
       continue;
     }
@@ -85,10 +100,11 @@ function splitRich(text: string): { plain: string, bold: boolean[] } {
       }
     }
     chars.push(text[i]);
-    bold.push(cur);
+    bold.push(curB);
+    italic.push(curI);
     i++;
   }
-  return { plain: chars.join(''), bold };
+  return { plain: chars.join(''), bold, italic };
 }
 
 /** TextMesh bounds x = xMin₀ + (n−1)×adv + xMax_last（ink 框，UB Wrap 逐词 SetText 实测语义）。 */
@@ -243,7 +259,7 @@ function breakIntoWords(chars: LaidChar[]): LaidChar[][] {
   return words;
 }
 
-export interface LaidGlyph { ch: string, penX: number, bold: boolean }
+export interface LaidGlyph { ch: string, penX: number, bold: boolean, italic: boolean }
 export interface Layout {
   lines:        LaidGlyph[][];
   lineWidths:   number[];
@@ -282,6 +298,7 @@ export function layoutText(inp: LayoutInputs): Layout {
   const height = f('m_Height') ?? 0;
   const wordWrap = !!(f('m_WordWrap') ?? 0);
   const resizeToFit = !!(f('m_ResizeToFit') ?? 0);
+  const andGrow = !!(f('m_ResizeToFitAndGrow') ?? 0); // UB:2299-2324 ResizeTextToFit 分派（grow → Bounds_CharSize）
   const mLineSpacing = f('m_LineSpacing') ?? 0;
 
   // SetLineSpacing（UB:2241-2245）：multi → v×(FontDef×locale LineSpaceMod)；single → v+SingleLineAdj
@@ -296,8 +313,10 @@ export function layoutText(inp: LayoutInputs): Layout {
     let cursor = 0;
     for (const segStr of plainBold.plain.split('\n')) {
       const segBold = plainBold.bold.slice(cursor, cursor + segStr.length);
+      const segItalic = plainBold.italic.slice(cursor, cursor + segStr.length);
       cursor += segStr.length + 1;
-      segments.push(segStr.split('').map((ch, i) => ({ ch, bold: segBold[i] ?? false })));
+      segments.push(segStr.split('').map((ch, i) =>
+        ({ ch, bold: segBold[i] ?? false, italic: segItalic[i] ?? false })));
     }
   }
 
@@ -324,6 +343,30 @@ export function layoutText(inp: LayoutInputs): Layout {
     // UB:1888-1897：wrap 一轮；行数比硬行数多才重设 lineSpacing（UB:1893-1896）
     wrapped = doWrap(k, spEff);
     if (wrapped.length > segments.length) spEff = spMultiOf(mLineSpacing);
+  } else if (resizeToFit && andGrow && !wordWrap) {
+    // ResizeToFitBounds_CharSize（UB:2470-2520）!wordWrap 分支：宽度与框失配 >1% 时
+    // **一次性**缩放 charSize ×= min(boxH/meshH, boxW/meshW)（可增可减、不迭代、不换行）。
+    // 全帧型仅 RaceUberText 族（11 节点）带 AndGrow=1——minion 种族文本恰好落在框内
+    // （失配 ≤1% 不触发）故旧 shrink 路径与引擎同值；trinket 种族框更高（H 0.27 vs 0.17）
+    // 且文本偏小 → 引擎放大、此前的 shrink-only 实现画小（2026-10-08 用户报告）。
+    // 盒尺寸 = GetWidth/GetHeight（UB:2171-2246）：locale m_Width/m_Height>0 覆盖序列化值。
+    wrapped = segments;
+    spEff = wrapped.length > 1 ? spMultiOf(mLineSpacing) : spSingleOf(0);
+    const locWv = locale['m_Width'], locHv = locale['m_Height'];
+    const boxW = typeof locWv === 'number' && locWv > 0 ? locWv : width;
+    const boxH = typeof locHv === 'number' && locHv > 0 ? locHv : height;
+    const bx = maxInkWidthFp(wrapped, fm) * k;
+    const by = meshLineBoxHeightFp(wrapped.length, fm.lineHeight * spEff, fm) * k;
+    const narrower = bx - bx * 0.01 < boxW;
+    const wider = bx + bx * 0.01 > boxW;
+    if (bx > 0 && by > 0 && (narrower || wider)) {
+      let num = cs * Math.min(boxH / by, boxW / bx);
+      const minCs = (f('m_MinCharacterSize') ?? 0) * CHARACTER_SIZE_SCALE;
+      if (num <= minCs * 0.01) num = minCs * 0.01;
+      cs = num;
+      k = cs * 0.1;
+    }
+    spEff = wrapped.length > 1 ? spMultiOf(mLineSpacing) : spSingleOf(mLineSpacing);
   } else if (resizeToFit) {
     // ResizeTextToFit（UB:2299-2336）→ ReduceText_CharSize（UB:2400-2463）
     wrapped = wordWrap ? doWrap(k, spEff) : segments;
@@ -371,7 +414,7 @@ export function layoutText(inp: LayoutInputs): Layout {
     const row: LaidGlyph[] = [];
     let pen = 0;
     for (const c of lt) {
-      row.push({ ch: c.ch, penX: pen, bold: c.bold });
+      row.push({ ch: c.ch, penX: pen, bold: c.bold, italic: c.italic });
       pen += fm.advance(c.ch) * k;
     }
     lines.push(row);

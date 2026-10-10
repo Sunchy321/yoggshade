@@ -211,7 +211,16 @@ interface PackGlyphMeta {
 }
 
 /** PIL 预格子缓存版（glyphs/{fontStem}-{fs}/，提取层 PIL/FreeType hinted 落盘 → 与 py 像素一致）。
- * 未命中字符回退 rasterized 实现。 */
+ * 未命中字符回退 rasterized 实现。
+ * shear > 0：斜体变体（<i> 跑字）——引擎对 FontStyle.Italic 由 FreeType 按剪切矩阵合成
+ * 字形进图集（UB 全文无 italic 代码，TextMesh 原生；UberTextMgr.cs:73-74 双 style 请求），
+ * advance 不变、字形按 x' = x + shear·(基线上高度) 剪切、CharacterInfo minX/maxX 随动
+ * （docs/findings/ubertext-text-rendering-2026-10-06.md §3）。离线在 mask 加载时做等价
+ * 双线性剪切；剪切常数 = tan(12°)（FreeType synthetic italic 经典角），三卡（BG30_802/
+ * ETC_210/CATA_190h）斜体行 NCC 扫描实证 0.2126 最优（explore/2026-10-07-edge-align §10）。
+ * 环境变量 YOGGRAPH_ITALIC_SHEAR 可覆盖（标定/实验用）。 */
+export const ITALIC_SHEAR = Number(process.env.YOGGRAPH_ITALIC_SHEAR ?? 0.2126);
+
 export class PackFontMetrics implements FontMetricsLike {
   readonly ascent:     number;
   readonly descent:    number;
@@ -220,7 +229,8 @@ export class PackFontMetrics implements FontMetricsLike {
   private cache = new Map<string, { info: CharInfo, mask: GlyphMask }>();
 
   constructor(private dir: string, fontStem: string, fontSize: number,
-    private fallback: FontMetrics) {
+    private fallback: FontMetricsLike,
+    private shear = 0) {
     // 行高用 fallback 的 round 口径（meta.line_height 是 py 提取层的 ceil/floor 口径=49，
     // 与引擎 TextGenerator 行高 48 不符——GDB_142 停档实证，见 font.ts 构造器注释）。
     this.ascent = fallback.ascent;
@@ -232,6 +242,7 @@ export class PackFontMetrics implements FontMetricsLike {
       this.meta = null;
     }
     void fontStem;
+    void fontSize;
   }
 
   private load(ch: string): { info: CharInfo, mask: GlyphMask } | null {
@@ -242,8 +253,32 @@ export class PackFontMetrics implements FontMetricsLike {
     const png = PNG.sync.read(readFileSync(join(this.dir, `${ch.codePointAt(0)}.png`)));
     const data = new Float64Array(m.w * m.h);
     for (let i = 0; i < m.w * m.h; i++) data[i] = png.data[i * 4] / 255;
-    return { info: { advance: m.advance, minX: m.minX, maxX: m.maxX, minY: m.minY, maxY: m.maxY },
-      mask: { w: m.w, h: m.h, data } };
+    const info: CharInfo = { advance: m.advance, minX: m.minX, maxX: m.maxX, minY: m.minY, maxY: m.maxY };
+    let mask: GlyphMask = { w: m.w, h: m.h, data };
+    if (this.shear > 0) {
+      // 斜体：行位移 dx(r) = shear×(maxY − r − 0.5)（r = 自字形顶起的行号；基线上高度）。
+      // 内容向**右**倾：输出 x 取源 (x − dx)（dx 在顶部最大）。advance 不变；
+      // minX/maxX 随剪切外扩（引擎 CharacterInfo 同语义）。
+      const leftPad = m.minY < 0 ? Math.ceil(-this.shear * m.minY) : 0;
+      const rightPad = m.maxY > 0 ? Math.ceil(this.shear * m.maxY) : 0;
+      const nw = m.w + leftPad + rightPad;
+      const out = new Float64Array(nw * m.h);
+      for (let r = 0; r < m.h; r++) {
+        const dx = this.shear * (m.maxY - r - 0.5);
+        for (let x = 0; x < m.w; x++) {
+          const sx = x - dx; // 采样原 mask 列（内容右倾）
+          const x0 = Math.floor(sx);
+          const fx = sx - x0;
+          const c0 = x0 >= 0 && x0 < m.w ? data[r * m.w + x0] : 0;
+          const c1 = x0 + 1 >= 0 && x0 + 1 < m.w ? data[r * m.w + x0 + 1] : 0;
+          out[r * nw + x + leftPad] = c0 * (1 - fx) + c1 * fx;
+        }
+      }
+      info.minX -= leftPad;
+      info.maxX += rightPad;
+      mask = { w: nw, h: m.h, data: out };
+    }
+    return { info, mask };
   }
 
   charInfo(ch: string): { info: CharInfo, mask: GlyphMask } {

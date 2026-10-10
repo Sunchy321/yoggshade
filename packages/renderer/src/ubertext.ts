@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PX_PER_UNIT, HALF_W, HALF_H, SIZE, getFrameAnchor } from './camera.js';
-import { FontMetrics, PackFontMetrics, type FontMetricsLike } from './font.js';
+import { FontMetrics, PackFontMetrics, ITALIC_SHEAR, type FontMetricsLike } from './font.js';
 import { glyphOutlineShader, composite, pyRound } from './glyph.js';
 import { resampleImage } from './resize.js';
 import { layoutText, BOLD_SIZE_CAP, type Layout } from './textlayout.js';
@@ -78,19 +78,41 @@ export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettin
   for (const [role, suffix] of Object.entries(rolePaths)) {
     const node = nodes.find(n => n.path.endsWith(suffix))!;
     const w = worldByPath.get(`${frameRoot}/${suffix}`)!;
-    const colNorm = (j: number) =>
-      Math.hypot(w[0][j], w[1][j], w[2][j]);
-    const scale = (colNorm(0) + colNorm(1) + colNorm(2)) / 3;
-    const fields: Record<string, unknown> = { ...node.fields };
-    const loc = localizedWorldOffset(w, fields);
-    out[role] = {
-      fields,
-      worldPos:    [w[0][3] + loc[0], w[1][3] + loc[1], w[2][3] + loc[2]],
-      localScale:  scale,
-      fontdefName: node.font_name!,
-    };
+    out[role] = settingsFromNode(node, w);
   }
   return out;
+}
+
+/** 任意层级路径 → NodeSettings（plan.texts 的 node_path 换节点渲染用，如 UpdateRace
+ *  多族的 Multi_RaceUberText；口径与 loadNodeSettingsAlly 同）。找不到返回 null。 */
+export function nodeSettingsByPath(pack: AssetPack, path: string): NodeSettings | null {
+  const nodes = loadUberTextNodes(pack);
+  const node = nodes.find(n => n.path === path);
+  if (!node) return null;
+  const rec = function* (n: HierarchyNode, p: string): Generator<[string, number[][]]> {
+    const np = p ? `${p}/${n.name}` : n.name;
+    if (n.world) yield [np, n.world];
+    for (const c of n.children ?? []) yield* rec(c, np);
+  };
+  for (const [p, w] of rec(pack.frameRecon.hierarchy, '')) {
+    if (p === path) return settingsFromNode(node, w);
+  }
+  return null;
+}
+
+function settingsFromNode(node: { fields?: Record<string, unknown>, font_name?: string },
+  w: number[][]): NodeSettings {
+  const colNorm = (j: number) =>
+    Math.hypot(w[0][j], w[1][j], w[2][j]);
+  const scale = (colNorm(0) + colNorm(1) + colNorm(2)) / 3;
+  const fields: Record<string, unknown> = { ...(node.fields ?? {}) };
+  const loc = localizedWorldOffset(w, fields);
+  return {
+    fields,
+    worldPos:    [w[0][3] + loc[0], w[1][3] + loc[1], w[2][3] + loc[2]],
+    localScale:  scale,
+    fontdefName: node.font_name!,
+  };
 }
 
 function localeAdjustment(fields: Record<string, unknown>): Record<string, number> {
@@ -143,6 +165,21 @@ function getFontMetrics(pack: AssetPack, ttfPath: string, fs: number): FontMetri
   return fm;
 }
 
+/** 斜体字形 metrics（<i> 跑字；剪切合成见 font.ts ITALIC_SHEAR）。布局 advance 不走它——
+ *  引擎斜体不改 advance（字形剪切、minX/maxX 位移），排布全按正体度量。 */
+function getItalicMetrics(pack: AssetPack, ttfPath: string, fs: number, normal: FontMetricsLike): FontMetricsLike {
+  const key = `${ttfPath}:${fs}:italic`;
+  let fm = fmCache.get(key);
+  if (!fm) {
+    const stem = ttfPath.split('/').pop()!.replace(/\.(ttf|otf)$/i, '');
+    const glyphDir = join(pack.dir, 'glyphs', `${stem}-${fs}`);
+    const hasMeta = existsSync(join(glyphDir, 'meta.json'));
+    fm = hasMeta ? new PackFontMetrics(glyphDir, stem, fs, normal, ITALIC_SHEAR) : normal;
+    fmCache.set(key, fm);
+  }
+  return fm;
+}
+
 function quantTruncBuf(buf: Float64Array): void {
   for (let i = 0; i < buf.length; i++) {
     buf[i] = Math.trunc(Math.min(Math.max(buf[i], 0), 1) * 255) / 255;
@@ -176,6 +213,9 @@ export function renderText(
     * (locale['m_FontSizeModifier'] ?? 1) * (f('m_FontSize') ?? 0));
   const fm = getFontMetrics(pack, fd.ttfPath, fs);
   const layout: Layout = layoutText({ fields: ns.fields, locale, fontdef: fd.fields, fm, text });
+  // 斜体字形 metrics（仅渲染取 mask/ink 用；布局 advance 恒走正体——引擎斜体不改 advance）
+  const hasItalic = layout.lines.some(row => row.some(g => g.italic));
+  const fmItalic = hasItalic ? getItalicMetrics(pack, fd.ttfPath, fs, fm) : fm;
 
   const fill = color3(ns.fields['m_TextColor']);
   let outline: Outline = null;
@@ -190,7 +230,7 @@ export function renderText(
   if (f('m_RenderToTexture')) {
     // 武器帧名字：RT=1 但 m_RenderOnObject 为空 → 引擎走 SetupRenderOnPlane（UB:2265-2277），
     // 轴对齐平面采样 ≈ 直绘；v1 以直绘近似（登记残差），有载体网格时走 RTT 网格采样。
-    if (curved) return renderRtt(layout, fm, ns, scene, fill, outline, boldPx, curved, offset);
+    if (curved) return renderRtt(layout, fm, fmItalic, ns, scene, fill, outline, boldPx, curved, offset);
   }
 
   const W = SIZE[0], H = SIZE[1];
@@ -208,7 +248,7 @@ export function renderText(
     const pen0 = cx - (layout.lineWidths[li] * nsScaleS) / 2.0;
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
     for (const g of layout.lines[li]) {
-      const { info, mask } = fm.charInfo(g.ch);
+      const { info, mask } = (g.italic ? fmItalic : fm).charInfo(g.ch);
       // 描边半径单位 = **字体/图集 texel**（UberText.UpdateOutlineProperties 2065-2068：
       // offset = TexelSize(fontTexture) × m_OutlineSize×mods，即图集 texel 空间），
       // 故 buffer texel 半径 = r × kPx（kPx = 本缓冲每字体 px）。旧口径按「画布 texel × ss」
@@ -229,7 +269,7 @@ export function renderText(
 
 /** RenderToTexture：文字排进 RT（ss=2 + LANCZOS 降采样），弯文本网格 UV 采样贴回卡面。 */
 function renderRtt(
-  layout: Layout, fm: FontMetricsLike, ns: NodeSettings, scene: Scene,
+  layout: Layout, fm: FontMetricsLike, fmItalic: FontMetricsLike, ns: NodeSettings, scene: Scene,
   fill: Fill, outline: Outline, boldPx: number,
   mesh: NonNullable<AssetPack['curved']>, off: [number, number],
 ): RGBAImage {
@@ -282,7 +322,7 @@ function renderRtt(
       // Hidden/TextOutline_Unlit FS 逐像素语义：alpha = clamp(center + Σ8方向图集采样, 0, 1)，
       // rgb = mix(描边色, 顶点色, center)；采样偏移 = OutlineSize 个图集 texel（= 字体像素，
       // 对角 ×0.6）。单 pass 同时产出填充（mix 的 center 项）与描边（饱和求和项）。
-      const { info, mask } = fm.charInfo(g.ch);
+      const { info, mask } = (g.italic ? fmItalic : fm).charInfo(g.ch);
       const g4 = glyphOutlineShader(mask, info, kRt, fill, outline, g.bold ? boldPx : 0, radiusOut);
       composite(rt, rtw, rth, g4.data, g4.w, g4.h,
         pyRound(pen0 + g.penX * q - g4.ox), pyRound(baseline - g4.oy));

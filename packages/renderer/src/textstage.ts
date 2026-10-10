@@ -1,7 +1,7 @@
 /** 文字层装配：plan.texts → uber_text 层 → PIL alpha_composite 口径合成到 RGB buffer。
  *  alpha：透明背景口径的覆盖率平面，文字 over 累加（见合成循环注）。 */
 import { SIZE } from './camera.js';
-import { makeScene, loadNodeSettingsAlly, renderText } from './ubertext.js';
+import { makeScene, loadNodeSettingsAlly, nodeSettingsByPath, renderText } from './ubertext.js';
 import type { AssetPack } from './types.js';
 
 export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?: Float64Array): Promise<void> {
@@ -16,6 +16,8 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
     // 战棋 alternate-cost：费用文本挪到铸币位（Actor.cs:562/6454；delta 由 plan 计算）
     const delta = entry.world_delta;
     if (delta) ns = { ...ns, worldPos: [ns.worldPos[0] + delta[0], ns.worldPos[1] + delta[1], ns.worldPos[2] + delta[2]] };
+    // 换节点渲染（UpdateRace 多族 → Multi_RaceUberText，按其自有盒/锚点）
+    if (entry.node_path) ns = nodeSettingsByPath(pack, entry.node_path) ?? ns;
     const layer = renderText(pack, entry.text, ns, scene, [0.0, 0.0],
       entry.role === 'name' ? pack.curved : undefined);
     if (process.env.DEBUG_LAYER === entry.role) {

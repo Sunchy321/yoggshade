@@ -43,14 +43,23 @@ export interface PlanSlot {
     '_MainTex.scale'?:  number[];
   };
   /** opaque-edge alpha 修复：按不透明绘制（忽略纹理 alpha）；见 plan.ts needsOpaqueEdgeRepair。 */
-  opaque?:      boolean;
+  opaque?:          boolean;
   /** _MainTex 采样 wrap=repeat（引擎材质默认；缺省 clamp）。多职业绶带阴影 ST offset 越界。 */
-  wrap_repeat?: boolean;
+  wrap_repeat?:     boolean;
+  /** 双纹理画窗：_SecondTex@UV1 为窗内蒙版（白=透、暗=压暗），合成 = main×second。
+   *  Custom/Card/Unlit_Portrait（战棋饰画画窗）逐帧显式标记；其他帧的 _SecondTex
+   *  材质未经基准验证不启用。 */
+  second_tex_mask?: boolean;
   /** 非默认混合：multiply = Hero/Multiply/*（dst.rgb *= 纹理色+_Color，只压暗）；
-   *  additive = Hero/Additive/*（dst.rgb += src·tint·src.a，星芒/辉光）。 */
-  blend?:       'multiply' | 'additive';
+   *  additive = Hero/Additive/*（dst.rgb += src·tint·src.a，星芒/辉光）；
+   *  colorAsAlpha = Effects/FX_Transparent_ColorAsAlpha（黑影、亮度即透明度，见
+   *  color_as_alpha 参数）。 */
+  blend?:           'multiply' | 'additive' | 'colorAsAlpha';
+  /** colorAsAlpha 参数（shader FS 反编译：a = dot((.3,.59,.11),tex.rgb)×alpha_intensity、
+   *  rgb = tex.rgb×color、整体 ×intensity）。 */
+  color_as_alpha?:  { color: number[], intensity: number, alpha_intensity: number };
   /** 该材质槽不参与光栅（运行时占位/被 spell 视觉替换的底板）。 */
-  skip?:        boolean;
+  skip?:            boolean;
 }
 
 /** desc 卡集水印运行时写点（Actor.UpdateWatermark，Actor.cs:5075-5135 对译）；
@@ -100,6 +109,9 @@ export interface PlanTextEntry {
   text?:        string;
   /** alt-cost 等场景：渲染期把文本节点世界平移整体平移该 delta（UpdateManaGemOffset 语义）。 */
   world_delta?: number[];
+  /** 换节点渲染（如 UpdateRace 多族：文本落 Multi_RaceUberText）——渲染期按该帧层级路径
+   *  重新取 NodeSettings，替代 role_paths 的默认节点。 */
+  node_path?:   string;
   [k: string]:  unknown;
 }
 

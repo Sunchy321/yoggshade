@@ -441,7 +441,11 @@ const FRAME_RULES: Record<string, FrameRules> = {
     elite:        [],
     rarity:       [],
     trinketBadge: ['TrinketLevelIndicatorRing', 'Trinket_Medallion_Portrait_Mesh', 'Trinket_Medallion_Shadow_Mesh'],
-    roles:        ['cost', 'name', 'desc'],
+    // 单/多族板显隐（Actor.UpdateRace :6152-6170 对译）：raceCount==1 → RacePlate_mesh
+    // 渲染器启用、Multi SetActive(false)；>1 → 反之。文本 = BACON_SUBSET 派生的种族名。
+    race:         ['RacePlate_mesh'],
+    multiRace:    ['Multi_RacePlate_mesh'],
+    roles:        ['cost', 'name', 'desc', 'race'],
   },
   // 英雄技能（History_HeroPower）：附件层整个不存在（prefab 无 RarityGem/Gem_Attack/Gem_Health/
   // RacePlate/Unique_*/RuneBanner/MulticlassRibbon 节点，非隐藏——RARITY=FREE 与结构双证），
@@ -454,6 +458,71 @@ const FRAME_RULES: Record<string, FrameRules> = {
     roles:  ['cost', 'name', 'desc'],
   },
 };
+
+/** 战棋种族定位（BACON_SUBSET_*，GAME_TAG.cs:974-985）→ TAG_RACE（EntityBase.cs:25-90
+ *  s_raceSubsetToRaceTable）。**饰品种族不走 CARDRACE**，走此族（GetRacesForTrinket，
+ *  EntityBase.cs:1133-1152：命中任一 subset tag → 对应 race；BACON_SUBSET_ALL(3436)
+ *  短路——清空只留 ALL(26)）。随从（CARDTYPE 4）即使带 subset tag 也仍走 CARDRACE
+ *  （GetRaces 按 IsBattlegroundTrinket=cardtype 44 分派，EntityBase.cs:1209-1216）。 */
+const BACON_SUBSET_TO_RACE: [number, number][] = [
+  [1591, 24], [1592, 14], [1593, 15], [1594, 20], [1595, 17], [1596, 23],
+  [1688, 18], [1845, 43], [2272, 92], [2347, 11], [2630, 21],
+];
+const BACON_SUBSET_ALL = 3436;
+const RACE_ALL = 26;
+/** SortRaceList 序（EntityBase.cs:1185-1206）：多族才排序；不在表内的族按 IndexOf=-1 排最前。 */
+const RACE_SORT_ORDER = [11, 18, 17, 15, 14, 43, 92, 20, 24, 2, 21, 23];
+
+/** CARD_RACE 表（dbf.unity3d "CARD_RACE"，探针 explore/2026-10-07-edge-align/
+ *  probe_cardrace_dbf.py；输出 output/cardrace_table.json）：[TAG_RACE, IsRaceTag]。
+ *  GetRacesForNonTrinket（EntityBase.cs:1154-1177）在 CARDRACE 之外遍历全表——
+ *  HasTag(IsRaceTag)（= GetTag>0）则把 record.ID 追加进种族集（多重种族卡的第二来源，
+ *  如 CFM_637 海盗帕奇斯 CARDRACE=23 + tag 2537(DEMON)=1 → 恶魔/海盗 两行）；
+ *  isRaceTagId=0 的行（BLANK/ALL/已删族）永不命中，剔除。CARDRACE==ALL(26) 时早退
+ *  （:1165-1168），不遍历。 */
+const CARD_RACE_IS_TAG: [number, number][] = [
+  [1, 2524], [2, 2525], [3, 2526], [4, 2527], [5, 2528], [6, 2529], [7, 2530],
+  [8, 2531], [9, 2532], [10, 2533], [11, 2534], [12, 2535], [14, 2536], [15, 2537],
+  [16, 2538], [17, 2539], [18, 2540], [19, 2541], [20, 2542], [21, 2543], [22, 2544],
+  [23, 2522], [24, 2523], [38, 2545], [43, 2546], [80, 2547], [81, 2548], [83, 2549],
+  [84, 2550], [85, 2551], [88, 2552], [92, 2553], [93, 2554], [94, 2555], [95, 2556],
+  [96, 2584], [97, 2585], [98, 2586], [99, 2587], [100, 2588], [126, 4756],
+];
+
+/** GetRacesForNonTrinket 对译（含 SortRaceList 排序与去重）。 */
+function nonTrinketRaces(tags: Record<string, number>): number[] {
+  const out: number[] = [];
+  const cr = tags[TAG.CARDRACE] ?? 0;
+  if (cr !== 0) out.push(cr);
+  if (cr === RACE_ALL) return out; // CARDRACE==26 → 早退（EntityBase.cs:1165-1168）
+  for (const [race, tag] of CARD_RACE_IS_TAG) {
+    if ((tags[tag] ?? 0) > 0) out.push(race);
+  }
+  const uniq = [...new Set(out)];
+  if (uniq.length > 1) {
+    uniq.sort((a, b) => RACE_SORT_ORDER.indexOf(a) - RACE_SORT_ORDER.indexOf(b));
+  }
+  return uniq;
+}
+
+/** GetRacesForTrinket 对译：subset tag → race 列表（去重；ALL 短路）。 */
+function trinketRaces(tags: Record<string, number>): number[] {
+  if ((tags[BACON_SUBSET_ALL] ?? 0) !== 0) return [RACE_ALL];
+  const out: number[] = [];
+  for (const [tag, race] of BACON_SUBSET_TO_RACE) {
+    if ((tags[tag] ?? 0) !== 0) out.push(race);
+  }
+  const uniq = [...new Set(out)];
+  if (uniq.length > 1) {
+    uniq.sort((a, b) => RACE_SORT_ORDER.indexOf(a) - RACE_SORT_ORDER.indexOf(b));
+  }
+  return uniq;
+}
+
+/** BuildRaceText（EntityBase.cs:1251-1264，delimited=false）：多族 "\n" 连接。 */
+function raceTextOf(raceIds: number[], tables: StaticTables): string {
+  return raceIds.map(r => tables.raceZh[r] ?? 'UNKNOWN').join('\n');
+}
 
 /** 帧层级 path → active_in_hierarchy（序列化失活子树）。 */
 function collectActive(hierarchy: { path?: string, active_in_hierarchy?: boolean, children?: unknown[] },
@@ -534,9 +603,14 @@ export function compileFramePlan(
     ? ''
     : (tags[TAG.HEALTH] !== undefined || nativeCard ? String(tags[TAG.HEALTH] ?? 0) : '');
   const armorVal = tags[TAG2.ARMOR] ?? 0;
-  const raceId = tags[TAG.CARDRACE] ?? 0;
-  const raceText = raceId === 0 ? '' : (tables.raceZh[raceId] ?? 'UNKNOWN');
-  const raceCount = raceId === 0 ? 0 : 1;
+  // 种族文本（EntityBase.GetRaceText :1237-1249）：随从走 CARDRACE + CARD_RACE 表循环
+  // （nonTrinketRaces，多重种族卡的第二来源），**战棋饰品（CARDTYPE 44）走 BACON_SUBSET_***
+  // 族（GetRacesForTrinket，见 trinketRaces 注释）；count>1 时 "\n" 连接（BuildRaceText）。
+  // 此前饰品未接 subset、随从未接 CARD_RACE 表 → 单族板画空 / 双种族卡缺第二行。
+  const isTrinket = cardType === 44;
+  const raceIds = isTrinket ? trinketRaces(tags) : nonTrinketRaces(tags);
+  const raceText = raceTextOf(raceIds, tables);
+  const raceCount = raceIds.length;
   const schoolId = tags[TAG2.SPELL_SCHOOL] ?? 0;
   const schoolText = schoolId === 0 ? '' : (tables.schoolZh?.[schoolId] ?? 'UNKNOWN');
   // desc 卡集水印写点（引擎对译见 resolveWatermark 上方注释块；仅 desc 组件消费）
@@ -643,9 +717,13 @@ export function compileFramePlan(
         spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
       }
     } else if (cardType === 44) {
-      // 饰品：铸币（ApplyBattlegroundsHandCoinVisualSetup 的 trinket 分支），费用数字保留
+      // 饰品：铸币（ApplyBattlegroundsHandCoinVisualSetup 的 trinket 分支），费用数字保留。
+      // 定位 = coin-trinket 预制序列化位姿（无 world-target 锚）：Card_Hand_Trinket_CoinManaGem
+      // 的 Gem_Health 序列化世界 (−0.002,−0.018,+1.490) ≠ 本帧 Gem_Mana 世界 (0,·,1.45)，
+      // 按 m_manaObject 锚会让铸币低 ~8px（2026-10-08 用户指认；预制在 actor 空间内自查
+      // 姿，LoadSpell 挂根保位即终位，与 alt-tavern-coin 同法）。
       gemReplaced = true;
-      spellOverlays.push({ key: coinKey, anchor: 'world-target', world_target: coinTarget });
+      spellOverlays.push({ key: coinKey });
     } else if (cardType === 10) {
       // 英雄技能：铸币（ApplyBattlegroundsHandCoinVisualSetup 的 IsHeroPower 分支），费用数字保留
       gemReplaced = true;
@@ -667,6 +745,11 @@ export function compileFramePlan(
     const name = node.path.split('/').pop()!;
     const isActive = active.get(node.path) ?? true;
     let visible = isActive && !STATIC_HIDDEN.has(name) && !(rules.forcedHidden ?? []).includes(name);
+    // 战棋饰品帧例外：Shadow（CardShadow_Ally，Effects/FX_Transparent_ColorAsAlpha）序列化
+    // 激活且 renderer 启用，基准图带整卡外圈投影（94k 半透明像素，2026-10-08 对账）；其余
+    // 帧型的 Shadow 在导出中不可见（ref 仅抗锯齿软边）维持隐藏。ShadowUnique renderer
+    // 序列化禁用，仍由 STATIC_HIDDEN 兜底。
+    if (slot === 'hand-bg-trinket' && name === 'Shadow') visible = isActive;
     if (visible) {
       if (rules.elite.includes(name)) visible = isElite;
       else if (rules.rarity.includes(name)) visible = rarityVisible;
@@ -738,7 +821,15 @@ export function compileFramePlan(
     // 实际画窗是这个兄弟节点的 FramePortrait 材质（材质名即证）。
     const artPath = `${report.prefab.name}/RootObject/NonQuestObjects/Mesh`;
     const artComp = components.find(c => c.path === artPath);
-    if (artComp) setSlotTex(artComp, 0, portraitFile);
+    if (artComp) {
+      setSlotTex(artComp, 0, portraitFile);
+      // Custom/Card/Unlit_Portrait 双纹理语义：_SecondTex@UV1 = 窗内蒙版（图集左上白底
+      // 黑环块，uv1 x[0.016,0.255] y[0.778,1.002] 正对该块）——白=透、暗环=画窗内圈
+      // 阴影。缺失即内圈阴影整环丢失（2026-10-08 BG32 基准对比实证）。渲染端按
+      // main×second 乘法合成（second 全不透明、白处 rgb=1；等价 alpha=1 的水印式）。
+      const artSlot = artComp.material_slots?.find(sl => sl.slot === 0);
+      if (artSlot) artSlot.second_tex_mask = true;
+    }
   }
   if (slot === 'hand-bg-trinket' && (schoolId === TRINKET_SCHOOLS.LESSER
     || schoolId === TRINKET_SCHOOLS.GREATER)) {
@@ -759,9 +850,22 @@ export function compileFramePlan(
       const ringComp = components.find(c => c.path === refs['m_trinketLevelIndicator']?.node);
       const ringSlot = ringComp?.material_slots?.find(sl => sl.slot === 0);
       if (ringSlot) ringSlot.skip = true;
-      // 徽章子树晚通道：运行时 SetActive 激活（Actor.cs:5418），后激活者合成在上。
-      for (const nm of ['Trinket_Medallion_Shadow_Mesh', ...(rules.trinketBadge ?? [])
-        .filter(x => x !== 'Trinket_Medallion_Shadow_Mesh')]) lateNodes.push(nm);
+      // 阴影 quad 的 UV 是 Anomalies_Atlas 右缘竖带（x 0.85-0.99，v −1.04..2.16 逐段平铺
+      // 选阴影块），材质 ST 单位 → 采样越界全靠引擎贴图缺省 wrap=repeat；raster 缺省 clamp
+      // 会把越界段拉成边缘白像素、整个乘法阴影不可见（2026-10-08 BG32 实测，徽章外圈
+      // 阴影缺失根因）。与多职业缎带阴影（Multiclass_Ribbon_Shadow）同一 wrap 语义。
+      const trinketShadowComp = components.find(c => c.node === 'Trinket_Medallion_Shadow_Mesh');
+      const trinketShadowSlot = trinketShadowComp?.material_slots?.find(sl => sl.slot === 0);
+      if (trinketShadowSlot) trinketShadowSlot.wrap_repeat = true;
+      // 徽章子树晚通道：运行时 SetActive 整容器激活（UpdateBaconTrinketComponents，
+      // Actor.decompiled.cs:5558-5574——m_trinketLevelIndicator.gameObject.SetActive(flag)
+      // 一次性开关子树，无逐子节点顺序），层序 = Unity 材质队列：medallion（Custom/Card/
+      // UnlitTexture）与 Ring（Hero/Unlit/Unlit_TextureColor）不透明先画，阴影
+      // （Hero/Multiply/Multiply，Transparent 队列 ZWrite Off）最后乘法合成——乘法读
+      // dst，先画会被后画的不透明纹章/环完全覆盖（2026-10-08 BG32 实测：阴影最先时
+      // 徽章区零像素变化）。
+      for (const nm of [...(rules.trinketBadge ?? [])
+        .filter(x => x !== 'Trinket_Medallion_Shadow_Mesh'), 'Trinket_Medallion_Shadow_Mesh']) lateNodes.push(nm);
     }
   }
 
@@ -816,11 +920,28 @@ export function compileFramePlan(
     const body = bodyFor(role);
     if (!body) return { role, render: false, reason: '文本为空（缺省/规则隐藏）' };
     if (role === 'cost' && costWorldDelta) return { role, render: true, text: body, world_delta: costWorldDelta };
+    // UpdateRace（Actor.cs:6206-6234）：num2>1 时单族 node 文本 SetActive(false)、文本
+    // 落到 **Multi_RaceUberText**（m_multiRaceTextMesh），按其自有盒（H 更高）走 grow 拟合；
+    // ResizeToFit=false 只设在单族 node（多族下它是隐藏 no-op）。故多族 → 换节点渲染。
+    if (role === 'race' && raceCount > 1) {
+      const multiNode = (() => {
+        const stack: Array<{ path?: string, name?: string, children?: unknown[] }> = [base.frameRecon.hierarchy as never];
+        while (stack.length) {
+          const n = stack.pop()!;
+          if ((n.name ?? '') === 'Multi_RaceUberText' && n.path) return n.path;
+          for (const c of n.children ?? []) stack.push(c as never);
+        }
+        return undefined;
+      })();
+      if (multiNode) return { role, render: true, text: body, node_path: multiNode };
+    }
     return { role, render: true, text: body };
   });
 
   // ---- opaque-edge alpha 修复标记（写点完成后按最终纹理判定；见 needsOpaqueEdgeRepair）----
-  markOpaqueEdgeSlots(components, report.nodes);
+  markOpaqueEdgeSlots(components, report.nodes,
+    path => findNode(base.frameRecon.hierarchy, path) as
+      | { renderers?: { materials?: (FrameMaterial | null)[] }[] } | null);
 
   // ---- DK 符文横幅（tag 2196/2197/2198 → 显隐 + 图标材质覆写；含图标 opaque 豁免，须在标记后）----
   compileRuneBanner(components, tags);
@@ -909,9 +1030,9 @@ function frameCenter(
 
   const enabled = (path: string): boolean => {
     const n = findNode(base.frameRecon.hierarchy, path) as
-      | { world?: number[][], mesh_stats?: unknown, active_in_hierarchy?: boolean,
-          renderers?: { enabled?: boolean }[] }
-      | null;
+      | { world?: number[][]; mesh_stats?: unknown; active_in_hierarchy?: boolean;
+        renderers?: { enabled?: boolean }[]; }
+        | null;
     return !!n?.world && !!n.mesh_stats && n.active_in_hierarchy === true
       && n.renderers?.[0]?.enabled === true;
   };
@@ -1031,10 +1152,13 @@ function altCostWorldPos(
   return [W[0][3], W[1][3], W[2][3]];
 }
 
-/** 按 prefab_report 的材质槽名/shader + 计划最终纹理，标注 opaque-edge 修复与乘法混合（见各 needs* 说明）。 */
+/** 按 prefab_report 的材质槽名/shader + 计划最终纹理，标注 opaque-edge 修复与乘法混合（见各 needs* 说明）。
+ *  findRecon：path → frame_recon 节点（ColorAsAlpha 的 _Intensity/_AlphaIntensity 序列化在
+ *  recon 材质 floats 里，report 槽位只有 name/shader/textures）。 */
 function markOpaqueEdgeSlots(
   components: PlanComponent[],
   reportNodes: PrefabReport['nodes'],
+  findRecon: (path: string) => { renderers?: { materials?: (FrameMaterial | null)[] }[] } | null,
 ): void {
   const byPath = new Map(reportNodes.map(n => [n.path, n]));
   for (const comp of components) {
@@ -1050,6 +1174,19 @@ function markOpaqueEdgeSlots(
       // alpha-over 画会涂成不透明黑（TLC_433 右上角被银龙影啃掉一块）。
       if (typeof rep?.shader === 'string' && rep.shader.startsWith('Hero/Multiply/')) {
         slot.blend = 'multiply';
+      }
+      // ColorAsAlpha 阴影材质（Effects/FX_Transparent_ColorAsAlpha，卡影 CardShadow_*）：
+      // FS 反编译（Effects_FX_Transparent_ColorAsAlpha_FS.metal）a = dot((.3,.59,.11),
+      // tex.rgb)×_AlphaIntensity、rgb = tex.rgb×_Color.rgb、整体 ×_Intensity——黑影、
+      // 亮度即透明度。战棋饰品帧基准带整卡外圈投影（94k 半透明像素，2026-10-08 对账）。
+      if (typeof rep?.shader === 'string' && rep.shader.startsWith('Effects/FX_Transparent_ColorAsAlpha')) {
+        slot.blend = 'colorAsAlpha';
+        const reconMat = findRecon(comp.path)?.renderers?.[0]?.materials?.[slot.slot] ?? null;
+        slot.color_as_alpha = {
+          color:           (reconMat?.colors?.['_Color'] ?? [0, 0, 0]).slice(0, 3),
+          intensity:       reconMat?.floats?.['_Intensity'] ?? 1,
+          alpha_intensity: reconMat?.floats?.['_AlphaIntensity'] ?? 1,
+        };
       }
     }
   }

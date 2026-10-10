@@ -44,21 +44,23 @@ export function buildRenderList(
 }
 
 interface BucketTri {
-  depth:    number;
-  seq:      number;
-  tri2d:    number[][];
-  triUv:    number[][];
-  triZ:     number[];
-  texKey:   string;
-  tint:     number[];
-  uvOffset: [number, number];
-  opaque:   boolean;
-  multiply: boolean;
-  additive: boolean;
-  wrap:     boolean;
+  depth:         number;
+  seq:           number;
+  tri2d:         number[][];
+  triUv:         number[][];
+  triZ:          number[];
+  texKey:        string;
+  tint:          number[];
+  uvOffset:      [number, number];
+  opaque:        boolean;
+  multiply:      boolean;
+  additive:      boolean;
+  wrap:          boolean;
+  /** Effects/FX_Transparent_ColorAsAlpha（卡影）：a=亮度×alphaIntensity、rgb=tex×color、×intensity */
+  colorAsAlpha?: { color: number[], intensity: number, alpha_intensity: number };
   /** desc 卡集水印（仅 Description_mesh + 材质 _SecondTex 槽；见装配处注释） */
-  wm?:      WatermarkLayer;
-  triUv1?:  number[][];
+  wm?:           WatermarkLayer;
+  triUv1?:       number[][];
 }
 
 /** 水印纹理裁决空串占位（引擎不换纹理 → _SecondTex 保持序列化占位、alpha=0；
@@ -152,21 +154,39 @@ export function rasterBucketZbuf(
         // mesh 无 UV1 通道 → 回退 uv0（引擎语义：hero desc mesh 无 UV1，采样 =
         // uv0×ST(5,5,−2.01,−0.54)，水印 5× 放大窗可见——参照 AV_205 实证，2026-10-07）
         uv1Arr = mesh.uv1 ?? mesh.uv0;
+      } else if (slotPlan?.second_tex_mask && secTex?.texture?.file && mesh.uv1) {
+        // Unlit_Portrait 双纹理画窗（plan.second_tex_mask 逐槽显式标记）：_MainTex@UV0 =
+        // 画像，_SecondTex@UV1 = 窗内蒙版（白=透、暗环=内圈阴影）。合成 = main×second：
+        // second 全不透明（alpha 恒 1）、白处 rgb=1 → 透，等价 alpha=1/blend=1 的水印
+        // 合成式 out = a×(main×secondT − main) + main。此前帧光栅忽略 _SecondTex（仅
+        // desc 水印走 comp.watermark 门），饰画画窗内圈阴影整环丢失（2026-10-08 BG32
+        // 基准对比实证）。其余帧型的 _SecondTex 材质（PortraitFrame_mesh 族）未经基准
+        // 验证，不启用。
+        wm = {
+          tex: textures.get(secTex.texture.file),
+          st:  [secTex.scale?.[0] ?? 1, secTex.scale?.[1] ?? 1,
+            secTex.offset?.[0] ?? 0, secTex.offset?.[1] ?? 0],
+          tint:  [1, 1, 1],
+          alpha: 1,
+          blend: 1,
+        };
+        uv1Arr = mesh.uv1;
       }
       for (const t of tris) {
         const a = t[0], b = t[1], c = t[2];
         trisOut.push({
-          depth:    (depth[a] + depth[b] + depth[c]) / 3,
-          seq:      seq++,
-          tri2d:    [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
-          triUv:    [uvArr[a], uvArr[b], uvArr[c]],
-          triZ:     [depth[a], depth[b], depth[c]],
+          depth:        (depth[a] + depth[b] + depth[c]) / 3,
+          seq:          seq++,
+          tri2d:        [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
+          triUv:        [uvArr[a], uvArr[b], uvArr[c]],
+          triZ:         [depth[a], depth[b], depth[c]],
           texKey, tint, uvOffset,
-          opaque:   slotPlan?.opaque ?? false,
-          multiply: slotPlan?.blend === 'multiply',
-          additive: slotPlan?.blend === 'additive',
-          wrap:     slotPlan?.wrap_repeat ?? false,
-          wm, triUv1:   uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
+          opaque:       slotPlan?.opaque ?? false,
+          multiply:     slotPlan?.blend === 'multiply',
+          additive:     slotPlan?.blend === 'additive',
+          wrap:         slotPlan?.wrap_repeat ?? false,
+          colorAsAlpha: slotPlan?.blend === 'colorAsAlpha' ? slotPlan.color_as_alpha : undefined,
+          wm, triUv1:       uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
         });
       }
     }
@@ -176,7 +196,7 @@ export function rasterBucketZbuf(
   for (const e of trisOut) {
     rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
       textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
-      e.wm, e.triUv1);
+      e.wm, e.triUv1, e.colorAsAlpha);
   }
   return trisOut.length;
 }
