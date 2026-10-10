@@ -1277,8 +1277,10 @@ function compileBanners(
       if (BANNER_GLOW_NODES.has(c.node ?? '')) continue;
       c.visible = !(c.node ?? '').includes('Signature');
     }
-    // 绶带阴影 repeat wrap（材质 ST 越界；见块注）
-    const shadow = components.find(c => c.visible && c.node === 'Multiclass_Ribbon_Shadow_mesh');
+    // 绶带阴影 repeat wrap（材质 ST 越界；见块注）。序列化 GO 名带尾随空格
+    // （"Multiclass_Ribbon_Shadow_mesh "，帧预制原样）——精确等值会 miss，
+    // wrap 缺失时 ST (0.53,0.48)/(−0.53,−0.048) 被 clamp 拉出边缘条纹。
+    const shadow = components.find(c => c.visible && c.node?.trim() === 'Multiclass_Ribbon_Shadow_mesh');
     const shadowSlot = shadow?.material_slots?.[0];
     if (shadowSlot) shadowSlot.wrap_repeat = true;
   }

@@ -248,13 +248,38 @@ class Recon:
                 if ctype == "MeshFilter":
                     mp = ptr_dict(ctree.get("m_Mesh") or {})
                     if mp.get("m_PathID"):
-                        try:
-                            mobj, mb = self.r.resolve_pptr(self.bundle, mp, cobj)
-                            mesh = self.extract_mesh(mobj, mb)
-                            if mesh is not None:
-                                node["mesh"] = mesh
-                        except Exception as exc:  # noqa: BLE001
-                            self.issues.append(f"{node_path} mesh: {exc}")
+                        # 内建 Quad（unity default resources / unity_builtin_extra 的 pid 10210）：
+                        # resolve_pptr 解不了内建外部引用，此前直接记 issue → 无网格 → 渲染端
+                        # 跳过该 quad。游戏数据实例（2026-10-07 探针
+                        # explore/2026-10-07-edge-align/probe_multiclass2.py）：
+                        # Multiclass_Ribbon_Shadow_mesh（多职业绶带阴影 quad，序列化名带尾随
+                        # 空格）的 MeshFilter = fid=7 pid=10210 → "unity default resources"，
+                        # 缺网格即"缎带无投影"的根因。几何 = Unity 内建 Quad 标准 1×1；
+                        # 三角剖分须共享一条对角线才盖满 quad（[0,1,3]+[0,3,2]）——
+                        # extract_banner_assets.py builtin_quad 曾误写 [0,3,1]+[0,1,2]
+                        # （两条对角线各取一三角），Faction_Icon 渲染缺左上四分之一。
+                        builtin_external = False
+                        if mp.get("m_FileID", 0) != 0:
+                            exts = [Path(e.path).name for e in (cobj.assets_file.externals or [])]
+                            target = exts[mp["m_FileID"] - 1] if mp["m_FileID"] <= len(exts) else "?"
+                            builtin_external = "builtin" in target or "default resources" in target
+                        if builtin_external and mp["m_PathID"] == 10210:
+                            quad_verts = np.array([[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0],
+                                                   [-0.5, 0.5, 0.0], [0.5, 0.5, 0.0]])
+                            quad_uv = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+                            node["mesh"] = {"name": "builtin:Quad", "verts": quad_verts,
+                                            "uv0": quad_uv, "uv1": quad_uv, "uv1_present": False,
+                                            "submeshes": [np.array([[0, 1, 3], [0, 3, 2]], dtype=np.int32)],
+                                            "bbox_min": [-0.5, -0.5, 0.0], "bbox_max": [0.5, 0.5, 0.0],
+                                            "bundle": "<builtin>", "path_id": 10210}
+                        else:
+                            try:
+                                mobj, mb = self.r.resolve_pptr(self.bundle, mp, cobj)
+                                mesh = self.extract_mesh(mobj, mb)
+                                if mesh is not None:
+                                    node["mesh"] = mesh
+                            except Exception as exc:  # noqa: BLE001
+                                self.issues.append(f"{node_path} mesh: {exc}")
                 else:
                     mats = []
                     for mp in ctree.get("m_Materials", []):

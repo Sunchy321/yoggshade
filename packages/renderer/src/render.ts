@@ -112,11 +112,20 @@ export function rasterBucketZbuf(
       let uvOffset: [number, number] = [0.0, 0.0];
       const mo = slotPlan?.material_override;
       if (mo?._tint_rgb) tint = [...mo._tint_rgb, 1.0];
-      if (mo?.['_MainTex.offset']) uvOffset = [mo['_MainTex.offset'][0], mo['_MainTex.offset'][1]];
-      // material_override _MainTex ST scale（符文图标 Rune_*_sm scale (0.5,0.5)）：逐顶点
+      // _MainTex ST：材质序列化值为基础，material_override = 运行时 SetTextureScale/
+      // SetTextureOffset 改写同一属性（Faction_Icon 阵营象限、Rune_*_sm 符文象限都走
+      // override 整体替换），override 优先、缺省回落序列化值。此前帧路径只施加
+      // override，序列化 ST 从未被消费——Multiclass_Ribbon_Shadow（材质 ST
+      // (0.53,0.48)/(−0.53,−0.048) 越界采样）曾按 [0,1]² 采整张图集，乘法混合把整块
+      // quad 压暗成矩形暗幕（2026-10-07 CFM_621 实测；VS 语义 final_uv = uv×scale+
+      // offset 在本文件 spell overlay 路径已有同式先例）。
+      const mTex = mat.tex?.['_MainTex'];
+      const offSrc = mo?.['_MainTex.offset'] ?? mTex?.offset;
+      if (offSrc && (offSrc[0] !== 0 || offSrc[1] !== 0)) uvOffset = [offSrc[0], offSrc[1]];
+      // override _MainTex.scale 有值用之（符文图标 Rune_*_sm scale (0.5,0.5)）；逐顶点
       // uv×scale 预变换（Angelia dk 链 raster_bucket_zbuf_uvscale 同语义；lerp(uv·s) ≡
       // lerp(uv)·s 仿射恒等——offset 走 rasterZbuf 既有逐像素通道，不在此重复施加）。
-      const stS = mo?.['_MainTex.scale'];
+      const stS = mo?.['_MainTex.scale'] ?? mTex?.scale;
       const uvArr = stS && (stS[0] !== 1 || stS[1] !== 1)
         ? uv0.map(([u, v]) => [u * stS[0], v * stS[1]])
         : uv0;

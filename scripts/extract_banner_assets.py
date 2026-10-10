@@ -97,12 +97,17 @@ class BannerExtractor:
         self.tex_dir.mkdir(parents=True, exist_ok=True)
         self.issues: list[str] = []
         self.saved_tex: dict[tuple[str, int], dict] = {}
-        # 内建 Unity Quad（unity_builtin_extra pid 10210；Faction_Icon 的 MeshFilter 引用）。
+        # 内建 Unity Quad（unity_builtin_extra / unity default resources pid 10210；
+        # Faction_Icon 与 Multiclass_Ribbon_Shadow_mesh 的 MeshFilter 引用）。
         # 顶点/UV 为 Unity 内建 Quad 的标准几何：1×1、UV 0..1、朝 +Z。
+        # 三角剖分必须共享同一条对角线（如 bl→tr：[0,1,3]+[0,3,2]）才盖满整张 quad；
+        # 曾误写 [0,3,1]+[0,1,2]（两条对角线各取一三角），并集缺顶部楔形 tl-tr-中心，
+        # Faction_Icon 渲染出"左上四分之一被切"（2026-10-07，CFM_621 L2 对比实证；
+        # 平面 quad + 线性 UV 下剖分选法无像素差，任一全覆盖配对即可）。
         self.builtin_quad = {
             "verts": [[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [-0.5, 0.5, 0.0], [0.5, 0.5, 0.0]],
             "uv0": [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
-            "subs": [[[0, 3, 1], [0, 1, 2]]],
+            "subs": [[[0, 1, 3], [0, 3, 2]]],
         }
 
     def save_texture(self, t_reader, bundle: str) -> dict:
