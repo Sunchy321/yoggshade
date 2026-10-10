@@ -19,11 +19,24 @@ function portrait_mat_idx(prefabReport: AssetPack['prefabReport']): number {
 export class TextureStore {
   private cache = new Map<string, RGBAImage>();
 
-  constructor(private packDir: string) {}
+  /** seeds：内存注入图（键同 get 的归一化键）。站点上传原画走这条，不落盘、
+   *  也不污染资产包（assets/ 是拆包脚本的可复现产物）。 */
+  constructor(private packDir: string, seeds?: Map<string, RGBAImage>) {
+    if (seeds) for (const [k, v] of seeds) this.cache.set(k, v);
+  }
+
+  private static key(ref: string): string {
+    return ref.includes('/') ? ref : `textures/${ref}`;
+  }
+
+  /** 内存写入（覆盖同键的磁盘读取）。 */
+  set(ref: string, img: RGBAImage): void {
+    this.cache.set(TextureStore.key(ref), img);
+  }
 
   /** ref 兼容两种形态：包内相对 "textures/xxx.png" 或裸文件名。 */
   get(ref: string): RGBAImage {
-    const key = ref.includes('/') ? ref : `textures/${ref}`;
+    const key = TextureStore.key(ref);
     let tex = this.cache.get(key);
     if (!tex) {
       tex = decodePng(join(this.packDir, key));

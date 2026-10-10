@@ -3,19 +3,29 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import type { RGBAImage } from './types.js';
 
-export function decodePng(path: string): RGBAImage {
-  const png = PNG.sync.read(readFileSync(path));
+/** PNG 字节 → RGBAImage（值域 0..1）。内存路径（站点上传原画）与磁盘路径共用。 */
+export function decodePngBytes(bytes: Uint8Array): RGBAImage {
+  const png = PNG.sync.read(Buffer.from(bytes));
   const { width: w, height: h, data } = png;
   const out = new Float64Array(w * h * 4);
   for (let i = 0; i < w * h * 4; i++) out[i] = data[i] / 255;
   return { w, h, data: out };
 }
 
-/** uint8 RGBA（h×w×4，行主序）→ PNG。 */
-export function encodePng(path: string, w: number, h: number, rgba: Uint8Array): void {
+export function decodePng(path: string): RGBAImage {
+  return decodePngBytes(readFileSync(path));
+}
+
+/** uint8 RGBA（h×w×4，行主序）→ PNG 字节。 */
+export function encodePngBytes(w: number, h: number, rgba: Uint8Array): Uint8Array<ArrayBuffer> {
   const png = new PNG({ width: w, height: h });
   png.data.set(rgba);
-  writeFileSync(path, PNG.sync.write(png));
+  return new Uint8Array(PNG.sync.write(png)) as Uint8Array<ArrayBuffer>;
+}
+
+/** uint8 RGBA（h×w×4，行主序）→ PNG。 */
+export function encodePng(path: string, w: number, h: number, rgba: Uint8Array): void {
+  writeFileSync(path, encodePngBytes(w, h, rgba));
 }
 
 /**

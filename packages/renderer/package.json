@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "exports": {
+    ".": "./src/render-card.ts",
+    "./render-card": "./src/render-card.ts",
+    "./plan": "./src/plan.ts",
+    "./image": "./src/image.ts",
+    "./types": "./src/types.ts"
+  },
   "scripts": {
     "render": "bun src/main.ts",
     "diff": "bun src/diff.ts"

@@ -1,19 +1,15 @@
-/** 渲染 CLI：
+/** 渲染 CLI（薄壳；渲染序列在 render-card.ts，与站点共用同一条链）：
  *  bun src/main.ts [packDir] [outPng] [stage]           —— 资产包内嵌 plan（EX1_350 基线）
  *  bun src/main.ts --card CARD_ID [--out out.png]       —— fixture 卡编译渲染（data/fixtures + data/tables）
  * stage: p0 = 帧+肖像；p1 = +宝石；p2 = +文字（全链，默认）
  * 路径注入：--pack/--data 或 YOGGRAPH_PACK/YOGGRAPH_DATA（默认相对 CWD：assets、data）。 */
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { loadPack, loadSpellOverlay, TextureStore, walkWithKey } from './assets.js';
-import { SIZE, setFrameAnchor } from './camera.js';
-import {
-  buildRenderList, rasterBucketZbuf, renderPortraitLayer, composeToRgba8, alphaPlane,
-  renderGemsStage, rgbToRgba8, renderSpellOverlays,
-} from './render.js';
-import type { OverlayGemSource } from './gems.js';
-import { encodePng } from './image.js';
-import { compilePlan, compileFramePlan, CARD_TYPE_TO_SLOT, type FixtureCard, type StaticTables, type WatermarkTables } from './plan.js';
+import { loadPack, TextureStore } from './assets.js';
+import { SIZE } from './camera.js';
+import { encodePngBytes } from './image.js';
+import { renderCard, renderPackToRgba8, type RenderStage } from './render-card.js';
+import type { FixtureCard } from './plan.js';
 
 function arg(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);
@@ -26,111 +22,42 @@ const dataDir = arg('--data') ?? process.env.YOGGRAPH_DATA ?? 'data';
 const packDir = arg('--pack') ?? (hasFlags ? packDefault : process.argv[2] ?? packDefault);
 const cardId = arg('--card');
 const outPng = arg('--out') ?? (cardId ? `out/ts_${cardId}.png` : hasFlags ? 'out/ts_p2.png' : process.argv[3] ?? 'out/ts_p2.png');
-const stage = arg('--stage') ?? (hasFlags ? 'p2' : process.argv[4] ?? 'p2');
+const stage = (arg('--stage') ?? (hasFlags ? 'p2' : process.argv[4] ?? 'p2')) as RenderStage;
 
 const t0 = Date.now();
 const fixtureFile = arg('--fixture-file');
 const slotOverride = arg('--slot');
-let pack;
+const dirs = { pack: packDir, data: dataDir };
+mkdirSync(dirname(outPng), { recursive: true });
+
 if (cardId || fixtureFile) {
   const fixture = JSON.parse(
     readFileSync(fixtureFile ?? join(dataDir, 'fixtures', `${cardId}.json`), 'utf-8'),
   ) as FixtureCard;
-  const tables = JSON.parse(readFileSync(join(dataDir, 'tables.json'), 'utf-8')) as StaticTables;
-  // 卡集水印三表（scripts/extract_watermarks.py 产物；缺失即 fail-fast——数据缺口
-  // 不能静默渲染成"无水印"）
-  let wmTables: WatermarkTables;
-  try {
-    const meta = (f: string): Record<string, unknown> =>
-      JSON.parse(readFileSync(join(dataDir, 'card_meta', f), 'utf-8'));
-    wmTables = {
-      sets:      meta('card_set_watermarks.json').sets as WatermarkTables['sets'],
-      timings:   meta('card_set_timings.json').timings as WatermarkTables['timings'],
-      overrides: meta('card_watermark_overrides.json').overrides as WatermarkTables['overrides'],
-    };
-  } catch (err) {
-    throw new Error(
-      `[watermark] data/card_meta 三表缺失或不可读（uv run scripts/extract_watermarks.py）`,
-      { cause: err });
-  }
-  // 卡型 → 手牌帧 slot（TAG_CARDTYPE；actor_names.csv/ActorNames.cs）；未知卡型回落随从帧
-  const slot = slotOverride ?? CARD_TYPE_TO_SLOT[fixture.tags['202'] ?? 4] ?? 'hand-minion';
-  pack = loadPack(packDir, slot);
-  pack.plan = pack.prefabReport
-    ? compileFramePlan(fixture, tables, pack, packDir, slot, wmTables)
-    : compilePlan(fixture, tables, pack, packDir);
-  // 取景锚（exporter FrameCamera 主体网格中心口径；camera.ts 同源注释）：渲染前设置，
-  // 本进程内所有投影（网格/肖像/overlay/宝石/文字）统一跟随。逐卡进程，无串卡风险。
-  const fc = pack.plan!.frame_center;
-  if (fc) setFrameAnchor(fc[0], fc[1]);
+  const res = await renderCard({ fixture, slot: slotOverride, stage }, dirs);
+  writeFileSync(outPng, res.png);
+  console.log(JSON.stringify({
+    out:         outPng,
+    stage,
+    card:        cardId ?? fixture.cardId,
+    frame_nodes: res.frame_nodes,
+    tris:        res.tris,
+    slot:        res.slot,
+    ms:          Date.now() - t0,
+  }, null, 1));
 } else {
-  pack = loadPack(packDir);
+  // 资产包内嵌 plan（历史 py export_asset_pack 产物）：无卡牌 delta，直接渲 plan.json
+  const pack = loadPack(packDir);
+  const textures = new TextureStore(packDir);
+  const { rgba8, tris, frame_nodes } = await renderPackToRgba8(
+    pack, textures, pack.plan!, dirs, stage);
+  writeFileSync(outPng, encodePngBytes(SIZE[0], SIZE[1], rgba8));
+  console.log(JSON.stringify({
+    out:  outPng,
+    stage,
+    card: 'EX1_350(plan)',
+    frame_nodes,
+    tris,
+    ms:   Date.now() - t0,
+  }, null, 1));
 }
-const textures = new TextureStore(packDir);
-const W = SIZE[0], H = SIZE[1];
-
-const lateNames = new Set(pack.plan!.late_nodes ?? []);
-const frameNodes = buildRenderList(pack.frameRecon.hierarchy, pack.plan!, lateNames);
-const canvas = new Float64Array(W * H * 4);
-const zbuf = new Float64Array(W * H).fill(-Infinity);
-
-const nTris = rasterBucketZbuf(frameNodes, pack, textures, canvas, zbuf);
-renderPortraitLayer(pack, textures, canvas, zbuf);
-// 战棋模板 spell 视觉（coin / tavern-tier）：SpellTable 预制与帧同管线、同 zbuf
-const overlayPacks = (pack.plan!.spell_overlays ?? []).map(o => loadSpellOverlay(packDir, o.key));
-renderSpellOverlays(overlayPacks, pack.plan!, textures, canvas, zbuf);
-// coin 的 Gem_Health 是宝石 shader 家族（DiffuseAlphaMaskScroller）→ 走 gems 阶段公式
-// （与 stat gem 同源；普通 unlit 光栅会丢 clouds×_tint 项——实测铸币被染成 _Color 绿）。
-// 收集必须在 renderSpellOverlays 之后：alt-cost 锚定会平移 overlay 层级。
-const overlayGems: OverlayGemSource = { packs: overlayPacks, gems: [] };
-for (const ov of overlayPacks) {
-  for (const [n, key, path] of walkWithKey(ov.hierarchy)) {
-    if ((n.name !== 'Gem_Health' && n.name !== 'Gem_Coin') || !n.mesh_stats
-      || n.active_in_hierarchy === false) continue;
-    const mat = n.renderers?.[0]?.materials?.[0];
-    if (!mat) continue;
-    overlayGems.gems.push({
-      node:          n.name, path, npz_key:       key, overlay:       ov.key,
-      main_tex_file: mat.tex?.['_MainTex']?.texture?.file ?? '',
-      tint_rgb:      (mat.colors?.['_tint'] ?? [1, 1, 1, 1]).slice(0, 3),
-      intensity:     mat.floats?.['_Intensity'] ?? 1.0,
-      speed_xy:      [mat.floats?.['_XSpeed'] ?? 5.0, mat.floats?.['_YSpeed'] ?? 0.2],
-      scale_xy:      [mat.floats?.['_ScaleX'] ?? 1.0, mat.floats?.['_ScaleY'] ?? 1.0],
-    });
-  }
-}
-
-// 晚通道：运行时激活的覆盖层（如饰品徽章子树）按激活序合成，每节点独立深度缓冲
-for (const name of pack.plan!.late_nodes ?? []) {
-  const passNodes = buildRenderList(
-    pack.frameRecon.hierarchy, pack.plan!, lateNames, new Set([name]));
-  const nodeZbuf = new Float64Array(W * H).fill(-Infinity); // 激活序合成：不与兄弟互 z
-  rasterBucketZbuf(passNodes, pack, textures, canvas, nodeZbuf);
-}
-
-let rgba8: Uint8Array;
-if (stage === 'p0') {
-  rgba8 = composeToRgba8(canvas);
-} else {
-  // 透明背景：宝石/文字阶段只消费直感 RGB，覆盖率平面随之并行累加（凸出卡框的
-  // 宝石/数字的覆盖也在卡框轮廓外），末尾与 RGB 拼合输出
-  const alpha = alphaPlane(canvas);
-  const rgb = renderGemsStage(canvas, pack, textures, overlayGems, alpha);
-  if (stage === 'p2') {
-    const { renderTextStage } = await import('./textstage.js');
-    renderTextStage(rgb, pack, alpha);
-  }
-  rgba8 = rgbToRgba8(rgb, alpha);
-}
-
-mkdirSync(dirname(outPng), { recursive: true });
-encodePng(outPng, W, H, rgba8);
-
-const ms = Date.now() - t0;
-console.log(JSON.stringify({
-  out:         outPng,
-  stage,
-  card:        cardId ?? 'EX1_350(plan)',
-  frame_nodes: frameNodes.map(n => n.name),
-  tris:        nTris, ms,
-}, null, 1));
