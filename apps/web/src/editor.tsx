@@ -96,7 +96,8 @@ export function Editor() {
   const pendingDesc = useRef('');
 
   /** 描述富文本（contentEditable，所见即所得）：换行 → <br> 供显示；
-   *  提交时转回纯文本换行、只保留加粗标记——标记语法不出现在界面上。 */
+   *  提交时转回纯文本换行、只保留加粗/斜体标记——标记语法不出现在界面上。
+   *  渲染链 <b>/<i> 独立且可嵌套（CATA_190h "<i><b>兆示</b>…" 先例）。 */
   const toDisplay = (t: string): string => t.replace(/\n/g, '<br>');
 
   const htmlToText = (el: HTMLElement): string =>
@@ -104,23 +105,23 @@ export function Editor() {
       .replace(/<div>/gi, '\n')
       .replace(/<\/div>/gi, '')
       .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<(?!\/?b>)[^>]+>/gi, '');
+      .replace(/<(?!\/?(?:b|i)>)[^>]+>/gi, '');
 
   const readDesc = useCallback((): string =>
     descRef.current ? htmlToText(descRef.current) : '', []);
 
-  /** 把选中的描述文字设为游戏里的"关键词"样式（实现细节不出现在界面上）。 */
-  const boldSelection = useCallback(() => {
+  /** 把选中的描述文字套进 <b>/<i>（游戏里的关键词/斜体样式；实现细节不出现在界面上）。 */
+  const wrapSelection = useCallback((tag: 'b' | 'i') => {
     const el = descRef.current;
     const sel = window.getSelection();
     if (!el || !sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     if (range.collapsed || !el.contains(range.commonAncestorContainer)) return;
     try {
-      const b = document.createElement('b');
-      range.surroundContents(b);
+      const el2 = document.createElement(tag);
+      range.surroundContents(el2);
     } catch {
-      document.execCommand('bold');
+      document.execCommand(tag === 'b' ? 'bold' : 'italic');
     }
   }, []);
 
@@ -397,10 +398,13 @@ export function Editor() {
               />
             </Field>
             <div className="text-tools">
-              <button type="button" className="text-tool" onClick={boldSelection}>
-                加粗所选文字
+              <button type="button" className="text-tool" onClick={() => wrapSelection('b')}>
+                加粗
               </button>
-              <span className="tip">先选中一句话，它可以像游戏里那样突出显示。</span>
+              <button type="button" className="text-tool" onClick={() => wrapSelection('i')}>
+                斜体
+              </button>
+              <span className="tip">先选中一句话，再选加粗或斜体，它可以像游戏里那样突出显示。</span>
             </div>
           </Section>
 
