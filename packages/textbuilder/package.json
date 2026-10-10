@@ -1,0 +1,51 @@
+{
+  "name": "@tcg-cards/hs-text-builder",
+  "version": "0.1.0",
+  "description": "Hearthstone card text reconstruction — full CardTextBuilder family translation (47 types, static EntityDef + runtime Entity paths) with embedded 14-language keyword/class/string data",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "data",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test",
+    "prepublishOnly": "bun test && tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "hearthstone",
+    "card",
+    "text",
+    "cardtextbuilder",
+    "dbf",
+    "game-strings",
+    "offline-rendering"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sunchy321/yoggshade.git",
+    "directory": "packages/textbuilder"
+  }
+}

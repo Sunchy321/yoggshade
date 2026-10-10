@@ -171,9 +171,42 @@ net 掩码对文字结构性失明，须并排图+分区逐项）。
    - splitRich 增加 italic 状态位（与 bold 并列逐字符标志）；FontMetricsLike 按 style 取
      metrics+mask；其余管线零改动（advance/换行/垂直全部不变）；
    - 顺手从直采图集反测 shear 常数备案（供无图集字号复用：斜体字号 ≠40 的节点）。
-3. **文本 resolve**（textstage 上游，未做）：`{0}`(TryFormat/SCRIPT_DATA)、`@`(alternate/script)、
-   `$`/`#` 加成在 plan 层接 exporter 等价链——hearthstone-text-formatting.md 已有完整规格与
-   反编译行号；fixture 冻结文本是未解析态，基准图是已解析态，二者必须过同一 resolve 链。
+3. **文本 resolve**——**已实现**（2026-10-06，新包 `@tcg-cards/hs-text-builder`，plan.ts desc 接入；
+   **CardTextBuilder 家族全量 47 类型对译**，静态 EntityDef + 运行时 Entity 双路径，
+   bonus/对局态经 `bonuses`/`runtime`/`lookup` 钩子注入）。分支语义经反编译源逐条复核，
+   修正 4 处——
+   ① jade(1/2) EntityDef 路径**不**做 {0} 格式化（JadeGolemCardTextBuilder.cs:37-45 仅取 @ 后段，
+   FormatJadeGolemText 只在 Entity 路径）；② SCRIPT_DATA_NUM_1(7) EntityDef 双@且 NUM_1==0 →
+   **截断于首个 @**（不替换尾段 @，Entity 路径才替换）；③ herald(43) EntityDef = 卡自身
+   CLASS(199) → GAMEPLAY_HERALD_<类名>（GetHeraldColossalName(EntityDef) 经 GetClass，非恒 DEFAULT）；
+   ④ card_race(31)/bgquest(32) 种族名走 GetRaceString（count>1 → 酒馆名；内置 42+27 种族表 ×
+   14 语言）。两处越界行为维持反编译口径：hidden_choice 越界返回原文（GetCorrectSubstring）、
+   alternate_card_text 越界钳制尾段。静态 ∞ 按**子串替换**口径恒生效（≥1e6 数字段 → ∞，
+   TextUtils.cs:171-176 s_infinityRegex.Replace 语义，= 游戏内渲染）。
+   另实现 **|1/|4 语言规则**（ParseLanguageRule1 韩语助词含 FindPrecedingChar 归音、Rule4 复数含
+   GetPluralIndex 按 locale 与数字屏蔽，GameStrings.cs:2107-2457）与 **fail-fast 错误模型**
+   （未知 textBuilderType / 非有限 tag 值 / 钩子异常 → 抛出；渲染层 plan.ts resolveDescText
+   捕获后带卡牌上下文重抛）。
+   UniversalCardTextBuilder 例外：v2 模板数据不在程序集内，经
+   `lookup.universalTemplate` 钩子外置。审计（explore/2026-10-06-textbuilder/probe_dbf_tags.py）
+   证实 fixture tags 已含 builder 全部所需 tag，无需扩导出：
+   - **数据结论：fixture 无需扩导出**。审计（explore/2026-10-06-textbuilder/probe_dbf_tags.py）
+     证实 fixture tags = DBF CARD_TAG 全量数字键，builder 所需 tag（TAG_SCRIPT_DATA_NUM_1=2、
+     NUM_2=3、NUM_3..6=2889/2919/2920/2921、USE_ALTERNATE_CARD_TEXT=955）已在其中
+     （GAME_TAG.cs:6-7 枚举值与协议 renderMechanics 表三方一致）；四张"无 CARE 行"卡
+     （TOY_519/AV_205/BG34_Giant_072 文本无占位符；CFM_902 走 @ 后段不需值）均无缺口。
+   - 分派语义（各 builder 的 BuildCardTextInHand(EntityDef) 静态路径，基准图即此路径）：
+     DEFAULT=TransformCardText(raw)；JADE_GOLEM_TRIGGER(2)=@ 后段（CFM_902 实证）；
+     SCRIPT_DATA_NUM_1(7)=@→NUM_1（恰 2 个 @ 且 NUM_1==0 时取段0）；NUM_1_NUM_2(26)=
+     TryFormat{0}{1}；MULTIPLE_ALT_TEXT_SCRIPT_DATA_NUMS(28)=Split('@') 按 955 选段
+     +TryFormat{0}..{5}；其余类型按 DEFAULT 透传并登记（本集未涉及）。
+     $/# token 无加成时去标记（TextUtils.cs:288-388 化简）；静态路径 Infinity 规则被
+     GameMgr==null 跳过（TextUtils.cs:144-148）；zhCN 不含 |1/|4 语言规则 token。
+   - 验证：12 卡 resolve 输出与基准实拍逐字一致（CFM_902"召唤一个青玉魔像"、
+     BG30_802"还剩2次"、BG33_828"+6/+6"、CATA_190h"1项灾变"、ETC_210"6点/3个2/2"、
+     BG32"15枚铸币"）；CFM_902 desc 首行偏差 −32→−2px、行数归一、红青全重叠。
+     剩余行带差（BG33_828 4 行 vs 3、LT23/TTN_850/AV_205p/BG32）= narrow 判据一档残差
+     （§6A，本文件姊妹篇 explore/2026-10-06-text-align/findings.md）与范围外锚定，非 resolve 账。
 
 ## 7. 证据索引
 

@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "opentype.js": "^2.0.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "@tcg-cards/hs-text-builder": "workspace:*"
   },
   "devDependencies": {
     "@types/pngjs": "^6.0.5"

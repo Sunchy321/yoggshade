@@ -6,6 +6,18 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AssetPack, FrameMaterial, PlanComponent, PrefabReport, RenderPlan } from './types.js';
+import { resolveFixtureText } from '@tcg-cards/hs-text-builder';
+
+/** 文本重建（@tcg-cards/hs-text-builder）——fail-fast：resolve 抛错 = 数据/实现缺口，
+ *  带卡牌上下文重抛让 L2 在该卡上失败，而不是静默渲染错误文本。 */
+function resolveDescText(fixture: FixtureCard, cardId: string): string {
+  try {
+    return resolveFixtureText(fixture, 'zhCN', cardId).text;
+  } catch (err) {
+    throw new Error(
+      `[textbuilder] ${cardId} (type ${fixture.textBuilderType}) 文本重建失败`, { cause: err });
+  }
+}
 
 export interface FixtureCard {
   cardId:          string;
@@ -208,7 +220,7 @@ export function compilePlan(
     switch (role) {
     case 'cost': return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
     case 'name': return fixture.name.zhCN ?? '';
-    case 'desc': return fixture.textInHand.zhCN ?? '';
+    case 'desc': return resolveDescText(fixture, fixture.cardId); // textBuilderType 分派（@/{n}/$# 占位符），fail-fast
     case 'race': return raceText;
     case 'attack': return attackText;
     case 'health': return healthText;
@@ -704,7 +716,7 @@ export function compileFramePlan(
       if (slot === 'hand-hero') return String(tags[TAG.COST] ?? 0); // 英雄费用缺省显 "0"
       return tags[TAG.COST] !== undefined ? String(tags[TAG.COST]) : '';
     case 'name': return fixture.name.zhCN ?? '';
-    case 'desc': return fixture.textInHand.zhCN ?? '';
+    case 'desc': return resolveDescText(fixture, fixture.cardId); // textBuilderType 分派（@/{n}/$# 占位符），fail-fast
     case 'race': return slot === 'hand-spell' ? schoolText : raceText;
     case 'attack': return attackText;
     case 'health': return healthText;
