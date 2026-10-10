@@ -407,7 +407,10 @@ export function layoutText(inp: LayoutInputs): Layout {
   cs *= (fd['m_UnboundCharacterSizeModifier'] ?? 1) * (locale['m_UnboundCharacterSizeModifier'] ?? 1);
   k = cs * 0.1;
 
-  const pitch = fm.lineHeight * k * spEff;
+  // 渲染 pitch/行盒用浮点 span（Angeila 垂直模型 v2：FG@40 = 48.047）；上面的 wrap/fit
+  // 判据仍全部走取整 fm.lineHeight（停档口径 L2 长文本实证，勿混）。2026-10-10 desc 行带
+  // 剖面实测基线随行号 +0.03~0.08px/行 漂移，取整 pitch 是其一部分（探针 px4.ts）。
+  const pitch = fm.lineSpan * k * spEff;
   const lines: LaidGlyph[][] = [];
   const lineWidths: number[] = [];
   for (const lt of wrapped) {

@@ -9,6 +9,39 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
   const settings = loadNodeSettingsAlly(pack);
   const W = SIZE[0], H = SIZE[1];
 
+  // desc 垂直校准（2026-10-10，用户批准手动校准）：desc 文本块整体偏上，行剖面亚像素
+  // 互相关实测需 +1.25~+1.71px 下移（10 卡 × 5 帧型：随从/法术/英雄/英雄技能/战棋饰品，
+  // explore/2026-10-10-text-offset/findings.md §4A + px4b.ts；卡内各行紧致一致 = 真实
+  // 平移，非字形形状差）。TS 布局数学已对齐 Angeila 垂直模型 v2（<0.1px），残差来自
+  // Unity 原生 TextGenerator（Populate_Internal 为 native extern，无 .NET 源码）的
+  // MiddleCenter 垂直锚定行为，行为拟合路线不可推导——本常数即 Angeila 同款"唯一非推导
+  // 数"做法（其 (6,-4.5) 基座校准，text-rendering-pipeline.md）。逐卡散布 ±0.25px 是该
+  // 路线的地板。常数取 1.55 = 六卡 desc 区 MAE 扫描谷底（1.25/1.35/1.45/1.50/1.55/1.60/1.65
+  // → 总和 25.13/23.73/22.86/22.10/21.91/22.46/23.60，explore/2026-10-10-text-offset）。
+  // YOGGRAPH_DESC_CALIB 可覆盖（CLI/标定用；浏览器无 process 取默认）。
+  const CALIB: Partial<Record<string, [number, number]>> = {
+    desc: [0.0, Number(globalThis.process?.env.YOGGRAPH_DESC_CALIB ?? 1.55)],
+    // cost 数字校准（2026-10-10，同 desc 方法论）：全量 26 张已锚定卡费用区白墨剖面
+    // 亚像素互相关一致偏左上（dx +0.35~+0.95 / dy +0.05~+0.75，与位数无关；
+    // explore/2026-10-10-text-offset px5.ts）。未锚定特殊帧（佣兵/事件/钻石 ±3px 无曲率）
+    // 与 BG 系（金币数字白墨阈值不适用）不在本校准适用域。YOGGRAPH_COST_CALIB="x,y" 覆盖。
+    cost: [
+      Number(globalThis.process?.env.YOGGRAPH_COST_CALIB?.split(',')[0] ?? 0.7),
+      Number(globalThis.process?.env.YOGGRAPH_COST_CALIB?.split(',')[1] ?? 0.35),
+    ],
+    // attack/health 数字校准（2026-10-10，同上）：px6.ts 全量普查——attack 一致偏左上
+    // （dx +0.65~0.95 / dy +0.05~0.70）、health（dx +0.05~0.90 / dy +0.05~0.65），扫描
+    // 定值见各常数。YOGGRAPH_ATTACK_CALIB / YOGGRAPH_HEALTH_CALIB="x,y" 覆盖。
+    attack: [
+      Number(globalThis.process?.env.YOGGRAPH_ATTACK_CALIB?.split(',')[0] ?? 0.75),
+      Number(globalThis.process?.env.YOGGRAPH_ATTACK_CALIB?.split(',')[1] ?? 0.45),
+    ],
+    health: [
+      Number(globalThis.process?.env.YOGGRAPH_HEALTH_CALIB?.split(',')[0] ?? 0.75),
+      Number(globalThis.process?.env.YOGGRAPH_HEALTH_CALIB?.split(',')[1] ?? 0.35),
+    ],
+  };
+
   for (const entry of pack.plan!.texts ?? []) {
     if (!entry.render || !entry.text) continue;
     let ns = settings[entry.role];
@@ -18,7 +51,7 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
     if (delta) ns = { ...ns, worldPos: [ns.worldPos[0] + delta[0], ns.worldPos[1] + delta[1], ns.worldPos[2] + delta[2]] };
     // 换节点渲染（UpdateRace 多族 → Multi_RaceUberText，按其自有盒/锚点）
     if (entry.node_path) ns = nodeSettingsByPath(pack, entry.node_path) ?? ns;
-    const layer = renderText(pack, entry.text, ns, scene, [0.0, 0.0],
+    const layer = renderText(pack, entry.text, ns, scene, CALIB[entry.role] ?? [0.0, 0.0],
       entry.role === 'name' ? pack.curved : undefined);
     // DEBUG_LAYER 仅 CLI 调试用（浏览器无 process，条件恒假——ADR-0002）
     if (globalThis.process?.env.DEBUG_LAYER === entry.role) {

@@ -47,6 +47,10 @@ export interface FontMetricsLike {
   readonly ascent:     number;
   readonly descent:    number; // ≤0
   readonly lineHeight: number;
+  /** 浮点行距 span = (asc−desc)/upem×fs（不取整）。渲染 pitch 用它（Angeila 垂直模型
+   *  v2：FG@40 = 48.047 vs round 48，多行基线逐行 +0.047px）；布局判据仍用取整
+   *  lineHeight（fit 停档口径是 L2 长文本实证过的，见 textlayout.ts）。 */
+  readonly lineSpan:   number;
   charInfo(ch: string): { info: CharInfo, mask: GlyphMask };
   advance(ch: string): number;
   /** ink 框（Unity CharacterInfo 语义，UB:3930 GetCharacterInfo）——wrap/fit/underwear

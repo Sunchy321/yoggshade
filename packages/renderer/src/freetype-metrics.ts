@@ -62,6 +62,7 @@ export class FreeTypeWasmMetrics implements FontMetricsLike {
   readonly ascent:     number;
   readonly descent:    number; // ≤0
   readonly lineHeight: number;
+  readonly lineSpan:   number;
   private cache = new Map<string, { info: CharInfo, mask: GlyphMask }>();
   protected facePtr:   ReturnType<FTLib['newFace']> | null = null;
 
@@ -76,6 +77,8 @@ export class FreeTypeWasmMetrics implements FontMetricsLike {
     this.descent = Math.floor((info.descender / upem) * fs);
     // 行高 = round((asc−desc)×fs/upem)（Unity TextGenerator 口径，见旧 FontMetrics 注释）
     this.lineHeight = Math.round(((info.ascender - info.descender) / upem) * fs);
+    // 渲染 pitch 用的浮点 span（同式不取整；见 font.ts FontMetricsLike.lineSpan 注）
+    this.lineSpan = ((info.ascender - info.descender) / upem) * fs;
   }
 
   static create(src: AssetSource, key: string, fs: number, shear = 0): FreeTypeWasmMetrics {
