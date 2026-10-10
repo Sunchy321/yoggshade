@@ -64,7 +64,9 @@ export function decodePortrait(dataUrl: string): RGBAImage {
     throw new CardRequestError(`原画边长不得超过 ${PORTRAIT_MAX_SIDE}px（当前 ${img.w}）`);
   }
   for (let i = 3; i < img.data.length; i += 4) {
-    if (img.data[i]! < 1) {
+    // uint8 口径（RGBAImage.data 自 ticket 18 起 0..255）：任一像素 alpha≠255 即不透明度不足。
+    // 旧 float 口径 `k/255 < 1` 与 `k !== 255` 等价。
+    if (img.data[i] !== 255) {
       throw new CardRequestError(
         '原画含有透明像素：请先压到不透明底（饰品卡的原画窗会消费 alpha，透明处会透出框体）');
     }

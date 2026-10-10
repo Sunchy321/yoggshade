@@ -52,6 +52,87 @@ function sampleMask(mask: { w: number, h: number, data: Float64Array }, x: numbe
     + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
 }
 
+/** 文字 shader 族 tap/着色配置（TextOutline_Unlit / Text_Bold / TextBoldOutline / 无描边）。 */
+interface OutlineCfg {
+  padFont: number;
+  taps: [number, number][]; // 本缓冲 texel 偏移
+  centerTap: boolean;
+  alphaGain: number; // α = clamp(Σtaps × gain)
+  oc: [number, number, number];
+}
+
+function outlineConfig(
+  scale: number,
+  fill: [number, number, number],
+  outline: { r: number, color: [number, number, number] } | null,
+  boldPx: number,
+  radiusOut = 0.0,
+): OutlineCfg {
+  const isBold = boldPx > 0;
+  if (outline && isBold) {
+    const r = (outline.r + 0.75 * boldPx) * scale;
+    return {
+      padFont: outline.r + 0.75 * boldPx + 1.0,
+      taps: [
+        [r, 0], [0, r], [0, -r],
+        [0.6 * r, 0.6 * r], [0.6 * r, -0.6 * r], [-0.6 * r, 0.6 * r], [-0.6 * r, -0.6 * r],
+      ],
+      centerTap: true,
+      alphaGain: 0.23,
+      oc: fill, // TextBoldOutline：rgb = 填充色（无描边色混合）
+    };
+  }
+  if (outline) {
+    const radiusOutEff = radiusOut;
+    return {
+      padFont: radiusOutEff > 0 ? radiusOutEff / scale + 1.0 : 0.0,
+      taps: [
+        [radiusOutEff, 0], [-radiusOutEff, 0], [0, radiusOutEff], [0, -radiusOutEff],
+        [0.6 * radiusOutEff, 0.6 * radiusOutEff], [0.6 * radiusOutEff, -0.6 * radiusOutEff],
+        [-0.6 * radiusOutEff, 0.6 * radiusOutEff], [-0.6 * radiusOutEff, -0.6 * radiusOutEff],
+      ],
+      centerTap: true,
+      alphaGain: 1.0,
+      oc: outline.color,
+    };
+  }
+  if (isBold) {
+    const b = boldPx * scale;
+    return {
+      padFont: boldPx + 1.0,
+      taps: [
+        [b, 0], [-b, 0], [0, b], [0, -b],
+        [0.6 * b, 0.6 * b], [0.6 * b, -0.6 * b], [-0.6 * b, 0.6 * b], [-0.6 * b, -0.6 * b],
+      ],
+      centerTap: false,
+      alphaGain: 0.23,
+      oc: fill,
+    };
+  }
+  return { padFont: 0.0, taps: [], centerTap: true, alphaGain: 1.0, oc: fill };
+}
+
+/** 字形 tile 几何（尺寸 + 贴点）：quad 按 tap 半径外扩 padFont，paste 位相应外移。
+ * 与 glyphOutlineShader 共用同一算式（ticket 18：renderText 用它做画布 bbox 预算，
+ * 不跑逐像素 shader 循环）。 */
+export function glyphQuad(
+  mask: { w: number, h: number },
+  info: { minX: number, maxY: number },
+  scale: number,
+  outline: { r: number, color: [number, number, number] } | null,
+  boldPx: number,
+  radiusOut = 0.0,
+): { nw: number, nh: number, ox: number, oy: number } {
+  // padFont 只依赖 outline/bold/半径，与 fill 无关（fill 只进 oc 着色）——占位零色即可。
+  const { padFont } = outlineConfig(scale, [0, 0, 0], outline, boldPx, radiusOut);
+  return {
+    nw: Math.max(1, pyRound((mask.w + 2 * padFont) * scale)),
+    nh: Math.max(1, pyRound((mask.h + 2 * padFont) * scale)),
+    ox: (padFont - info.minX) * scale,
+    oy: (info.maxY + padFont) * scale,
+  };
+}
+
 /**
  * 文字 shader 族逐像素仿真（Metal 源码对译，exporter/tmp/shader/Hidden_*.metal）。
  * <b> 字形在 TextMesh 里属 submesh1 专属 pass，与普通字形（submesh0）不同 shader：
@@ -78,51 +159,9 @@ export function glyphOutlineShader(
   boldPx: number,
   radiusOut = 0.0,
 ): GlyphRGBA {
-  const isBold = boldPx > 0;
-  let padFont: number;
-  let taps: [number, number][]; // 本缓冲 texel 偏移
-  let centerTap: boolean;
-  let alphaGain: number; // α = clamp(Σtaps × gain)
-  let oc: [number, number, number];
-  if (outline && isBold) {
-    const r = (outline.r + 0.75 * boldPx) * scale;
-    padFont = outline.r + 0.75 * boldPx + 1.0;
-    taps = [
-      [r, 0], [0, r], [0, -r],
-      [0.6 * r, 0.6 * r], [0.6 * r, -0.6 * r], [-0.6 * r, 0.6 * r], [-0.6 * r, -0.6 * r],
-    ];
-    centerTap = true;
-    alphaGain = 0.23;
-    oc = fill;
-  } else if (outline) {
-    padFont = radiusOut > 0 ? radiusOut / scale + 1.0 : 0.0;
-    taps = [
-      [radiusOut, 0], [-radiusOut, 0], [0, radiusOut], [0, -radiusOut],
-      [0.6 * radiusOut, 0.6 * radiusOut], [0.6 * radiusOut, -0.6 * radiusOut],
-      [-0.6 * radiusOut, 0.6 * radiusOut], [-0.6 * radiusOut, -0.6 * radiusOut],
-    ];
-    centerTap = true;
-    alphaGain = 1.0;
-    oc = outline.color;
-  } else if (isBold) {
-    const b = boldPx * scale;
-    padFont = boldPx + 1.0;
-    taps = [
-      [b, 0], [-b, 0], [0, b], [0, -b],
-      [0.6 * b, 0.6 * b], [0.6 * b, -0.6 * b], [-0.6 * b, 0.6 * b], [-0.6 * b, -0.6 * b],
-    ];
-    centerTap = false;
-    alphaGain = 0.23;
-    oc = fill;
-  } else {
-    padFont = 0.0;
-    taps = [];
-    centerTap = true;
-    alphaGain = 1.0;
-    oc = fill;
-  }
-  const nw = Math.max(1, pyRound((mask.w + 2 * padFont) * scale));
-  const nh = Math.max(1, pyRound((mask.h + 2 * padFont) * scale));
+  const { padFont, taps, centerTap, alphaGain, oc }
+    = outlineConfig(scale, fill, outline, boldPx, radiusOut);
+  const { nw, nh, ox, oy } = glyphQuad(mask, info, scale, outline, boldPx, radiusOut);
   const data = new Float64Array(nw * nh * 4);
   for (let j = 0; j < nh; j++) {
     // buffer 行 j 的中心 → 字体坐标（x 向右，y 自基线向上）；quad 左上 = (minX-pad, maxY+pad)
@@ -145,9 +184,5 @@ export function glyphOutlineShader(
       data[di + 3] = alpha;
     }
   }
-  return {
-    data, w:  nw, h:  nh,
-    ox: (padFont - info.minX) * scale,
-    oy: (info.maxY + padFont) * scale,
-  };
+  return { data, w: nw, h: nh, ox, oy };
 }

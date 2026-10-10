@@ -1,8 +1,8 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["fonttools>=4.53"]
 # ///
-"""extract_fonts — 渲染字体进资产包（assets/fonts/ + assets/fontdefs.json）。
+"""extract_fonts — 渲染字体进资产包（assets/fonts/ + assets/fontdefs.json + assets/fonts/metrics.json）。
 
 来源：Angelia 冻结数据 fonts_zhcn/（Belwe/Belwe_Outline/FranklinGothic + fontdefs.json，
 ANGELIA_HOME 指向 Angelia 工作区根）。该目录是历史产物的唯一现成来源——资产包导出链
@@ -14,6 +14,14 @@ ANGELIA_HOME 指向 Angelia 工作区根）。该目录是历史产物的唯一�
   assets/fontdefs.json           —— 与源文件唯一差异：zhCN 侧 font_object.saved_to
                                     从 data/fonts_zhcn/<name>.ttf 改写为 fonts/<name>.ttf
                                     （TS 侧唯一读取方 ubertext.ts loadFontdev 只读 zhcn 侧）
+  assets/fonts/metrics.json      —— 每字体 hhea.ascender/descender + head.unitsPerEm
+                                    （ticket 18：FontMetrics 用它提供 ascent/descent/lineHeight，
+                                    **懒解析** TTF——pack 字形全覆盖的卡不再为三个度量数
+                                    parse 5.7-7.3 MB 字体进 opentype 对象。数值 = opentype.js
+                                    运行时同源同表（font.ascender=hhea.ascender、
+                                    font.descender=hhea.descender、unitsPerEm=head.unitsPerEm，
+                                    实证 Belwe 900/-124/1024、Franklin 502/-113/512）， fixtures
+                                    字节门禁验证。缺该文件的包回落即时 parse，行为不变。）
 
 用法：uv run scripts/extract_fonts.py [--pack assets]
       （源默认取 Angelia 的 fonts_zhcn，ANGELIA_HOME 或 --src 可覆盖）
@@ -66,7 +74,23 @@ def main() -> int:
         side["font_object"]["saved_to"] = f"fonts/{name}"
 
     (pack / "fontdefs.json").write_text(json.dumps(fontdefs, ensure_ascii=False), encoding="utf-8")
-    print(f"[done] fonts/{sorted(copied)} + fontdefs.json -> {pack}")
+
+    # metrics.json（懒解析度量，见头注释）：直接对拷进包的 TTF 读表
+    from fontTools.ttLib import TTFont
+
+    metrics: dict[str, dict[str, int]] = {}
+    for name in sorted(copied):
+        tf = TTFont(fonts_dir / name, lazy=True)
+        hhea, head = tf["hhea"], tf["head"]
+        metrics[name] = {
+            "ascender": int(hhea.ascender),
+            "descender": int(hhea.descender),
+            "unitsPerEm": int(head.unitsPerEm),
+        }
+        tf.close()
+    (fonts_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+
+    print(f"[done] fonts/{sorted(copied)} + fontdefs.json + fonts/metrics.json -> {pack}")
     return 0
 
 

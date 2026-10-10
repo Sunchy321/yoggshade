@@ -5,7 +5,7 @@
  * 已知残差（py 作者自己登记）：Unity 走 FT hinted advance 有 ±1px_font 风险；TS unhinted
  * 位图与 PIL hinted 位图在 AA 边缘可能差 ±1——L1 回归里属可接受噪声。 */
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import * as opentype from 'opentype.js';
 import { PNG } from 'pngjs';
 
@@ -35,14 +35,63 @@ interface Pt { x: number, y: number }
 
 const SS = 8; // 每轴子采样数（64 级覆盖度，逼近 FreeType 256 级 AA）
 
+/** opentype.Font 按文件去重（ticket 18）：getFontMetrics 每个字号档 new 一个 FontMetrics，
+ * 同一 TTF（如 Belwe_Outline）会在 36/45/74 三档被重复 parse（5.7 MB 字体 ×3 ≈ 60+ MB
+ * 驻留，实测 explore/2026-10-08-workers-mem-reduction 驻留曲线 141→165 MB 平台期）。
+ * Font 对象只读（charToGlyph/getPath），跨 FontMetrics 共享安全；度量按 size 存实例。 */
+const otFontCache = new Map<string, opentype.Font>();
+
+function parseFontCached(ttfPath: string): opentype.Font {
+  let font = otFontCache.get(ttfPath);
+  if (!font) {
+    const buf = readFileSync(ttfPath);
+    font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+    otFontCache.set(ttfPath, font);
+  }
+  return font;
+}
+
+/** 静态度量（hhea.ascender/descender + head.unitsPerEm）：assets/fonts/metrics.json
+ *  （scripts/extract_fonts.py 产出）。FontMetrics 用它提供 ascent/descent/lineHeight 并把
+ *  opentype.parse **推迟到首个真正需要 fallback 字形的 charInfo**——pack 字形全覆盖的卡
+ *  不再把 5.7-7.3 MB TTF parse 成 opentype 对象（ticket 18 实测 dedupe 后仍 ~20 MB 驻留）。
+ *  数值与 opentype.js 运行时同源同表（font.ascender=hhea.ascender、descender=hhea.descender、
+ *  unitsPerEm=head.unitsPerEm；实证 Belwe 900/−124/1024、Franklin 502/−113/512），
+ *  fixtures 字节门禁验证。文件/键缺失 → null → 回落即时 parse，行为不变。 */
+interface FontStaticMetrics { ascender: number, descender: number, unitsPerEm: number }
+
+const staticMetricsCache = new Map<string, FontStaticMetrics | null>();
+
+function staticMetrics(ttfPath: string): FontStaticMetrics | null {
+  const hit = staticMetricsCache.get(ttfPath);
+  if (hit !== undefined) return hit;
+  let out: FontStaticMetrics | null = null;
+  try {
+    const all = JSON.parse(readFileSync(join(dirname(ttfPath), 'metrics.json'), 'utf-8')) as
+      Record<string, FontStaticMetrics>;
+    out = all[basename(ttfPath)] ?? null;
+  } catch {
+    out = null;
+  }
+  staticMetricsCache.set(ttfPath, out);
+  return out;
+}
+
 export class FontMetrics implements FontMetricsLike {
   readonly ascent:     number;
   readonly descent:    number; // ≤0
   readonly lineHeight: number;
-  private font:        opentype.Font;
+  private ttfPath:     string;
+  private _font:       opentype.Font | null = null;
   private upem:        number;
   private size:        number;
   private cache = new Map<string, { info: CharInfo, mask: GlyphMask }>();
+
+  /** 惰性 parse：metrics.json 提供度量时，直到首个 pack-miss 字形才真正 parse TTF。 */
+  private get font(): opentype.Font {
+    if (!this._font) this._font = parseFontCached(this.ttfPath);
+    return this._font;
+  }
 
   advance(ch: string): number {
     return this.charInfo(ch).info.advance;
@@ -54,17 +103,26 @@ export class FontMetrics implements FontMetricsLike {
   }
 
   constructor(ttfPath: string, fontSize: number) {
-    const buf = readFileSync(ttfPath);
-    this.font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+    this.ttfPath = ttfPath;
     this.size = Math.trunc(fontSize);
-    this.upem = this.font.unitsPerEm;
-    this.ascent = Math.ceil((this.font.ascender / this.upem) * this.size);
-    this.descent = Math.floor((this.font.descender / this.upem) * this.size);
-    // 行高 = round((asc−desc)×fs/upem)（Unity TextGenerator 口径）。旧 ceil(asc)−floor(desc)
-    // 组合得 49（BG@40），但 resizeToFit 停档与基准断行（GDB_142 12/12/12/7、DMF 10/10/9/8
-    // 逐字一致）只在 48（round(48.05)）下复现——行高与基线（ascent/descent）是两个量，
-    // TextGenerator 的行进用 round 的整行高。explore/2026-10-06-text-align/findings.md §5。
-    this.lineHeight = Math.round(((this.font.ascender - this.font.descender) / this.upem) * this.size);
+    const st = staticMetrics(ttfPath);
+    if (st) {
+      this.upem = st.unitsPerEm;
+      this.ascent = Math.ceil((st.ascender / this.upem) * this.size);
+      this.descent = Math.floor((st.descender / this.upem) * this.size);
+      // 行高 = round((asc−desc)×fs/upem)（Unity TextGenerator 口径）。旧 ceil(asc)−floor(desc)
+      // 组合得 49（BG@40），但 resizeToFit 停档与基准断行（GDB_142 12/12/12/7、DMF 10/10/9/8
+      // 逐字一致）只在 48（round(48.05)）下复现——行高与基线（ascent/descent）是两个量，
+      // TextGenerator 的行进用 round 的整行高。explore/2026-10-06-text-align/findings.md §5。
+      this.lineHeight = Math.round(((st.ascender - st.descender) / this.upem) * this.size);
+    } else {
+      const f = parseFontCached(ttfPath);
+      this._font = f;
+      this.upem = f.unitsPerEm;
+      this.ascent = Math.ceil((f.ascender / this.upem) * this.size);
+      this.descent = Math.floor((f.descender / this.upem) * this.size);
+      this.lineHeight = Math.round(((f.ascender - f.descender) / this.upem) * this.size);
+    }
   }
 
   charInfo(ch: string): { info: CharInfo, mask: GlyphMask } {
@@ -250,7 +308,18 @@ export class PackFontMetrics implements FontMetricsLike {
     const m = this.meta[String(ch.codePointAt(0))] as
       { advance: number, minX: number, maxX: number, minY: number, maxY: number, w: number, h: number } | undefined;
     if (!m) return null;
-    const png = PNG.sync.read(readFileSync(join(this.dir, `${ch.codePointAt(0)}.png`)));
+    let png: import('pngjs').PNGWithMetadata;
+    try {
+      png = PNG.sync.read(readFileSync(join(this.dir, `${ch.codePointAt(0)}.png`)));
+    } catch {
+      // meta 幽灵条目（meta 有码位、PNG 缺失/损坏）：按「包内无此字形」处理，回退自研光栅。
+      // 这与 meta 缺条目的既有语义一致——不改变任何可完成的渲染，只是把 ENOENT 崩溃修复掉。
+      // 实证（拆包探查）：assets/glyphs/FranklinGothic-40 的 meta 含「伙/伴」条目而对应 PNG
+      // 缺失（BG24_Reward_310 描述文本复现 font.ts:253 ENOENT，`bun run fixtures` 因此中断）；
+      // Belwe_Outline-45 存在反向不一致（PNG 有而 meta 无 → 本就走 fallback）。
+      // 缓存扩容与 miss 语义的正式裁定仍归 ticket 15。
+      return null;
+    }
     const data = new Float64Array(m.w * m.h);
     for (let i = 0; i < m.w * m.h; i++) data[i] = png.data[i * 4] / 255;
     const info: CharInfo = { advance: m.advance, minX: m.minX, maxX: m.maxX, minY: m.minY, maxY: m.maxY };

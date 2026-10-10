@@ -65,7 +65,7 @@ interface BucketTri {
 
 /** 水印纹理裁决空串占位（引擎不换纹理 → _SecondTex 保持序列化占位、alpha=0；
  *  1×1 全零 → stA=0 → out=main——desc「main 不乘 _Color」的引擎语义仍生效）。 */
-const EMPTY_TEX = { w: 1, h: 1, data: new Float64Array(4) };
+const EMPTY_TEX = { w: 1, h: 1, data: new Uint8ClampedArray(4) };
 
 /** raster_bucket_zbuf：收集全部三角形 → (mean 世界 Y, DFS 序) 排序 → z-buffer 光栅。 */
 export function rasterBucketZbuf(
@@ -246,7 +246,7 @@ export function renderPortraitLayer(
   // 登记残差：饰品的肖像与窗的二混合未复刻。
   const secondRgba = pack.manifest.second_tex
     ? textures.get(pack.manifest.second_tex)
-    : { w: 1, h: 1, data: new Float64Array(4) };
+    : { w: 1, h: 1, data: new Uint8ClampedArray(4) };
   const st = pack.materialProps?.m_Colors._SecondTint;
   renderPortraitSubmesh(
     canvas, zbuf, W, H,

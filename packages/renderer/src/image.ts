@@ -3,13 +3,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import type { RGBAImage } from './types.js';
 
-/** PNG 字节 → RGBAImage（值域 0..1）。内存路径（站点上传原画）与磁盘路径共用。 */
+/** PNG 字节 → RGBAImage（uint8 0..255）。内存路径（站点上传原画）与磁盘路径共用。
+ *  uint8 零拷贝直存 pngjs 解码缓冲（历史 float64 /255 展开是纹理常驻内存 8×放大的来源，
+ *  ticket 18；采样点读值 /255，逐位等价）。 */
 export function decodePngBytes(bytes: Uint8Array): RGBAImage {
   const png = PNG.sync.read(Buffer.from(bytes));
   const { width: w, height: h, data } = png;
-  const out = new Float64Array(w * h * 4);
-  for (let i = 0; i < w * h * 4; i++) out[i] = data[i] / 255;
-  return { w, h, data: out };
+  return { w, h, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength) };
 }
 
 export function decodePng(path: string): RGBAImage {
@@ -31,6 +31,8 @@ export function encodePng(path: string, w: number, h: number, rgba: Uint8Array):
 /**
  * scene_compiler.sample_bilinear 语义：px/py 先 clip 到 [0, w/h-1]，x1/y1 = min(x0+1, 边界)。
  * col/row 由调用方算好（col = u*w - 0.5，row = (1-v)*h - 0.5）。写入 out[0..3]。
+ * 纹理存储为 uint8：读值 /255 —— 与历史「解码时预展开 float64」是同一个 IEEE 除法，
+ * 双线性权重算式逐位相同（ticket 18）。
  */
 export function sampleBilinearClamp(img: RGBAImage, px: number, py: number, out: Float64Array): void {
   const { w, h, data } = img;
@@ -43,15 +45,15 @@ export function sampleBilinearClamp(img: RGBAImage, px: number, py: number, out:
   const fx = x - x0;
   const fy = y - y0;
   for (let c = 0; c < 4; c++) {
-    const a = data[(y0 * w + x0) * 4 + c] * (1 - fx) + data[(y0 * w + x1) * 4 + c] * fx;
-    const b = data[(y1 * w + x0) * 4 + c] * (1 - fx) + data[(y1 * w + x1) * 4 + c] * fx;
+    const a = data[(y0 * w + x0) * 4 + c] / 255 * (1 - fx) + data[(y0 * w + x1) * 4 + c] / 255 * fx;
+    const b = data[(y1 * w + x0) * 4 + c] / 255 * (1 - fx) + data[(y1 * w + x1) * 4 + c] / 255 * fx;
     out[c] = a * (1 - fy) + b * fy;
   }
 }
 
 /**
  * dz_portrait_layer.sample_bilinear 语义：clamp 到 [0, w-1.001]，x1/y1 = x0+1（不夹边界）。
- * u/v 是 UV（v 向上），函数内部做 (1-v)*h。
+ * u/v 是 UV（v 向上），函数内部做 (1-v)*h。uint8 读值 /255（同 sampleBilinearClamp 注）。
  */
 export function sampleBilinearClamp001(
   img: RGBAImage, u: number, v: number, out: Float64Array,
@@ -66,8 +68,8 @@ export function sampleBilinearClamp001(
   const fx = x - x0;
   const fy = y - y0;
   for (let c = 0; c < 4; c++) {
-    const a = data[(y0 * w + x0) * 4 + c] * (1 - fx) + data[(y0 * w + x1) * 4 + c] * fx;
-    const b = data[(y1 * w + x0) * 4 + c] * (1 - fx) + data[(y1 * w + x1) * 4 + c] * fx;
+    const a = data[(y0 * w + x0) * 4 + c] / 255 * (1 - fx) + data[(y0 * w + x1) * 4 + c] / 255 * fx;
+    const b = data[(y1 * w + x0) * 4 + c] / 255 * (1 - fx) + data[(y1 * w + x1) * 4 + c] / 255 * fx;
     out[c] = a * (1 - fy) + b * fy;
   }
 }

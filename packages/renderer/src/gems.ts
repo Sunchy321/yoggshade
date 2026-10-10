@@ -23,9 +23,10 @@ function sampleWrap(tex: RGBAImage, u: number, v: number, out: Float64Array): vo
   const y1 = (y0 + 1) % h;
   const fx = x - x0;
   const fy = y - y0;
+  // uint8 读值 /255：与预展开 float64 同一 IEEE 除法，逐位等价（ticket 18）
   for (let c = 0; c < 4; c++) {
-    const a = data[(y0 * w + x0) * 4 + c] * (1 - fx) + data[(y0 * w + x1) * 4 + c] * fx;
-    const b = data[(y1 * w + x0) * 4 + c] * (1 - fx) + data[(y1 * w + x1) * 4 + c] * fx;
+    const a = data[(y0 * w + x0) * 4 + c] / 255 * (1 - fx) + data[(y0 * w + x1) * 4 + c] / 255 * fx;
+    const b = data[(y1 * w + x0) * 4 + c] / 255 * (1 - fx) + data[(y1 * w + x1) * 4 + c] / 255 * fx;
     out[c] = a * (1 - fy) + b * fy;
   }
 }

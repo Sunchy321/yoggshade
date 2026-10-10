@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PX_PER_UNIT, HALF_W, HALF_H, SIZE, getFrameAnchor } from './camera.js';
 import { FontMetrics, PackFontMetrics, ITALIC_SHEAR, type FontMetricsLike } from './font.js';
-import { glyphOutlineShader, composite, pyRound } from './glyph.js';
-import { resampleImage } from './resize.js';
+import { glyphOutlineShader, glyphQuad, composite, pyRound } from './glyph.js';
+import { resampleImage, resampleImageSub } from './resize.js';
 import { layoutText, BOLD_SIZE_CAP, type Layout } from './textlayout.js';
 import { walkWithKey } from './assets.js';
 import type { AssetPack, HierarchyNode } from './types.js';
@@ -235,7 +235,6 @@ export function renderText(
 
   const W = SIZE[0], H = SIZE[1];
   const ss = supersample;
-  const buf = new Float64Array(H * ss * W * ss * 4);
   const kPx = layout.k * ns.localScale * scene.s * ss;
   const [cx0, cy0] = project(scene, ns.worldPos[0], ns.worldPos[2]);
   const cx = (cx0 + offset[0]) * ss;
@@ -244,10 +243,41 @@ export function renderText(
   const pitchC = layout.pitch * nsScaleS;
   const boxHC = layout.boxH * nsScaleS;
   const descentC = fm.descent * kPx;
+  const radiusOut = outline ? outline.r * kPx : 0.0;
+  // 画布 = 字形 tile 并集的子矩形（ticket 18 位级等价）：印章只落在 tile 内、tile 外画布恒 0，
+  // quantTruncBuf 不改 0、resample 任意窗口对 0 的响应恒 0（acc=0 → clip8(trunc(bias/2²²))=0；
+  // RGBA a=0 → rgb=0）——子矩形外不分配、不计算，与全画布逐位一致（fixtures 38 张字节验收）。
+  // tile 几何用 glyphQuad（与 shader 本体同一算式，glyph.ts 导出），不跑逐像素循环。
+  interface Stamp { px: number, py: number }
+  const stamps: Stamp[][] = [];
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
   for (let li = 0; li < layout.lines.length; li++) {
     const pen0 = cx - (layout.lineWidths[li] * nsScaleS) / 2.0;
     const baseline = cy - boxHC / 2.0 + (li + 1) * pitchC + descentC;
+    const row: Stamp[] = [];
     for (const g of layout.lines[li]) {
+      const { info, mask } = (g.italic ? fmItalic : fm).charInfo(g.ch);
+      const q = glyphQuad(mask, info, kPx, outline, g.bold ? boldPx : 0, radiusOut);
+      const px = pyRound(pen0 + g.penX * nsScaleS - q.ox);
+      const py = pyRound(baseline - q.oy);
+      row.push({ px, py });
+      const x0 = Math.max(px, 0), x1 = Math.min(px + q.nw, W * ss);
+      const y0 = Math.max(py, 0), y1 = Math.min(py + q.nh, H * ss);
+      if (x0 < x1 && y0 < y1) {
+        if (x0 < bx0) bx0 = x0;
+        if (y0 < by0) by0 = y0;
+        if (x1 > bx1) bx1 = x1;
+        if (y1 > by1) by1 = y1;
+      }
+    }
+    stamps.push(row);
+  }
+  if (bx1 <= bx0) return { w: W, h: H, data: new Float64Array(W * H * 4) };
+  const bw = bx1 - bx0, bh = by1 - by0;
+  const buf = new Float64Array(bh * bw * 4);
+  for (let li = 0; li < stamps.length; li++) {
+    for (let gi = 0; gi < stamps[li].length; gi++) {
+      const g = layout.lines[li][gi];
       const { info, mask } = (g.italic ? fmItalic : fm).charInfo(g.ch);
       // 描边半径单位 = **字体/图集 texel**（UberText.UpdateOutlineProperties 2065-2068：
       // offset = TexelSize(fontTexture) × m_OutlineSize×mods，即图集 texel 空间），
@@ -255,15 +285,13 @@ export function renderText(
       // 传 r×ss，描边比引擎厚 ~1.4×（英雄技能名字 r=4.5 → 等效 6.4 字体 px），
       // 表现为笔画边缘毛刺、白笔画被啃（对照游戏内快照 MAE 名字区 13.7 → 11.8、
       // 费用数字 MSE 241 → 159；武器帧第二参照 194 → 76）。
-      const g4 = glyphOutlineShader(mask, info, kPx, fill, outline, g.bold ? boldPx : 0,
-        outline ? outline.r * kPx : 0.0);
-      const px = pyRound(pen0 + g.penX * nsScaleS - g4.ox);
-      const py = pyRound(baseline - g4.oy);
-      composite(buf, W * ss, H * ss, g4.data, g4.w, g4.h, px, py);
+      const g4 = glyphOutlineShader(mask, info, kPx, fill, outline, g.bold ? boldPx : 0, radiusOut);
+      composite(buf, bw, bh, g4.data, g4.w, g4.h, stamps[li][gi].px - bx0, stamps[li][gi].py - by0);
     }
   }
   quantTruncBuf(buf);
-  const out = resampleImage(buf, W * ss, H * ss, 4, W, H, 'lanczos', true);
+  const out = resampleImageSub(buf, bw, bh, W * ss, H * ss,
+    { x0: bx0, y0: by0, x1: bx1, y1: by1 }, W, H, 'lanczos');
   return { w: W, h: H, data: out };
 }
 

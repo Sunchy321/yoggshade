@@ -1,10 +1,15 @@
 /** 资产与渲染计划的类型（对应 py 侧 JSON 产物；P0 范围：帧 + 肖像）。 */
 
-/** RGBA 浮点图像（0..1，行主序 h×w×4）。 */
+/** RGBA 图像（uint8 0..255，行主序 h×w×4）。
+ *  内存口径：PNG 源本就是 8bit，历史上曾展开成 float64（0..1）缓存——单卡纹理常驻
+ *  118.5 MiB（explore/2026-10-08-diy-workers-port/findings.md §3.3），是 128 MB isolate
+ *  预算的第二个大头；改 uint8 后 ~15 MiB。采样点（image.ts / gems.ts）读值时 `/255`，
+ *  与预展开的 float64 是同一个 IEEE 除法，逐位相同（ticket 18 位级等价实证，fixtures
+ *  全集字节一致）。注意 ubertext.ts 另有同名局部接口（文字层 float64），二者无关。 */
 export interface RGBAImage {
   w:    number;
   h:    number;
-  data: Float64Array;
+  data: Uint8ClampedArray;
 }
 
 /** mesh_data.npz 的单键：顶点 / uv0 / uv1 / 各 submesh 三角形索引。
