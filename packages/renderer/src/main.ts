@@ -2,7 +2,7 @@
  *  bun src/main.ts [packDir] [outPng] [stage]           —— 资产包内嵌 plan（EX1_350 基线）
  *  bun src/main.ts --card CARD_ID [--out out.png]       —— fixture 卡编译渲染（data/fixtures + data/tables）
  * stage: p0 = 帧+肖像；p1 = +宝石；p2 = +文字（全链，默认）
- * 路径注入：--pack/--data 或 YOGGRAPH_PACK/YOGGRAPH_DATA（默认相对 CWD：assets、data）。 */
+ * 路径注入：--pack/--data 或 YOGGSHADE_PACK/YOGGSHADE_DATA（默认相对 CWD：assets、data）。 */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { loadPack, TextureStore } from './assets.js';
@@ -18,8 +18,8 @@ function arg(flag: string): string | undefined {
 }
 
 const hasFlags = process.argv.slice(2).some(a => a.startsWith('--'));
-const packDefault = process.env.YOGGRAPH_PACK ?? 'assets';
-const dataDir = arg('--data') ?? process.env.YOGGRAPH_DATA ?? 'data';
+const packDefault = process.env.YOGGSHADE_PACK ?? 'assets';
+const dataDir = arg('--data') ?? process.env.YOGGSHADE_DATA ?? 'data';
 const packDir = arg('--pack') ?? (hasFlags ? packDefault : process.argv[2] ?? packDefault);
 const cardId = arg('--card');
 const outPng = arg('--out') ?? (cardId ? `out/ts_${cardId}.png` : hasFlags ? 'out/ts_p2.png' : process.argv[3] ?? 'out/ts_p2.png');

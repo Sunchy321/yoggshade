@@ -7,8 +7,8 @@
  *
  * 本文件是**首版最小集**：完整的 14 语言标签表（含系列名）由 ticket 11 落成
  * `scripts/extract_label_tables.py` + 仓内数据文件后替换这里的硬编码标签。 */
-import type { AssetSource } from '@yoggraph/renderer/source';
-import { CARD_TYPE_TO_SLOT, type FixtureCard } from '@yoggraph/renderer/plan';
+import type { AssetSource } from '@yoggshade/renderer/source';
+import { CARD_TYPE_TO_SLOT, type FixtureCard } from '@yoggshade/renderer/plan';
 import type { CardFields, CardTypeOption, LabelOption, MetaResponse, PresetInfo } from './shared.js';
 
 /** 可渲染卡型（帧槽已移植的 8 槽 + 同槽不同纹理族的奖励/酒馆法术）。

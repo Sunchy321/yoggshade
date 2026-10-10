@@ -9,10 +9,10 @@
  *  2. 战棋卡型 → `preset.template = 'Battlegrounds'`（plan.ts:626 消费，决定铸币/tier 图标视觉）；
  *  3. 用户文本走 `textBuilderType = 0`（DEFAULT builder：空白解码 + 富文本转换，不做机制重建），
  *     避免沿用预设卡的 builder 把自定义文本按原卡机制改写。 */
-import type { FixtureCard } from '@yoggraph/renderer/plan';
-import { decodePngBytes, peekPngSize } from '@yoggraph/renderer/image';
-import { KeyMissingError, type AssetSource } from '@yoggraph/renderer/source';
-import type { RGBAImage } from '@yoggraph/renderer/types';
+import type { FixtureCard } from '@yoggshade/renderer/plan';
+import { decodePngBytes, peekPngSize } from '@yoggshade/renderer/image';
+import { KeyMissingError, type AssetSource } from '@yoggshade/renderer/source';
+import type { RGBAImage } from '@yoggshade/renderer/types';
 import { BG_CARD_TYPES } from './meta.js';
 import type { RenderRequest } from './shared.js';
 

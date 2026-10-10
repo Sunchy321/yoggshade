@@ -82,13 +82,13 @@ Before committing a change classified as a rendering bug fix:
 
 Bun workspaces monorepo: renderer and web app are separate packages; shared frozen data, extraction tools and the unpacked asset pack live at the root.
 
-- `packages/renderer/` — tracked TS renderer (`bun`, `tsc` strict). CLI: `bun run render` / `bun run fixtures` from the repo root; asset pack and frozen-data paths are injectable via `--pack`/`--data` or `YOGGRAPH_PACK`/`YOGGRAPH_DATA` (defaults: `assets`, `data`, relative to CWD).
-- `apps/web/` — card-site package (skeleton; framework TBD). Consumes the renderer as `@yoggraph/renderer` (workspace dependency) or over protocol v1 as a separate Worker.
+- `packages/renderer/` — tracked TS renderer (`bun`, `tsc` strict). CLI: `bun run render` / `bun run fixtures` from the repo root; asset pack and frozen-data paths are injectable via `--pack`/`--data` or `YOGGSHADE_PACK`/`YOGGSHADE_DATA` (defaults: `assets`, `data`, relative to CWD).
+- `apps/web/` — card-site package (skeleton; framework TBD). Consumes the renderer as `@yoggshade/renderer` (workspace dependency) or over protocol v1 as a separate Worker.
 - `scripts/` — tracked long-term extraction tools (uv + PEP 723 headers, `uv run scripts/<tool>.py`).
 - `data/` — tracked frozen data (e.g. `data/fixtures/`); `data/fixture.md` is the single editing point for fixture membership.
 - `assets/` — unpacked asset pack (gitignored, reproducible via scripts); raw Blizzard assets never leave this boundary into any distribution path.
 - `explore/` — gitignored experiments. Game install at `/Applications/Hearthstone` is read-only; extraction scripts must never write into it.
-- Cross-package imports use the package name (`@yoggraph/renderer/...`), never a relative path into another package's source.
+- Cross-package imports use the package name (`@yoggshade/renderer/...`), never a relative path into another package's source.
 
 ## Decompile and extract discipline
 

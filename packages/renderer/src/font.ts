@@ -38,9 +38,9 @@ export interface InkBounds {
 
 /** 斜体字形系数：tan(12°)（FreeType synthetic italic 经典角）。三卡（BG30_802/
  * ETC_210/CATA_190h）斜体行 NCC 扫描实证 0.2126 最优（explore/2026-10-07-edge-align §10）。
- * 环境变量 YOGGRAPH_ITALIC_SHEAR 可覆盖（CLI/标定用；浏览器无 process，经
+ * 环境变量 YOGGSHADE_ITALIC_SHEAR 可覆盖（CLI/标定用；浏览器无 process，经
  * globalThis 可选链取默认——ADR-0002 前端渲染）。 */
-export const ITALIC_SHEAR = Number(globalThis.process?.env.YOGGRAPH_ITALIC_SHEAR ?? 0.2126);
+export const ITALIC_SHEAR = Number(globalThis.process?.env.YOGGSHADE_ITALIC_SHEAR ?? 0.2126);
 
 /** 字形度量提供方接口（渲染与布局判据共用）。 */
 export interface FontMetricsLike {

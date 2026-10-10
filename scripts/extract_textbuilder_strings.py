@@ -6,7 +6,7 @@
 
 数据源：hsdata/Strings/<lang>/*.txt（14 语言，TSV：TAG/TEXT/COMMENT；炉石全语言字符串
 数据，与本地安装 /Applications/Hearthstone/Strings 同源）。路径经 --hsdata 或环境变量
-YOGGRAPH_HSDATA 提供（含个人机器布局，不入库）。
+YOGGSHADE_HSDATA 提供（含个人机器布局，不入库）。
 提取 key 清单 = packages/textbuilder 里 builder 依赖的全部 GameStrings 键族
 （builders.ts 内 BLOCK 的 gameString 调用 + GameplayString per-card 前缀族）：
 
@@ -185,15 +185,15 @@ def wanted(key: str) -> bool:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--hsdata", default=os.environ.get("YOGGRAPH_HSDATA"),
-                    help="hsdata/Strings 目录（环境变量 YOGGRAPH_HSDATA 亦可）")
-    ap.add_argument("--dbf", default=os.environ.get("YOGGRAPH_DBF"),
-                    help="dbf.unity3d（含 KEYWORD_TEXT 表；环境变量 YOGGRAPH_DBF 亦可）")
+    ap.add_argument("--hsdata", default=os.environ.get("YOGGSHADE_HSDATA"),
+                    help="hsdata/Strings 目录（环境变量 YOGGSHADE_HSDATA 亦可）")
+    ap.add_argument("--dbf", default=os.environ.get("YOGGSHADE_DBF"),
+                    help="dbf.unity3d（含 KEYWORD_TEXT 表；环境变量 YOGGSHADE_DBF 亦可）")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     args = ap.parse_args()
     if not args.hsdata:
         raise SystemExit(
-            "缺少数据源路径：--hsdata <hsdata/Strings> 或环境变量 YOGGRAPH_HSDATA "
+            "缺少数据源路径：--hsdata <hsdata/Strings> 或环境变量 YOGGSHADE_HSDATA "
             "（全语言炉石字符串数据，按机器布局提供，不入库）")
     hsdata = Path(args.hsdata)
     if not hsdata.is_dir():

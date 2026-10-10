@@ -19,7 +19,7 @@ freetype.wasm）拷进 `dist/pack/**`，Workers Static Assets 对非 `/api/*` �
 
 **渲染链整体移到用户浏览器，站点退化为纯静态：**
 
-1. `@yoggraph/renderer` 经 vite 打包进前端产物；浏览器内完成键派生 → 资产预取
+1. `@yoggshade/renderer` 经 vite 打包进前端产物；浏览器内完成键派生 → 资产预取
    （`/pack/**`、`/data/**` 同源静态文件）→ `renderCard` 出图。
 2. Worker 计算面整体退役：`worker.ts` / `api.ts` / `server.ts` / `src/ft/`（胶水补丁）
    删除；wrangler 改 assets-only 部署；限流（票 06 v1）、渲染队列、按请求预取、

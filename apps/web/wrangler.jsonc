@@ -3,7 +3,7 @@
 // 由 scripts/build-worker.ts 组装；浏览器端直接取 /pack/**、/data/** 渲染。
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "yoggraph-site",
+  "name": "yoggshade-site",
   "routes": [
     { "pattern": "hsdiy.tcg.cards", "custom_domain": true }
   ],

@@ -7,9 +7,9 @@
  * 用法：bun apps/web/scripts/check-parity.ts
  * （第二轮判据 = DIY 组合冒烟矩阵 + fixture 全量走 HTTP，见 ticket 09 与地图 Not yet specified。） */
 import { join, resolve } from 'node:path';
-import { renderCard } from '@yoggraph/renderer/render-card';
-import { fsSource } from '@yoggraph/renderer/source';
-import type { FixtureCard } from '@yoggraph/renderer/plan';
+import { renderCard } from '@yoggshade/renderer/render-card';
+import { fsSource } from '@yoggshade/renderer/source';
+import type { FixtureCard } from '@yoggshade/renderer/plan';
 import { prepareCard } from '../src/adapter.js';
 import { loadPresets } from '../src/meta.js';
 import type { RenderRequest } from '../src/shared.js';

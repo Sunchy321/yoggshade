@@ -10,10 +10,10 @@
  * 会遮蔽重复读取——但字体键由收集器按 fontdefs 确定性输出，不依赖实测。 */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { renderCard } from '@yoggraph/renderer/render-card';
-import { fsSource } from '@yoggraph/renderer/source-fs';
-import { mapSource, KeyMissingError } from '@yoggraph/renderer/source';
-import { collectRenderAssetKeys } from '@yoggraph/renderer/keys';
+import { renderCard } from '@yoggshade/renderer/render-card';
+import { fsSource } from '@yoggshade/renderer/source-fs';
+import { mapSource, KeyMissingError } from '@yoggshade/renderer/source';
+import { collectRenderAssetKeys } from '@yoggshade/renderer/keys';
 
 const repoRoot = resolve(import.meta.dir, '../../..');
 const disk = {

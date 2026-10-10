@@ -2,22 +2,22 @@
  *
  * 资产 = 同源静态文件 /pack/** 与 /data/**（部署 = build-worker.ts 拷进 dist，由
  * Workers Static Assets 直发；dev = vite 中间件直供仓内 assets/ 与 data/）。
- * 预取 = collectRenderAssetKeys（@yoggraph/renderer/keys）按编译后计划枚举该卡的
+ * 预取 = collectRenderAssetKeys（@yoggshade/renderer/keys）按编译后计划枚举该卡的
  * 精确键集，固定点两轮收敛（spell overlay JSON 首轮未达则次轮展开其纹理）；
  * 此前的 prefab_report/frame_recon 全量 "file" 扫描是 202 文件/69.6MB 的超集
  * （实测 explore/2026-10-10-web-asset-perf/findings.md），已退役。
  * 漏键补取-重跑沿用 Worker 时代口径（原 worker.ts，2026-10-09 移植）；
  * FreeType wasm 经资产源取 pack/fonts/freetype.wasm 注入 wasmBinary。 */
-import { renderCard } from '@yoggraph/renderer/render-card';
-import { KeyMissingError, type AssetSource } from '@yoggraph/renderer/source';
-import { slotForCardType, type FixtureCard } from '@yoggraph/renderer/plan';
-import { collectRenderAssetKeys } from '@yoggraph/renderer/keys';
+import { renderCard } from '@yoggshade/renderer/render-card';
+import { KeyMissingError, type AssetSource } from '@yoggshade/renderer/source';
+import { slotForCardType, type FixtureCard } from '@yoggshade/renderer/plan';
+import { collectRenderAssetKeys } from '@yoggshade/renderer/keys';
 import { prepareCard } from './adapter.js';
 import { loadMeta } from './meta.js';
 import type { MetaResponse, RenderRequest } from './shared.js';
 import assetManifest from './asset-manifest.json';
 import { ASSET_VERSION } from './asset-version.js';
-import freetypeWasmUrl from '@yoggraph/renderer/freetype-asset';
+import freetypeWasmUrl from '@yoggshade/renderer/freetype-asset';
 
 /** 构建期生成的已知键清单（pack/** + data/**；scripts/build-worker.ts 再生成）。 */
 const KNOWN = new Set(assetManifest as string[]);
@@ -116,7 +116,7 @@ const dirs: { pack: Source, data: Source } = {
   data: makeSource('data'),
 };
 
-// ---- 预取（键派生移交 @yoggraph/renderer/keys，此处只管时序） ----
+// ---- 预取（键派生移交 @yoggshade/renderer/keys，此处只管时序） ----
 
 const FRAME_JSONS = [
   'manifest.json', 'frame_recon.json', 'meshes.json', 'portrait.json',
