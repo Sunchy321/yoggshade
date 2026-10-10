@@ -250,7 +250,7 @@ SC_004 +0.081（override 卡，见 §9.2 系统性缺席的又一实证）。
 - **override 路径 2/2 恶化**：SC_762 +0.83、YOG_502 +0.38（DED_004 武器帧
   mae_visible +0.089）——见 §9.2。
 
-### 9.2 发现：本仓基准图导出会话丢失逐卡 override 水印（待用户裁决）
+### 9.2 发现：基准图导出会话曾丢失逐卡 override 水印（已关账：A 方案收敛）
 
 目检实证（explore/2026-10-07-watermark-custom/evidence/）：
 
@@ -263,8 +263,12 @@ SC_004 +0.081（override 卡，见 §9.2 系统性缺席的又一实证）。
 都证明 override 水印是引擎真实行为 → 本仓基准图导出会话特定地丢了 override（机制
 未定：zhCN 变体解析已排除；IsExplicitNullConfigValue(null)=true 排除缺省隐藏；
 exporter 源码 BuildPlaceholderDisplayOverrides 的 HIDE_WATERMARK 仅占位卡）。
-三选项（A 保留绘制+登记欠账+择机重导基准图 / B 匹配现行基准图不画 override /
-C 先考证导出会话）见 `.scratch/watermark-port/issues/04-l2-accept.md`，待用户裁决。
+
+**关账（2026-10-07，A 方案）**：用户重导/修正 5 张 override 卡基准图
+（DED_004/SC_004/SC_403/SC_762/YOG_502），参照与引擎语义对齐；L2 门**无回归**、
+5/5 改善（DED_004 mae −0.182、SC_004 −0.095、SC_403 −0.104、SC_762 −0.249
+[z_desc −0.850]、YOG_502 −0.138 [z_desc −0.321]）。TS 侧零改动收敛，选项 B/C 作废。
+账目快照 evidence/l2_summary_after_reffix.json。
 
 ### 9.3 登记残差（非本卡）
 
