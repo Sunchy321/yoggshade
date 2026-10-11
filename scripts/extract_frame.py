@@ -583,12 +583,15 @@ def extract_one(pack: Path, slot: str) -> int:
     # ---- role_paths（UberText 节点名 → 角色；路径相对帧根）----
     # 失活子树豁免（runtime-driven texts）：序列化失活子树里的 UberText 若 (a) 节点自身
     # 激活（active_self）、(b) 被 actor 文本字段直引（m_attackTextMesh 等的 PPtr 命中该
-    # UberText 组件），仍登记角色——运行时 UpdateXxxTextMesh 会对非空引用写文本并把
-    # GemObject.Show()（= base.gameObject.SetActive(true)，GemObject.cs:55-58）把失活
-    # 父级翻正。实证：佣兵技能 BigCard_LettuceAbility 的 AttackObject/HealthObject 出厂
-    # 失活，但 UpdateAttackTextMesh/UpdateHealthTextMesh（Actor.cs:3415-3418/3462-3487）
-    # 无条件 Show + GetTag-0 → 游戏对所有佣兵技能（含非召唤）画攻血 "0"
-    # （docs/findings/lettuce-frame-teardown-2026-10-10.md §9）。
+    # UberText 组件），仍登记角色——运行时 UpdateXxxTextMesh 会对非空引用写文本；但
+    # 写文本 ≠ 可见：只有 def 路径（entityDef 语境）才无条件 GemObject.Show()（=
+    # SetActive(true)，GemObject.cs:55-58）翻正失活父级（Actor.cs:3414-3418/3462-3487），
+    # 游戏内手牌 actor 无 entityDef（Card.cs:6150-6168）走 entity 路径、只写不 Show
+    # （Actor.cs:4370-4377；GemObject.m_hiddenFlag 非序列化恒 false）。实证：佣兵技能
+    # spell 变体 AttackObject/HealthObject 出厂失活 → 游戏内非召唤技不显示攻血
+    # （"0" 写进失活对象）；基准图上的 "0" 是 exporter def 路径伪影，渲染端按现场口径
+    # 登记角色但置空不画（docs/findings/lettuce-frame-teardown-2026-10-10.md §9，
+    # 2026-10-11 修正——旧结论「游戏对所有技能画攻血 0」系把 exporter 伪影当成游戏行为）。
     TEXT_FIELD_TO_ROLE = {
         "m_costTextMesh": "cost", "m_attackTextMesh": "attack",
         "m_healthTextMesh": "health", "m_nameTextMesh": "name",

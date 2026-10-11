@@ -101,12 +101,6 @@ function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-/** 环境开关（YOGGSHADE_* 惯例；浏览器/Workers 无 process → 恒 false）。 */
-function envFlag(name: string): boolean {
-  const v = globalThis.process?.env?.[name];
-  return v !== undefined && v !== '' && v !== '0';
-}
-
 // ============================================================================
 // 卡集水印裁决（Actor.UpdateWatermark，Actor.cs:5075-5135 逐条复刻；
 // 研究/证据：docs/findings/watermark-rendering-2026-10-07.md；Angelia 参照 =
@@ -566,10 +560,8 @@ const FRAME_RULES: Record<string, FrameRules> = {
     roles:  ['cost', 'name', 'desc'],
   },
   // 佣兵技能（BigCard_LettuceAbility，LettuceAbilityActor；teardown findings §2/§3/§9）：
-  // 攻/血 = 引擎怪癖复刻——AttackObject/HealthObject 出厂失活，但 UpdateAttackTextMesh/
-  // UpdateHealthTextMesh（Actor.cs:3415-3418/3462-3487）对非空文本引用无条件
-  // GemObject.Show()（= SetActive(true)，GemObject.cs:55-58）翻正父级 + GetTag-0
-  // → 游戏对所有佣兵技能（含非召唤）画攻血 "0"；YOGGSHADE_LETTUCE_STATS_FIX 可关闭。
+  // 攻/血 = spell 变体出厂失活子树，游戏内恒隐（entity 路径从不 Show；机制与 exporter
+  // 伪影定案见谓词块注释与 findings §9 修正）→ 文本角色置空、宝石组件不绕层级失活态。
   // 无宝石/精英龙/种族板节点（prefab 64 节点实证）；费用=纯文本（Gem_Mana 失活）；
   // race 角色 = 学派文本（UpdateRace flag5 与 spell 同支，Actor.cs:6143）；
   // 学派板双网格替换见 desc mesh swap（neutral = 整框几何原位重画，不能套 hand-spell 等价成立）。
@@ -773,22 +765,34 @@ export function compileFramePlan(
   const cardType = tags[TAG.CARDTYPE] ?? 4;
   const isHeroCard = cardType === 3;
   const nativeCard = SLOT_NATIVE_CARD_TYPES[slot]?.includes(cardType) ?? false;
-  // 「修复游戏内渲染 bug」开关（用户 2026-10-10 裁定留此选项）：佣兵技能攻血 "0" 是引擎
-  // GetTag-0 补零 × 无条件 GemObject.Show 翻正的副产物（Actor.cs:3415-3418/3462-3487）。
-  // 开启 = 缺 ATK/HEALTH tag 的佣兵技能不再画攻血（真实值不受影响）；默认关 = 1:1 复刻
-  // 游戏内渲染（L2 验收基准）。浏览器/Workers 无 process → 恒关（YOGGSHADE_* env 惯例）。
-  const lettuceFix = slot.startsWith('hand-lettuce-ability') && envFlag('YOGGSHADE_LETTUCE_STATS_FIX');
+  // 佣兵技能 spell 变体（hand-lettuce-ability）攻血恒不画：AttackObject/HealthObject 出厂
+  // 失活（探针 findings §9.1），而游戏内手牌 actor 从不设置 entityDef（Card.OnActorLoaded
+  // Card.cs:6150-6168 只 SetEntity/SetCardDef）→ UpdateTextComponents 走 entity 重载
+  // （Actor.cs:3223-3234 → :3685），其 UpdateAttackTextMesh/UpdateHealthTextMesh
+  // （Actor.cs:4084-4142/4144-4204）经 UpdateNumberText(shouldHide:false)（Actor.cs:4370-4377）
+  // 对非隐藏号只 Jiggle 不 Show（GemObject.m_hiddenFlag 为私有非序列化 bool 恒 false）→
+  // "0" 写进失活 UberText、宝石子树现场恒隐，与 ATK/HEALTH tag 有无无关（用户游戏内
+  // 复查 + 反编译双证 2026-10-11）。文本角色照登（UberText 被 m_attackTextMesh/m_healthTextMesh
+  // 直引、抽取器 runtime-driven texts 豁免）但置空；宝石组件按层级失活态天然隐藏
+  // （无旁路，见组件循环与 stat_gems 采集注释）。
+  // def 路径（UpdateTextComponentsDef → UpdateAttackTextMesh(entityDef) Actor.cs:3414-3418/
+  // 3462-3487 无条件 gemObject.Show()）只在 entityDef 语境发生 = exporter 静态导出伪影：
+  // 曾据此复刻攻血 "0"（ticket 01），2026-10-11 定案为伪影、exporter 同步修复、renderer
+  // 转正为现场口径；冻结基准 LT23_802P2/803P2 重导前 L2 挂账（残差主体即攻血区，
+  // 复刻前 12.807/13.659 即该口径）。
+  // minion 变体（hand-lettuce-ability-minion）prefab 出厂激活 + def 自带召唤物真值
+  // （LT24_021T1_01c ATK5/HEALTH20；悬停召唤预览同源 Card.cs:827-828）→ 维持 GetTag-0
+  // 标准原生口径，不吃此特例。
+  const lettuceStatsHidden = slot === 'hand-lettuce-ability';
   const atkVal = tags[TAG.ATK];
-  const attackVisible = !(hideStats || hide('HIDE_ATTACK')) && (!isHeroCard || (atkVal ?? 0) > 0)
-    && !(lettuceFix && atkVal === undefined);
-  const healthVisible = !(hideStats || hide('HIDE_HEALTH'))
-    && !(lettuceFix && tags[TAG.HEALTH] === undefined);
-  const attackText = hide('HIDE_ATTACK_NUMBER') || (isHeroCard && !atkVal)
+  const attackVisible = !(hideStats || hide('HIDE_ATTACK')) && (!isHeroCard || (atkVal ?? 0) > 0);
+  const healthVisible = !(hideStats || hide('HIDE_HEALTH'));
+  const attackText = hide('HIDE_ATTACK_NUMBER') || (isHeroCard && !atkVal) || lettuceStatsHidden
     ? ''
-    : (atkVal !== undefined || (nativeCard && !lettuceFix) ? String(atkVal ?? 0) : '');
-  const healthText = hide('HIDE_HEALTH_NUMBER')
+    : (atkVal !== undefined || nativeCard ? String(atkVal ?? 0) : '');
+  const healthText = hide('HIDE_HEALTH_NUMBER') || lettuceStatsHidden
     ? ''
-    : (tags[TAG.HEALTH] !== undefined || (nativeCard && !lettuceFix) ? String(tags[TAG.HEALTH] ?? 0) : '');
+    : (tags[TAG.HEALTH] !== undefined || nativeCard ? String(tags[TAG.HEALTH] ?? 0) : '');
   const armorVal = tags[TAG2.ARMOR] ?? 0;
   // 佣兵技能附件谓词（LettuceAbilityActor 对译；teardown findings §3）：
   // - UpdateSpeedWingState（:84-99）：被动/开局技 tag → 隐；m_updateVisualsOnCooldown ∧
@@ -948,12 +952,7 @@ export function compileFramePlan(
     if (!slots || !slots.length) continue;
     const name = node.path.split('/').pop()!;
     const isActive = active.get(node.path) ?? true;
-    // 佣兵技能攻血宝石：出厂失活（active_self 的父级 AttackObject/HealthObject=False），
-    // 运行时 GemObject.Show 翻正（见 FRAME_RULES 注释）→ 不吃层级失活态，可见性交
-    // attackVisible/healthVisible（规则链内判定）。
-    const lettuceStatGem = slot.startsWith('hand-lettuce-ability')
-      && ((rules.attack ?? []).includes(name) || (rules.health ?? []).includes(name));
-    let visible = (isActive || lettuceStatGem) && !STATIC_HIDDEN.has(name)
+    let visible = isActive && !STATIC_HIDDEN.has(name)
       && !(rules.forcedHidden ?? []).includes(name);
     // 战棋饰品帧例外：Shadow（CardShadow_Ally，Effects/FX_Transparent_ColorAsAlpha）序列化
     // 激活且 renderer 启用，基准图带整卡外圈投影（94k 半透明像素，2026-10-08 对账）；其余
@@ -1115,11 +1114,11 @@ export function compileFramePlan(
   for (const [path, key] of keyByPath) {
     const name = path.split('/').pop()!;
     if (!['Gem_Attack', 'Gem_Health', 'Gem_Mana'].includes(name)) continue;
-    // 序列化失活子树里的同名节点不采（战棋畸变帧 Gem_Mana 失活=无费用显示）；
+    // 序列化失活子树里的同名节点不采（战棋畸变帧 Gem_Mana 失活=无费用显示；
+    // 佣兵技能 spell 变体攻血宝石同口径——出厂失活且运行时 entity 路径从不翻正，
+    // 见 hand-lettuce-ability FRAME_RULES 注释与 teardown findings §9 修正）；
     // 战棋模板下 mana gem 被 coin/tier spell 替换（UpdateManaGemComponent 隐藏 m_manaObject）。
-    // 例外：佣兵技能攻血宝石出厂失活、运行时 GemObject.Show 翻正（见组件循环注释）→ 照采。
-    const lettuceGem = slot.startsWith('hand-lettuce-ability') && (name === 'Gem_Attack' || name === 'Gem_Health');
-    if (!(active.get(path) ?? true) && !lettuceGem) continue;
+    if (!(active.get(path) ?? true)) continue;
     if (gemReplaced && name === 'Gem_Mana') continue;
     const comp = byName.get(name);
     if (name !== 'Gem_Mana' && !comp) continue;

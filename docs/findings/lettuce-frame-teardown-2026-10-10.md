@@ -227,6 +227,44 @@ best-shift (0,0)、亚像素残差 ≤0.07 = 内容差非平移，残差主体�
 **LT23_802P2 4.442 / LT23_803P2 5.313**，进入原生槽收敛区间（同批 GDB_142 4.77、
 AV_205 4.56、REV_365 5.05）。其余 38 张 fixture 改动前后逐位零回归（字节比对）。
 
+**修正与定案（2026-10-11）：「画 0」实为 exporter def 路径伪影，游戏内不画。**
+用户游戏内复查发现非召唤技并无攻血显示，与本节结论矛盾；重查反编译定位到本节证据链
+混淆了两条 actor 更新路径——上列行号（Actor.cs:3415-3418/3462-3487、LettuceAbilityActor
+UpdateTextComponentsDef）全部属于 **def 路径**（`UpdateTextComponentsDef`），只有
+entityDef 语境会走到：
+
+1. **游戏内手牌从不设置 entityDef**：`Card.OnActorLoaded`（Card.cs:6150-6168）只
+   `SetEntity` + `SetCardDef` → `Actor.UpdateTextComponents()`（Actor.cs:3223-3234）按
+   `m_entityDef != null` 分派走 **entity 重载**（:3685）。tag 变更路径同（Card.cs:2906-2933
+   → UpdateActorComponents :5381-5386 → UpdateAllComponents）；BigCard 悬停亦然
+   （BigCard.cs:1856 SetEntity、:748 entity 重载）。
+2. **entity 路径不翻正失活宝石**：entity 版 UpdateAttackTextMesh/UpdateHealthTextMesh
+   （Actor.cs:4084-4142/4144-4204）的可见性全部经由 `UpdateNumberText` 2 参重载
+   （:4370 → 4 参 :4377，`shouldHide:false`）——`GemObject.m_hiddenFlag` 为私有**非序列化**
+   bool（GemObject.cs，无 [SerializeField]）恒 false → 永远只走 `Jiggle()` 分支（首次还因
+   `initialized` 非序列化 false 直接 no-op），**从不 `Show()`/`SetActive(true)`**。"0" 确实
+   被写进文本，但对象在失活子树里，不可见。
+3. **def 路径才无条件 Show**：`UpdateTextComponentsDef`（:3238-3253）→ def 版
+   UpdateAttackTextMesh/UpdateHealthTextMesh（:3396-3454/3456-3493）对非空文本引用
+   无条件 `gemObject.Show()`（:3414-3418/3474-3477）——exporter 是 `SetEntityDef` +
+   `UpdateAllComponents`（ExporterController.cs:6434/6453、4947/4973），纯 def 路径 →
+   基准图的 "0" 是导出伪影。LettuceAbilityActor 两个重载均只调 base（:114-133），
+   与两条路径皆自洽。
+4. **召唤技对照**：minion 变体 prefab 出厂**激活**（§2/§3）+ def 自带召唤物真值
+   （LT24_021T1_01c ATK=5 tag47 / HEALTH=20 tag45；悬停召唤预览直接读实体攻血
+   Card.cs:827-828）→ 游戏内召唤技显示 5/20，非召唤技什么都不显示（用户游戏内证实）。
+
+**处置（2026-10-11，用户裁定 exporter 同步修复）**：renderer 转正为现场口径——
+`YOGGSHADE_LETTUCE_STATS_FIX` 谓词（spell 变体缺 tag 不画）修正为**精确槽位
+`hand-lettuce-ability` 恒不画攻血**（minion 变体不吃特例，维持 GetTag-0 原生口径），
+env 开关移除；组件循环/stat_gems 采集中「绕层级失活态」的两处旁路一并删除（其存在
+理由即 def 路径无条件 Show，伪影定案后死代码）。验证：新默认渲染与旧开关渲染逐位
+一致（LT23_802P2/803P2 0 px）；LT24_021T1_01c、LT23_036E2_04、GDB_142 与改动前逐位
+一致；全量 42 卡 L2 其余 40 卡数字逐一相同（字节级零回归）。对冻结基准
+LT23_802P2 **12.478** / LT23_803P2 **13.030**（master 伪影口径为 4.113/4.684）——差区即
+攻血宝石区；exporter 同步修复、两张基准重导（去 "0"）后收敛为 **LT23_802P2 3.944 /
+LT23_803P2 4.527**（优于伪影口径）。本节上文 2026-10-10 段落保留作历史记录。
+
 ## 10. 基准导出的机制 tag 覆盖语义（2026-10-10，ticket 03 排障记录）
 
 **现象**：LT24_021T1_01c（召唤型佣兵技能）首版基准图与 minion 帧渲染对不上（uniform 平移 +
