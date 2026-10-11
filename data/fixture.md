@@ -7,10 +7,17 @@
 glow-bench 表同步自 `../exporter/docs/custom-glow-benchmark-plan.md`（12 卡型 token）。
 exporter 侧新增基准卡时，在此表追加一行再重跑提取。
 
+`Tag Overrides` 列（可空）= 导出该卡基准图时在 exporter 侧用「机制开关」结构化覆盖写入的
+tag（`key=value`，逗号分隔；exporter `TryCreateCustomDisplayEntityDef` 对机制 tag 无条件
+SetTag，见 docs/findings/lettuce-frame-teardown-2026-10-10.md §10）。DBF 里没有这些 tag 的卡
+（如佣兵本体的 LETTUCE_MERCENARY_EXPERIENCE=1852）必须在基准导出时手工设值，渲染端要看到
+与基准一致的 tag，故在此登记：LT23_816H 的 `1852=55000` = 导出时的「佣兵经验」，经
+`GetMercenaryLevelFromExperience` 得等级 30（基准图数字为 “30”）。
+
 ## presets
 
-| Card ID | Label | Premium | Template | Zone | Reason |
-|---|---|---|---|---|---|
+| Card ID | Label | Premium | Template | Zone | Reason | Tag Overrides |
+|---|---|---|---|---|---|---|
 | GDB_142 | 默认烟测卡 | NORMAL | Normal | Hand | 当前导出器默认卡，用于验证普通手牌渲染基线。 |
 | TOY_519 | 法术基线 | NORMAL | Normal | Hand | 普通法术基线（有稀有度），用于验证法术版式、稀有度与战棋模板铸币光效。 |
 | REV_365 | 派系法术 | NORMAL | Normal | Hand | 派系法术基线，用于验证派系法术版式与 spell-school 光效。 |
@@ -45,7 +52,7 @@ exporter 侧新增基准卡时，在此表追加一行再重跑提取。
 | LT23_803P2 | 佣兵技能2 | NORMAL | Normal | Hand | 佣兵技能样例 2，用于验证另一张 LETTUCE_ABILITY 渲染。 |
 | LT24_021T1_01c | 佣兵召唤技基线 | NORMAL | Normal | Hand | 召唤型佣兵技能样例（LETTUCE_ABILITY_SUMMONED_MINION），用于验证 Minion 变体 BigCard 渲染与攻血显示。 |
 | LT23_036E2_04 | 佣兵装备基线 | NORMAL | Normal | Hand | 佣兵装备样例（LETTUCE_IS_EQUPIMENT），用于验证装备瓦片帧与曲率名字渲染。 |
-| LT23_816H | 佣兵本体基线 | NORMAL | Normal | Hand | 佣兵本体收集卡样例（加尔鲁什·地狱咆哮，Protector + Horde），用于验证 hand-mercenary 帧：职业横幅、阵营图标、种族板与卡集水印。 |
+| LT23_816H | 佣兵本体基线 | NORMAL | Normal | Hand | 佣兵本体收集卡样例（加尔鲁什·地狱咆哮，Protector + Horde），用于验证 hand-mercenary 帧：职业横幅、阵营图标、种族板与卡集水印。 | 1852=55000 |
 | DED_004 | 可交易样例 | NORMAL | Normal | Hand | 可交易机制样例（武器帧·黑水弯刀），用于验证可交易横幅在武器帧的渲染。 |
 | TTN_477 | 锻造样例2 | NORMAL | Normal | Hand | 锻造机制法术样例（熔火符文），用于验证锻造横幅渲染与法术帧泛化。 |
 | JAIL_407 | 预备样例 | NORMAL | Normal | Hand | 准备机制样例（大头目梵妮莎），用于验证预备横幅渲染。 |

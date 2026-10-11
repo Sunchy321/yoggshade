@@ -1,9 +1,33 @@
 /** 肖像层引擎公式（dz_portrait_layer.render_portrait_submesh 逐行对译）。 */
 import type { RGBAImage } from './types.js';
-import { sampleBilinearClamp001 } from './image.js';
+import { sampleTrilinearClamp001 } from './image.js';
 
 const mainS = new Float64Array(4);
 const secS = new Float64Array(4);
+
+/** 每三角形纹理足迹（texels/screen-px，取 |∂u/∂x|、|∂u/∂y|、|∂v/∂x|、|∂v/∂y| 最大者 ×
+ *  纹理尺寸）的 log2 = 该三角形的三线性 mip 层 λ。放大/1:1 → λ≤0 → 采样与原 level0
+ *  逐位同值。UV 的 v 翻转在采样器内做，导数幅值不受影响。 */
+function triLambda(
+  px: number[], py: number[],
+  ua: number[], ub: number[], uc: number[],
+  ia: number, ib: number, ic: number,
+  texW: number, texH: number,
+): number {
+  const e1x = px[ib] - px[ia], e1y = py[ib] - py[ia];
+  const e2x = px[ic] - px[ia], e2y = py[ic] - py[ia];
+  const det = e1x * e2y - e1y * e2x;
+  if (Math.abs(det) < 1e-9) return 0;
+  const du1 = ub[0] - ua[0], du2 = uc[0] - ua[0];
+  const dv1 = ub[1] - ua[1], dv2 = uc[1] - ua[1];
+  const dudx = (du1 * e2y - du2 * e1y) / det;
+  const dudy = (du2 * e1x - du1 * e2x) / det;
+  const dvdx = (dv1 * e2y - dv2 * e1y) / det;
+  const dvdy = (dv2 * e1x - dv1 * e2x) / det;
+  const foot = Math.max(Math.abs(dudx) * texW, Math.abs(dudy) * texW,
+    Math.abs(dvdx) * texH, Math.abs(dvdy) * texH);
+  return Math.max(Math.log2(foot), 0);
+}
 
 /**
  * PS 772B 直译：out.rgb = main.rgb * lerp(1, second.rgb*_SecondTint.rgb, w)，w=second.a*t.a
@@ -42,6 +66,9 @@ export function renderPortraitSubmesh(
 
   for (const tri of order) {
     const ia = tri[0], ib = tri[1], ic = tri[2];
+    // 引擎三线性过滤（mipmap）：λ 由该三角形自身的屏幕↔UV 缩放决定（见 triLambda 注）
+    const lamMain = triLambda(px, py, uv0[ia], uv0[ib], uv0[ic], ia, ib, ic, mainRgba.w, mainRgba.h);
+    const lamSec = triLambda(px, py, uv1[ia], uv1[ib], uv1[ic], ia, ib, ic, secondRgba.w, secondRgba.h);
     const x0s = px[ia], y0s = py[ia];
     const x1s = px[ib], y1s = py[ib];
     const x2s = px[ic], y2s = py[ic];
@@ -71,8 +98,8 @@ export function renderPortraitSubmesh(
         const v0 = l0 * uv0[ia][1] + l1 * uv0[ib][1] + l2 * uv0[ic][1];
         const u1 = l0 * uv1[ia][0] + l1 * uv1[ib][0] + l2 * uv1[ic][0];
         const v1 = l0 * uv1[ia][1] + l1 * uv1[ib][1] + l2 * uv1[ic][1];
-        sampleBilinearClamp001(mainRgba, u0, v0, mainS);
-        sampleBilinearClamp001(secondRgba, u1, v1, secS);
+        sampleTrilinearClamp001(mainRgba, u0, v0, lamMain, mainS);
+        sampleTrilinearClamp001(secondRgba, u1, v1, lamSec, secS);
 
         const w = secS[3] * tA;
         const fR = (1.0 - w) + secS[0] * tR * w;

@@ -88,6 +88,15 @@ ROLE_BY_NODE = {
     # 佣兵技能冷却配置数字（LettuceAbilityActor.UpdateCooldownConfigText；
     # 两个 ability prefab 该 actor 引用序列化为空 → 文本恒空、Hourglass 恒隐）
     "CooldownConfigUberText": "cooldown",
+    # 佣兵本体（Card_Hand_Mercenary，hand-mercenary）：
+    #  - 种族文本不是 RaceUberText：m_raceTextMesh/m_multiRaceTextMesh 绑定
+    #    Race_Tribe_Merc_text / DualRace_Tribe_Merc_text（探针 merc-bindings.json，
+    #    Actor.UpdateRace 单/多族二选一 SetActive，Actor.cs:6205-6234）；
+    #    单族节点在 walk 序中靠前 → 由本表登记为 race，多族节点路径由 plan 按名扫层级取。
+    #  - 等级数字（MercenaryActorLevelObject.m_levelText，探针实证已绑定）：等级取自
+    #    LETTUCE_MERCENARY_EXPERIENCE tag（Actor.UpdateMercenaryLevelTextMesh，:3516-3528）。
+    "Race_Tribe_Merc_text": "race",
+    "LevelText": "level",
 }
 
 
@@ -274,15 +283,39 @@ class Recon:
                             exts = [Path(e.path).name for e in (cobj.assets_file.externals or [])]
                             target = exts[mp["m_FileID"] - 1] if mp["m_FileID"] <= len(exts) else "?"
                             builtin_external = "builtin" in target or "default resources" in target
-                        if builtin_external and mp["m_PathID"] == 10210:
-                            quad_verts = np.array([[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0],
-                                                   [-0.5, 0.5, 0.0], [0.5, 0.5, 0.0]])
-                            quad_uv = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
-                            node["mesh"] = {"name": "builtin:Quad", "verts": quad_verts,
+                        # 内建网格：Quad(10210, 1×1) 与 Plane(10209, 10×10)。Plane 是平坦网格，
+                        # 网格细分不改变像素结果 → 用两个共对角线的三角形覆盖同一矩形即可；
+                        # 尺度按内建 Plane 的 ±5 展开。UV 角向两网格不同（2026-10-11 探针
+                        # explore/2026-10-10-lettuce-frame/scripts/probe_plane_flagshadow.py
+                        # 逐顶点实测 unity default resources pid 10209，121 顶点 200 三角）：
+                        #   Quad = uv(0,0) 在 (-x,-y) 角，u 沿 +x、v 沿 +y；
+                        #   Plane = uv(0,0) 在 (+x,+z) 角，u 沿 -x、v 沿 -z
+                        #   （角点实测 (+5,+5)→(0,0)、(-5,-5)→(1,1)）——与 Quad 恰好 180° 反向，
+                        # 照 Quad 抄会让贴图在平面上旋转 180°（旗影 OvalShadow 首版即踩此坑）。
+                        # 实证：Card_Hand_Mercenary 的 OvalShadow（旗影，Hero/Multiply/Multiply +
+                        # FlagShadow）MeshFilter = 内建 Plane。
+                        _builtin_quad = (mp["m_PathID"] == 10210)
+                        _builtin_plane = (mp["m_PathID"] == 10209)
+                        if builtin_external and (_builtin_quad or _builtin_plane):
+                            # Quad = 竖直面（xy 平面，±0.5）；Plane = **水平面**（xz 平面，±5，
+                            # 探针 pid 10209 bbox [-5,0,-5]..[5,0,5]）。用错平面会让节点矩阵
+                            # （把 mesh x/z 映到世界 x/z）把网格压成一条线：OvalShadow（旗影）
+                            # 首版按 Quad 竖直约定 → 屏幕上退化为线段 → 不可见。
+                            h = 0.5 if _builtin_quad else 5.0
+                            quad_verts = (np.array([[-h, -h, 0.0], [h, -h, 0.0],
+                                                    [-h, h, 0.0], [h, h, 0.0]]) if _builtin_quad
+                                          else np.array([[-h, 0.0, -h], [h, 0.0, -h],
+                                                         [-h, 0.0, h], [h, 0.0, h]]))
+                            quad_uv = (np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+                                       if _builtin_quad
+                                       else np.array([[1.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.0, 0.0]]))
+                            _nm = "builtin:Quad" if _builtin_quad else "builtin:Plane"
+                            node["mesh"] = {"name": _nm, "verts": quad_verts,
                                             "uv0": quad_uv, "uv1": quad_uv, "uv1_present": False,
                                             "submeshes": [np.array([[0, 1, 3], [0, 3, 2]], dtype=np.int32)],
-                                            "bbox_min": [-0.5, -0.5, 0.0], "bbox_max": [0.5, 0.5, 0.0],
-                                            "bundle": "<builtin>", "path_id": 10210}
+                                            "bbox_min": quad_verts.min(axis=0).tolist(),
+                                            "bbox_max": quad_verts.max(axis=0).tolist(),
+                                            "bundle": "<builtin>", "path_id": mp["m_PathID"]}
                         else:
                             try:
                                 mobj, mb = self.r.resolve_pptr(self.bundle, mp, cobj)

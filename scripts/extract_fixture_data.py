@@ -78,7 +78,16 @@ def parse_fixture_md(path: Path) -> tuple[list[tuple], list[dict]]:
     presets, glow = [], []
     for row in tables.get("presets", []):
         card_id, label, premium, template, zone, reason = row[:6]
-        presets.append((card_id, label, premium, template, zone, reason))
+        # Tag Overrides（可空）：`key=value` 逗号分隔——基准导出时 exporter 侧机制开关写入的
+        # tag 镜像（DBF 无此 tag 的卡只能手工设值，见 fixture.md 说明 + findings §10）。
+        overrides: dict[int, int] = {}
+        for item in (row[6] if len(row) > 6 else "").split(","):
+            item = item.strip()
+            if not item:
+                continue
+            k, _, v = item.partition("=")
+            overrides[int(k.strip())] = int(v.strip())
+        presets.append((card_id, label, premium, template, zone, reason, overrides))
     for row in tables.get("glow-bench", []):
         token, card_id, template, parts, rune = row[:5]
         glow.append({"token": token, "cardId": card_id, "template": template,
@@ -128,7 +137,7 @@ def main() -> int:
         "presets": [], "missing": [], "glowBench": glow_bench,
         "fixtureMd": str(Path(args.fixture_md).relative_to(REPO)),
     }
-    for card_id, label, premium, template, zone, reason in presets:
+    for card_id, label, premium, template, zone, reason, tag_overrides in presets:
         row = by_guid.get(card_id)
         if row is None:
             manifest["missing"].append(card_id)
@@ -144,8 +153,10 @@ def main() -> int:
             "watermarkTextureOverride": row.get("m_watermarkTextureOverride", ""),
             "name": loc_dict(row["m_name"]),
             "textInHand": loc_dict(row["m_textInHand"]),
-            "tags": tags_by_dbf.get(dbf, {}),
+            "tags": {**tags_by_dbf.get(dbf, {}), **{str(k): v for k, v in tag_overrides.items()}},
         }
+        if tag_overrides:
+            print(f"[override] {card_id} 机制 tag 覆盖：{tag_overrides}（exporter 导出侧写值镜像）")
         (out_dir / f"{card_id}.json").write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         manifest["presets"].append({"cardId": card_id, "dbfId": dbf, "label": label,
                                     "premium": premium, "template": template, "zone": zone})

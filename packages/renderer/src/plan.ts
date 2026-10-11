@@ -367,22 +367,62 @@ export const CARD_TYPE_TO_SLOT: Record<number, string> = {
  *  LettuceAbilityActor.cs 消费，见 docs/findings/lettuce-frame-teardown-2026-10-10.md）。 */
 const TAG3 = {
   LETTUCE_MERCENARY:               1665,
+  LETTUCE_ROLE:                    1666,
   LETTUCE_COOLDOWN_CONFIG:         1669,
   LETTUCE_CURRENT_COOLDOWN:        1670,
   LETTUCE_PASSIVE_ABILITY:         1671,
   LETTUCE_ABILITY_SUMMONED_MINION: 1676,
+  LETTUCE_MERCENARY_EXPERIENCE:    1852,
   LETTUCE_IS_EQUPIMENT:            1855, // 游戏内枚举拼写即 EQUPIMENT（GAME_TAG.cs:1066）
   LETTUCE_START_OF_GAME_ABILITY:   2241,
+  LETTUCE_FACTION:                 2720,
   CARD_NAME_DATA_1:                2890, // 名字 {0} 占位替换源（GAME_TAG.cs:373）
 } as const;
 
+/** TAG_ROLE → prefab 角色横幅节点名后缀（TAG_ROLE.cs:1-8：1=CASTER 2=FIGHTER 3=TANK
+ *  4=NEUTRAL；节点映射 = prefab 序列化 MercenaryRoleGemObject.m_roleGemObjects 探针实测
+ *  （explore/2026-10-10-lettuce-frame/output/merc-bindings.json）：SetRole 对每项
+ *  `SetActive(m_role == role)`（MercenaryRoleGemObject.cs:20-27），即恰好一个激活。 */
+const ROLE_NODE_SUFFIX: Record<number, string> = {
+  1: 'Caster', 2: 'Fighter', 3: 'Protector', 4: 'Neutral',
+};
+
+/** TAG_ROLE → CardColorSwitcher.ColorType 基址（UpdateCardColor lettuce 分支，
+ *  Actor.cs:6339-6362；+premium 下标（NORMAL 0 / GOLDEN 1 / DIAMOND 2 / SIGNATURE 3）取
+ *  Tier1/2/3 图集：minionCardTextures[23..34] = Merc_{Caster,Fighter,Tank,Neutral,Random}_Tier*）。 */
+const ROLE_COLOR_TYPE: Record<number, number> = { 1: 23, 2: 26, 3: 29, 4: 32 };
+
+/** TAG_LETTUCE_FACTION → prefab 阵营旗节点名（TAG_LETTUCE_FACTION.cs:1-11：
+ *  1=ALLIANCE 2=HORDE 3=EMPIRE 4=EXPLORER 5=LEGION 6=PIRATE 7=SCOURGE；映射 = Actor
+ *  序列化 m_factionBannerIcons 探针实测）。 */
+const FACTION_NODE: Record<number, string> = {
+  1: 'Alliance', 2: 'Horde', 3: 'Empire', 4: 'Explorers', 5: 'Legion', 6: 'Pirate', 7: 'Scourge',
+};
+
+/** 佣兵本体（Card_Hand_Mercenary）关键节点路径后缀（Actor 序列化引用 → 帧内路径；
+ *  探针 merc-bindings.json + frame_recon）。%s = 角色/阵营名后缀。
+ *  （种族/等级文本节点不走此表：extract_frame ROLE_BY_NODE 已按 actor 绑定登记为
+ *  role_paths，plan 文字角色直接消费；XP 条三节点按名翻隐见 plan 佣兵段落。） */
+const MERC = {
+  ROLE_ATTACK_C:       'RootObject/AttackObject/AttackGemRoleObjects/RoleBanner_%s_Attack',
+  ROLE_HEALTH_C:       'RootObject/HealthObject/HealthGemRoleObjects/RoleBanner_%s_Health',
+  FACTION_BG:          'RootObject/Mesh/Lettuce_Faction_Banner_Mesh',
+  FACTION_ICON:        'RootObject/Mesh/Lettuce_Faction_Banner_Mesh/Lettuce_Faction_%s',
+  FACTION_ICON_SHADOW: 'RootObject/Mesh/Lettuce_Faction_Banner_Mesh/Lettuce_Faction_Shadow',
+  DUAL_PLATE:          'RootObject/Mesh/DualTribeNamePlates/Card_InHand_Ally_Merc_DualTribe_Teir1_mesh',
+  LEVEL_TEXT:          'RootObject/Mesh/MercenaryLevelObject/LevelText',
+  RARITY_GEM:          'RootObject/Mesh/Portrait/RarityGem',
+} as const;
+
 /** 卡型 tag → 帧 slot 的单点入口（renderCard 与资产键收集器 keys.ts 共用，防口径漂移）。
- *  CARDTYPE 23 按 GetHandActorByTags（ActorNames.cs:570-591）做 tag 组合判定：
- *  召唤（+SUMMONED_MINION）→ hand-lettuce-ability-minion（BigCard_LettuceAbility_Minion）；
- *  装备（+IS_EQUPIMENT）→ hand-lettuce-equipment；佣兵本体（MERCENARY>0）的专属槽
- *  后续票落地，暂回落随从帧（回归基线口径，ticket 05 收编）。 */
+ *  判定序 = GetHandActorByTags（ActorNames.cs:570-591）逐条对译：
+ *  佣兵本体（LETTUCE_MERCENARY>0，EntityBase.cs:497-500）→ hand-mercenary（Card_Hand_Mercenary，
+ *  注意本体的 CARDTYPE 是 MINION=4，tag 是先决判定）；装备（+IS_EQUPIMENT）→
+ *  hand-lettuce-equipment；召唤（+SUMMONED_MINION）→ hand-lettuce-ability-minion；
+ *  其余 CARDTYPE 23 → hand-lettuce-ability。 */
 export function slotForCardType(tags: FixtureCard['tags']): string {
   const t = tags['202'] ?? 4;
+  if ((tags[String(TAG3.LETTUCE_MERCENARY)] ?? 0) > 0) return 'hand-mercenary';
   if (t === 23) {
     if ((tags[String(TAG3.LETTUCE_ABILITY_SUMMONED_MINION)] ?? 0) !== 0) {
       return 'hand-lettuce-ability-minion';
@@ -391,17 +431,18 @@ export function slotForCardType(tags: FixtureCard['tags']): string {
       return 'hand-lettuce-equipment';
     }
   }
-  if ((tags[String(TAG3.LETTUCE_MERCENARY)] ?? 0) > 0) return 'hand-minion';
   return CARD_TYPE_TO_SLOT[t] ?? 'hand-minion';
 }
 
 /** 帧 slot → 该帧的原生卡型（ActorNames 的 actor 归属；4=MINION，47=战棋英雄伙伴同用随从 actor，
- *  23=LETTUCE_ABILITY 施法/召唤型走 BigCard_LettuceAbility[_Minion]）。
+ *  23=LETTUCE_ABILITY 施法/召唤型走 BigCard_LettuceAbility[_Minion]；佣兵本体 actor 由
+ *  ActorNames.HAND_MERCENARY 归属，卡型 tag 是 MINION=4）。
  *  别型卡（装备佣兵技能、战棋法术/宠物等）在专属帧落地前用回落帧渲染，属回归基线不属验收口径。 */
 export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
   'hand-lettuce-ability':        [23],
   'hand-lettuce-ability-minion': [23],
-  'hand-lettuce-equipment': [23],
+  'hand-lettuce-equipment':      [23],
+  'hand-mercenary':              [4],
   'hand-minion':                 [4, 47],
   'hand-spell':                  [5, 40, 42],
   'hand-hero':                   [3],
@@ -553,9 +594,9 @@ const FRAME_RULES: Record<string, FrameRules> = {
   // exporter 正常路径无名单命中——ApplyPlaceholderGrayMaterials 名单属 textless 路径），根因
   // 未决登记（可能是真实游戏收藏 UI 的装备瓦片装配代码所为，反编译未及）。
   'hand-lettuce-equipment': {
-    elite: [], rarity: [],
+    elite:        [], rarity:       [],
     forcedHidden: ['Mesh'],
-    roles:  ['name', 'desc'],
+    roles:        ['name', 'desc'],
   },
   // 召唤型佣兵技能（BigCard_LettuceAbility_Minion）：与 spell 变体仅两处差异
   // （teardown findings §7.1）——攻/血对象层级激活（AttackObject/HealthObject 自身 True，
@@ -566,6 +607,26 @@ const FRAME_RULES: Record<string, FrameRules> = {
     lettuceSpeedWing: ['Speed_Wing'],
     lettuceHourglass: ['Hourglass'],
     roles:            ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+  },
+  // 佣兵本体收集卡（Card_Hand_Mercenary，CARDTYPE 4 + TAG_LETTUCE_MERCENARY>0）：
+  // - 精英龙 Unique_Ally_Dragon：序列化 renderer 禁用，且 Actor.IsElite() 对佣兵恒 false
+  //   （Actor.cs:1351-1353 `IsLettuceMercenary() || IsLettuceAbility() → false`）→ 双证恒隐。
+  // - 稀有度宝石 RarityGem 序列化激活（actor 无 rarityFrameMesh 绑定），颜色/象限按
+  //   UpdateRarityComponent 既有口径；图集/滚动速度是 Lettuce 专用材质（见 plan 佣兵段落）。
+  // - 攻/血宝石 Gem_Attack/Gem_Health 序列化失活且**无 GemObject 可翻正**（探针：actor 只
+  //   在 CostObject 上挂 GemObject；佣兵帧的攻血几何是职业横幅宝石 `RoleBanner_*`，
+  //   由 MercenaryRoleGemObject 按角色 SetActive）→ 标准宝石保持不渲染，职业宝石走
+  //   gems 阶段公式（DiffuseAlphaMaskScroller 同族）。
+  // - 角色仅 name/race/attack/health/level：desc **不渲染**——GetPowersText 在无对局实体
+  //   且 !m_showUICardText 时早退 null（Actor.cs:4272-4276，收集卡语境），基准图 desc 区
+  //   为空即其证；cost 节点整树序列化失活（费用不在收集卡上显示）。
+  // - 等级数字 = LevelText（MercenaryActorLevelObject.m_levelText，探针实证绑定；
+  //   文本写点 UpdateMercenaryLevelTextMesh，Actor.cs:3516-3528）。
+  'hand-mercenary': {
+    elite:        [],
+    rarity:       ['RarityGem'],
+    forcedHidden: ['Unique_Ally_Dragon'],
+    roles:        ['name', 'race', 'attack', 'health', 'level'],
   },
 };
 
@@ -673,7 +734,17 @@ export function compileFramePlan(
   // ---- 卡牌 delta 输入 ----
   const classVal = String(tags[TAG.CLASS] ?? 12);
   const className = tables.class[classVal] ?? '';
-  const colorType = COLOR_TYPE_FOR_CLASS[className] ?? 0;
+  // 类色图集下标：常规 = 职业（COLOR_TYPE_FOR_CLASS）；**佣兵本体走角色分支**
+  // （Actor.UpdateCardColor 的 lettuce 分支，Actor.cs:6339-6362：CASTER=23 / FIGHTER=26 /
+  // TANK=29 / NEUTRAL=32 + (int)m_premiumType；NORMAL=0 → Tier1 图集，GOLDEN=1 → Tier2…）。
+  // 佣兵卡的 CLASS 恒 NEUTRAL，走职业表会取到 Card_Inhand_Generic（首轮渲染实测：整卡变
+  // 明亮羊皮纸，与基准的深褐框不符）。
+  const premiumOffset = { NORMAL: 0, GOLDEN: 1, DIAMOND: 2, SIGNATURE: 3 }[
+    String(fixture.preset?.premium ?? 'NORMAL')] ?? 0;
+  const mercColorType = (ROLE_COLOR_TYPE[tags[String(TAG3.LETTUCE_ROLE)] ?? 0] ?? 0);
+  const colorType = slot === 'hand-mercenary' && mercColorType
+    ? mercColorType + premiumOffset
+    : (COLOR_TYPE_FOR_CLASS[className] ?? 0);
   const family = textureFamily(tags[TAG.CARDTYPE] ?? 4);
   const atlasRef = tables.colorSwitcher[family]?.[colorType] ?? null;
   let atlasFile: string | null = null;
@@ -888,7 +959,9 @@ export function compileFramePlan(
     // 激活且 renderer 启用，基准图带整卡外圈投影（94k 半透明像素，2026-10-08 对账）；其余
     // 帧型的 Shadow 在导出中不可见（ref 仅抗锯齿软边）维持隐藏。ShadowUnique renderer
     // 序列化禁用，仍由 STATIC_HIDDEN 兜底。
-    if (slot === 'hand-bg-trinket' && name === 'Shadow') visible = isActive;
+    // 佣兵本体帧同证（CardShadow_Ally，act+enabled，基准图卡框外 alpha 33~94 的黑色软影，
+    // 2026-10-10 LT23_816H 实测）。
+    if ((slot === 'hand-bg-trinket' || slot === 'hand-mercenary') && name === 'Shadow') visible = isActive;
     if (visible) {
       if (rules.elite.includes(name)) visible = isElite;
       else if (rules.rarity.includes(name)) visible = rarityVisible;
@@ -934,7 +1007,21 @@ export function compileFramePlan(
     components.push(comp);
   }
 
-  // 载体节点不参与帧光栅（文字走 RTT 网格采样）
+  // ---- 预乘合成判定（材质 `_SrcBlend=1/_DstBlend=10`）----
+  // 实现口径见 raster.ts premultiplied 分支与 types.PlanSlot.premultiplied 注释：rgb 直写 +
+  // alpha 覆盖面=1（导出器基准图 alpha 走 AlphaFillOpaque 几何 mask + R2TColorAlphaCombineAdd，
+  // 与纹理 alpha 无关——2026-10-11 定案）。全仓仅佣兵帧三代材质命中（其它帧零回归由字节
+  // 比对保证）。
+  for (const comp of components) {
+    if (!comp.visible) continue;
+    const node = findNode(base.frameRecon.hierarchy, comp.path);
+    for (const slot of comp.material_slots ?? []) {
+      const fl = node?.renderers?.[0]?.materials?.[slot.slot]?.floats;
+      if (fl?.['_SrcBlend'] === 1 && fl?.['_DstBlend'] === 10) slot.premultiplied = true;
+    }
+  }
+
+  // ---- 载体节点不参与帧光栅（文字走 RTT 网格采样）----
   const carrierPath = base.frameManifest?.carrier?.node;
   if (carrierPath) {
     const c = components.find(x => x.path === carrierPath);
@@ -1049,6 +1136,129 @@ export function compileFramePlan(
     });
   }
 
+  // ==========================================================================
+  // 佣兵本体（Card_Hand_Mercenary）运行时 delta（ticket 05；结构实证见
+  // docs/findings/lettuce-frame-teardown-2026-10-10.md §7.3 + 本票 findings）
+  // ==========================================================================
+  let levelWorldDelta: number[] | undefined;
+  if (slot === 'hand-mercenary') {
+    // ---- 职业横幅（攻击 + 生命各一套）----
+    // MercenaryRoleGemObject.SetRole（Actor.cs:5262-5271）：角色 = LETTUCE_ROLE tag
+    // （GetMercenariesRole :5273-5285），对 AttackObject/HealthObject 上两个 RoleGemObject
+    // 的映射表逐项 `SetActive(m_role == role)`——恰好激活一套 {Caster,Fighter,Protector,
+    // Neutral} 横幅；INVALID(0) → 全不激活。
+    // 激活对象 = 容器（Quad，renderer 序列化 m_Enabled=false 且无启用方）与其中的网格子节点
+    // （同名，renderer 启用）——真实绘制的是子节点网格（Lettuce_Merc_Hand_{Damage,Mage,
+    // Tank}_mesh / Health 系），容器 Quad 的 _MainTex 为空槽且 renderer 禁用，不画。
+    // SetRole 是**互斥**设置：序列化态里 Fighter/Caster 容器是激活的（美术工作残留），
+    // 不选中的三套必须显式翻回隐藏，否则旧激活角色与选中角色同时出画（本票首轮渲染实测）。
+    // 子节点材质 = Lettuce_Hand_MercGems_Mat（Hero/Diffuse/DiffuseAlphaMaskScroller，
+    // 与攻血宝石同族）→ 走 gems 阶段公式（clouds×_tint 项），不进帧光栅；颜色来自
+    // Lettuce_MercOval_HeathAttackScarf 图集按角色的 UV 区域（探针实测：Tank=红、
+    // Damage=绿、Mage=蓝），无需运行时染色。
+    const role = tags[String(TAG3.LETTUCE_ROLE)] ?? 0;
+    // 每套横幅 = 容器节点（.../RoleBanner_{X}_{A|H}，Quad）＋同名网格子节点（容器/同名）。
+    for (const containerTmpl of [MERC.ROLE_ATTACK_C, MERC.ROLE_HEALTH_C]) {
+      for (const [roleId, suffix] of Object.entries(ROLE_NODE_SUFFIX)) {
+        const containerRel = containerTmpl.replace(/%s/g, suffix);
+        const innerRel = `${containerRel}/${containerRel.split('/').pop()!}`;
+        const selected = Number(roleId) === role;
+        for (const comp of components) {
+          if (comp.path.endsWith(innerRel)) {
+            comp.visible = selected; // 网格子节点（真几何）
+            if (selected) comp.raster = false; // 宝石 shader 族 → gems 阶段（见上注）
+          } else if (comp.path.endsWith(containerRel)) {
+            // 容器 Quad：renderer 序列化 m_Enabled=false（无启用方）→ 永不光栅；
+            // 未选中角色整树隐藏（序列化态 Fighter/Caster 容器激活是美术残留，
+            // 引擎由 SetRole 翻回——不翻会与选中角色同时出画，首轮渲染实测）。
+            comp.visible = false;
+          }
+        }
+        if (!selected) continue;
+        const comp = components.find(c => c.path.endsWith(innerRel));
+        const node = comp ? findNode(base.frameRecon.hierarchy, comp.path) : null;
+        const mat = node?.renderers?.[0]?.materials?.[0];
+        if (!comp || !mat) continue;
+        statGems.push({
+          node:          comp.node ?? '',
+          path:          comp.path,
+          npz_key:       keyByPath.get(comp.path) ?? '',
+          main_tex_file: mat.tex?.['_MainTex']?.texture?.file ?? '',
+          tint_rgb:      (mat.colors?.['_tint'] ?? [1, 1, 1, 1]).slice(0, 3),
+          intensity:     mat.floats?.['_Intensity'] ?? 1.0,
+          speed_xy:      [mat.floats?.['_XSpeed'] ?? 5.0, mat.floats?.['_YSpeed'] ?? 0.2],
+          scale_xy:      [mat.floats?.['_ScaleX'] ?? 1.0, mat.floats?.['_ScaleY'] ?? 1.0],
+          all_subs:      true, // 职业宝石网格 2 子网格（伤/血形状部分），同材质
+        });
+      }
+    }
+
+    // ---- 阵营旗（Actor.UpdateMercenaryFactionBannerMesh，Actor.cs:3530-3560）----
+    // flag = LETTUCE_FACTION != NONE → 容器 SetActive(flag) + 恰好一个图标 SetActive
+    // （图标表 7 项 1..7 探针实测）。
+    const faction = tags[String(TAG3.LETTUCE_FACTION)] ?? 0;
+    const factionName = FACTION_NODE[faction];
+    if (factionName) {
+      const bg = components.find(c => c.path.endsWith(MERC.FACTION_BG));
+      if (bg) bg.visible = true;
+      const icon = components.find(c => c.path.endsWith(MERC.FACTION_ICON.replace('%s', factionName)));
+      if (icon) icon.visible = true;
+      // 旗影剪影 `Lettuce_Faction_Shadow`：随容器激活渲染（2026-10-11 修复「旗影未渲染」）。
+      // 引擎口径 = Actor.cs:3546 只 SetActive 容器 m_factionBannerBackground、:3547-3555
+      // 循环只切换 7 个图标 m_banner，**两个 shadow 节点都无代码触达**（ilspy 全库 grep
+      // 「OvalShadow」「Lettuce_Faction_Shadow」零引用）→ 显隐完全由序列化 active_self 决定，
+      // 容器激活即连带激活自激活子孙（Unity SetActive 语义）。探针（frame_recon）：
+      // Lettuce_Faction_Shadow active_self=true——4 顶点 quad，mesh UV 窗
+      // u[0.782,0.969]×v[0.222,0.428] 直指 FactionBanner_Icons 图集剪影象限（探针裁剪实测
+      // 核心 rgba≈(0,0,0,245) 纯黑剪影；Horde 象限对照 (131,72,60,253)），材质同图标
+      // Faction_Symbols（Hero/Unlit_Transparent alpha-over、_Color 白），世界位 y=0.1048
+      // 在旗图标（0.106+）之后/环（0.04）之前 → 画序 = 影→旗，从旗左下缘探出压在环右缘带
+      // （§12.14 残差带 x[344,368] y[116,228] 与影 quad 投影 px[338,478]×py[118,270] 左缘
+      // 吻合）。此前归因给 `OvalShadow`（§12.8 item 7）系误判：该节点 active_self=false 且
+      // 无代码触达 → 引擎从不渲染，随旗激活它属超出引擎行为（本轮回退，连同其 FlagShadow
+      // 采样链一并失效；基准旗影由本节点承载）。
+      const iconShadow = components.find(c => c.path.endsWith(MERC.FACTION_ICON_SHADOW));
+      if (iconShadow) iconShadow.visible = true;
+    }
+
+    // ---- 种族板（UpdateRace flag7 支 = IsMinion，Actor.cs:6140-6170）----
+    // m_racePlateObject（Race_Tribe_Merc_mesh）只承载文本节点（自身 renderer 无网格）；
+    // 单族 → Race_Tribe_Merc_text（序列化激活），多族 → DualRace_Tribe_Merc_text +
+    // m_multiRacePlateObject（DualTribe Teir1 板）SetActive(true) 并逐个启用其子 renderer。
+    // 多族分支无 fixture 覆盖，按反编译口径实现（回归基线不验收）。
+    if (raceCount > 1) {
+      const plate = components.find(c => c.path.endsWith(MERC.DUAL_PLATE));
+      if (plate) plate.visible = true;
+    }
+
+    // ---- 等级数字锚位（基准对账；机制见 findings）----
+    // Actor 链只写文本（UpdateMercenaryLevelTextMesh），不做布局；prefab 里 LevelText 节点
+    // 位于卡面上部 (207.6,336.5)px，而基准图数字画在稀有度宝石内（glyph 质心 (254,447) vs
+    // 宝石世界中心 (255.3,441.7)，≤1px）——移动由 Hearthstone.UI widget 布局/widget FSM 所为
+    // （Actor 链外，未及反编译）。复刻口径 = 把等级文本节点平移到 RarityGem 节点世界位。
+    const levelNode = findFrameNodeWorld(base, keyByPath, MERC.LEVEL_TEXT);
+    const gemNode = findFrameNodeWorld(base, keyByPath, MERC.RARITY_GEM);
+    if (levelNode && gemNode) {
+      levelWorldDelta = [0, 1, 2].map(i => gemNode.world[i][3] - levelNode.world[i][3]);
+    }
+
+    // ---- 等级对象 / 经验条 / 水印（收集卡语境，Actor.cs:4244-4257 分支）----
+    // 反编译：`if ((isGameplayMercenary || m_showUICardText) && m_mercenaryLevelObject != null)`
+    // → 等级对象 SetActive(true)、**m_xpBar / m_xpBarBacking / m_xpBarCover SetActive(false)**、
+    //   `m_watermarkMesh.SetActive(string.IsNullOrEmpty(powersText))`。
+    // 基准 LT23_816H（2026-10-10 用户重导）实证该分支成立且对局文本为空：经验条/底衬/盖板
+    // 不渲染、desc 区出 `Watermark` 节点的 LET 压暗水印（Mark 网格，材质 Watermark_LET =
+    // Hero/Multiply/Multiply + LETIcon——序列化纹理固定为佣兵模式图标，不走卡片集裁决链）。
+    for (const nm of ['XPBarBacking', 'MercenaryXPBar', 'XPBarCover']) {
+      const comp = components.find(c => c.path.endsWith(`MercenaryLevelObject/${nm}`));
+      if (comp) comp.visible = false;
+    }
+    // 水印节点 = `RootObject/Watermark` 容器下的 Mark（容器自身无 renderer，不在 components 里）
+    for (const c of components) {
+      if (c.path.includes('/RootObject/Watermark/')) c.visible = true;
+    }
+  }
+
   // ---- 文字角色 ----
   const bodyFor = (role: string): string => {
     switch (role) {
@@ -1069,6 +1279,12 @@ export function compileFramePlan(
       // 法术与佣兵技能（施法/召唤两变体）的 race 槽 = 学派文本（UpdateRace flag2||flag5
       // 同支，GetRaceText → 学派名；Actor.cs:6143/6160-6166）
       return slot === 'hand-spell' || slot.startsWith('hand-lettuce-ability') ? schoolText : raceText;
+    case 'level':
+      // 佣兵本体等级数字（MercenaryActorLevelObject.SetLevelText，:79-83 =
+      // GetMercenaryLevelFromExperience(LETTUCE_MERCENARY_EXPERIENCE).ToString()）。
+      return slot === 'hand-mercenary'
+        ? String(mercenaryLevelFromExperience(tags[String(TAG3.LETTUCE_MERCENARY_EXPERIENCE)] ?? 0))
+        : '';
     case 'attack': return attackText;
     case 'health': return healthText;
     case 'armor': return armorVal > 0 ? String(armorVal) : '';
@@ -1085,16 +1301,38 @@ export function compileFramePlan(
   const texts = rules.roles.map(role => {
     const body = bodyFor(role);
     if (!body) return { role, render: false, reason: '文本为空（缺省/规则隐藏）' };
+    // 佣兵本体文本：统一下移 1px（用户 2026-10-10 目检「名字/等级/种族都偏高」；三者白墨
+    // 质心实测 +0.6/+1.0/~0 px，取整 1px）+ 逐角色字号补偿（见 MERC_TEXT_SCALE_MUL）。
+    // world_delta 的 z 轴 = 屏幕 y 反向（camera.ts projectY），故 z -= 1/192 → 下移 1px。
+    if (slot === 'hand-mercenary') {
+      const dz = -1 / 192;
+      if (role === 'level' && levelWorldDelta) {
+        return { role, render:      true, text:        body,
+          scale_mul:   MERC_TEXT_SCALE_MUL[role],
+          world_delta: [levelWorldDelta[0], levelWorldDelta[1], levelWorldDelta[2] + dz] };
+      }
+      if (['name', 'race'].includes(role)) {
+        return { role, render:      true, text:        body,
+          ...(MERC_TEXT_SCALE_MUL[role] ? { scale_mul: MERC_TEXT_SCALE_MUL[role] } : {}),
+          world_delta: [0, 0, dz] };
+      }
+    }
     if (role === 'cost' && costWorldDelta) return { role, render: true, text: body, world_delta: costWorldDelta };
+    // 佣兵本体等级数字锚位（见上方佣兵段落注释）：平移到 RarityGem 节点世界位
+    if (role === 'level' && levelWorldDelta) {
+      return { role, render: true, text: body, world_delta: levelWorldDelta };
+    }
     // UpdateRace（Actor.cs:6206-6234）：num2>1 时单族 node 文本 SetActive(false)、文本
     // 落到 **Multi_RaceUberText**（m_multiRaceTextMesh），按其自有盒（H 更高）走 grow 拟合；
     // ResizeToFit=false 只设在单族 node（多族下它是隐藏 no-op）。故多族 → 换节点渲染。
+    // 佣兵本体帧的多族节点名是 DualRace_Tribe_Merc_text（探针 role 表外的 actor 绑定字段）。
     if (role === 'race' && raceCount > 1) {
       const multiNode = (() => {
+        const wanted = new Set(['Multi_RaceUberText', 'DualRace_Tribe_Merc_text']);
         const stack: Array<{ path?: string, name?: string, children?: unknown[] }> = [base.frameRecon.hierarchy as never];
         while (stack.length) {
           const n = stack.pop()!;
-          if ((n.name ?? '') === 'Multi_RaceUberText' && n.path) return n.path;
+          if (wanted.has(n.name ?? '') && n.path) return n.path;
           for (const c of n.children ?? []) stack.push(c as never);
         }
         return undefined;
@@ -1115,6 +1353,24 @@ export function compileFramePlan(
   // ---- 手牌横幅：可交易/锻造/准备 + 阵营 + 多职业绶带（须在标记后：激活态才判 tint/材质覆写）----
   compileBanners(components, tags, tables);
 
+  // ---- 稀有度宝石材质序列化值（图集文件/滚动速度/缩放/强度）----
+  // gems.ts renderRarityGemWrap 的常量（GenFX_RarityGems 图集、_XSpeed 5/_YSpeed 0.2、
+  // _ScaleXY 1、_Intensity 1）即随从谱系材质的序列化值（hand-minion 探针实证）；佣兵本体帧
+  // 的 RarityGem 是 Lettuce 专用材质（GenFX_RarityGems_Lettuce 图集 + 2/1 滚动速度）——
+  // 逐帧从材质序列化值填充，缺省回落既有常数（其余帧材质值与常数相同，渲染逐位不变）。
+  const rarityGemComp = components.find(c => c.node === 'RarityGem' && c.visible);
+  const rarityGemMat = rarityGemComp
+    ? findNode(base.frameRecon.hierarchy, rarityGemComp.path)?.renderers?.[0]?.materials?.[0] ?? null
+    : null;
+  const rarityGemMatSpec = rarityGemMat
+    ? {
+      tex_file:  rarityGemMat.tex?.['_MainTex']?.texture?.file ?? undefined,
+      speed_xy:  [rarityGemMat.floats?.['_XSpeed'] ?? 5.0, rarityGemMat.floats?.['_YSpeed'] ?? 0.2],
+      scale_xy:  [rarityGemMat.floats?.['_ScaleX'] ?? 1.0, rarityGemMat.floats?.['_ScaleY'] ?? 1.0],
+      intensity: rarityGemMat.floats?.['_Intensity'] ?? 1.0,
+    }
+    : {};
+
   const plan: RenderPlan = {
     components,
     input:        { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
@@ -1123,6 +1379,11 @@ export function compileFramePlan(
       visible:      rarityVisible,
       atlas_offset: rarityVisible ? GEM_TEXTURE_OFFSET[rarityName] : undefined,
       tint_rgb:     rarityVisible ? GEM_COLOR[rarityName] : undefined,
+      ...rarityGemMatSpec,
+      // 佣兵本体帧：稀有度宝石在名牌名条之下（基准 LT23_816H 重导实证——名条下半压在
+      // 宝石上半）。引擎里两者都在透明队列、按距离排序；本链宝石阶段排在帧光栅后，
+      // 需显式深度测试才能复刻（rasterGemTri zs/zbuf；只对纳入帧光栅的 RarityGem 开）。
+      depth_test:   slot === 'hand-mercenary' ? true : undefined,
     },
     gem:            { enabled: true, t: 0.07 },
     stat_gems:      statGems,
@@ -1132,6 +1393,39 @@ export function compileFramePlan(
   };
   return plan;
 }
+
+/** LETTUCE_MERCENARY_LEVEL DBF 表（30 行）的 TotalXpRequired 列，按等级序（1..30）。
+ *  数据源 = 本机 dbf.unity3d 表 `LETTUCE_MERCENARY_LEVEL`（m_level/m_totalXpRequired；
+ *  探针 = 本票 findings，与 extract_fixture_data.py 同库同表口径）。
+ *  GetMercenaryLevelFromExperience（GameUtils.cs:3437-3464）逐级比对：experience <
+ *  records[level i].TotalXpRequired → 返回 i-1；全不命中 → 满级 30。缺 tag = GetTag 0 →
+ *  level 1（等级 1 的 TotalXpRequired = 0），与基准图 LT23_816H 的 "1" 一致。 */
+const MERC_LEVEL_XP_REQUIRED = [
+  0, 25, 60, 160, 300, 500, 800, 1350, 1900, 2500, 3300, 4200, 5300, 6500, 7900,
+  9400, 11100, 13100, 15300, 17600, 20150, 23000, 26000, 29300, 32900, 36600,
+  40700, 45100, 50000, 55000,
+] as const;
+const MERC_MAX_LEVEL = MERC_LEVEL_XP_REQUIRED.length;
+
+/** GetMercenaryLevelFromExperience 对译（经验值 → 等级 1..30）。 */
+function mercenaryLevelFromExperience(experience: number): number {
+  const exp = Math.max(0, experience);
+  for (let i = 1; i <= MERC_MAX_LEVEL; i++) {
+    if (exp < MERC_LEVEL_XP_REQUIRED[i - 1]) return i - 1;
+  }
+  return MERC_MAX_LEVEL;
+}
+
+/** 佣兵本体帧的文本节点世界缩放补偿（渲染期 localScale × 该倍数）。
+ *  背景：本链 UberText 移植对 name/attack/health/desc/race 与基准逐块吻合（race 白墨
+ *  h33/w71 vs 基准 h32/w71 ✓），但 `LevelText` 明显偏小：节点自身 localScale=1.0、世界
+ *  in-plane 0.5（父 `MercenaryLevelObject` 0.5），而基准按 **1.0** 渲染 —— 白墨扫描标定
+ *  （基准 LT23_816H 2026-10-10 重导，'30' 字形）：mul 1.0→h13/w21、1.4→h19/w30、2.0→
+ *  h27/w42 = 基准 h27/w42 逐项吻合。容器 0.5 是真实作者缩放（兄弟 `MercenaryXPBar` 自身
+ *  scale 11.8×0.5=5.9 与实测条宽吻合），故差异在「引擎 UberText 排版字号与节点缩放换算」
+ *  环节（机制未定，登记 findings §12.8）。补偿值按基准反推（唯一非推导常数，同 desc/cost
+ *  校准先例）。 */
+const MERC_TEXT_SCALE_MUL: Record<string, number> = { level: 2.0, race: 0.95 };
 
 /** 帧层级里按路径后缀找节点，返回其世界矩阵（找不到返回 null）。 */
 function findFrameNodeWorld(
@@ -1161,6 +1455,11 @@ const MESH_ANCHORED_SLOTS = new Set([
   'hand-heropower', 'hand-bg-anomaly', 'hand-bg-trinket',
   'hand-lettuce-ability', 'hand-lettuce-ability-minion',
   'hand-lettuce-equipment',
+  // 佣兵本体（Card_Hand_Mercenary）：无 FrameMesh 节点 → exporter 回落
+  // Actor.GetMeshRenderer() = RootObject/Mesh（TryGetActorFrameBounds，:11552-11555）；
+  // 锚预测 = 该网格世界包围盒中心 (x,z)=(0,−0.0530) → 相对原点取景 (0,+10.2)px
+  // （基准对账：L2 与 XP 条/宝石/文本位置逐项吻合，见 findings）。
+  'hand-mercenary',
 ]);
 
 /** 根锚定特例（= location 帧全部基准）。exporter 对 normal 地标的 Mesh 世界包围盒中心被

@@ -58,6 +58,10 @@ interface BucketTri {
   wrap:          boolean;
   /** Effects/FX_Transparent_ColorAsAlpha（卡影）：a=亮度×alphaIntensity、rgb=tex×color、×intensity */
   colorAsAlpha?: { color: number[], intensity: number, alpha_intensity: number };
+  /** 预乘透明合成（Blend One OneMinusSrcAlpha；见 types.PlanSlot.premultiplied） */
+  premultiplied: boolean;
+  /** 跳过深度测试（见 types.PlanSlot.skip_depth_test） */
+  skipDepthTest: boolean;
   /** desc 卡集水印（仅 Description_mesh + 材质 _SecondTex 槽；见装配处注释） */
   wm?:           WatermarkLayer;
   triUv1?:       number[][];
@@ -175,18 +179,20 @@ export function rasterBucketZbuf(
       for (const t of tris) {
         const a = t[0], b = t[1], c = t[2];
         trisOut.push({
-          depth:        (depth[a] + depth[b] + depth[c]) / 3,
-          seq:          seq++,
-          tri2d:        [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
-          triUv:        [uvArr[a], uvArr[b], uvArr[c]],
-          triZ:         [depth[a], depth[b], depth[c]],
+          depth:         (depth[a] + depth[b] + depth[c]) / 3,
+          seq:           seq++,
+          tri2d:         [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
+          triUv:         [uvArr[a], uvArr[b], uvArr[c]],
+          triZ:          [depth[a], depth[b], depth[c]],
           texKey, tint, uvOffset,
-          opaque:       slotPlan?.opaque ?? false,
-          multiply:     slotPlan?.blend === 'multiply',
-          additive:     slotPlan?.blend === 'additive',
-          wrap:         slotPlan?.wrap_repeat ?? false,
-          colorAsAlpha: slotPlan?.blend === 'colorAsAlpha' ? slotPlan.color_as_alpha : undefined,
-          wm, triUv1:       uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
+          opaque:        slotPlan?.opaque ?? false,
+          multiply:      slotPlan?.blend === 'multiply',
+          additive:      slotPlan?.blend === 'additive',
+          wrap:          slotPlan?.wrap_repeat ?? false,
+          colorAsAlpha:  slotPlan?.blend === 'colorAsAlpha' ? slotPlan.color_as_alpha : undefined,
+          premultiplied: slotPlan?.premultiplied ?? false,
+          skipDepthTest: slotPlan?.skip_depth_test ?? false,
+          wm, triUv1:        uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
         });
       }
     }
@@ -196,7 +202,7 @@ export function rasterBucketZbuf(
   for (const e of trisOut) {
     rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
       textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
-      e.wm, e.triUv1, e.colorAsAlpha);
+      e.wm, e.triUv1, e.colorAsAlpha, e.premultiplied, e.skipDepthTest);
   }
   return trisOut.length;
 }
@@ -371,16 +377,18 @@ export function renderSpellOverlays(
         for (const t of mesh.subs[si]) {
           const a = t[0], b = t[1], c = t[2];
           trisOut.push({
-            depth:    (depth[a] + depth[b] + depth[c]) / 3,
-            seq:      seq++,
-            tri2d:    [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
-            triUv:    [uvArr[a], uvArr[b], uvArr[c]],
-            triZ:     [depth[a], depth[b], depth[c]],
-            texKey:   texFile, tint, uvOffset: [0.0, 0.0],
-            opaque:   false,
-            multiply: blend === 'multiply',
-            additive: blend === 'additive',
-            wrap:     false,
+            depth:         (depth[a] + depth[b] + depth[c]) / 3,
+            seq:           seq++,
+            tri2d:         [[px[a], py[a]], [px[b], py[b]], [px[c], py[c]]],
+            triUv:         [uvArr[a], uvArr[b], uvArr[c]],
+            triZ:          [depth[a], depth[b], depth[c]],
+            texKey:        texFile, tint, uvOffset:      [0.0, 0.0],
+            opaque:        false,
+            multiply:      blend === 'multiply',
+            additive:      blend === 'additive',
+            wrap:          false,
+            premultiplied: false,
+            skipDepthTest: false,
           });
         }
       }
@@ -388,7 +396,8 @@ export function renderSpellOverlays(
     trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
     for (const e of trisOut) {
       rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
-        textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive);
+        textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive,
+        false, undefined, undefined, undefined, false, false);
     }
   }
 }
@@ -452,12 +461,13 @@ export function renderGemsStage(
   canvas: Float64Array, pack: AssetPack, textures: TextureStore,
   overlayGems?: OverlayGemSource,
   alpha?: Float64Array,
+  zbuf?: Float64Array,
 ): Float64Array {
   const rgb = canvasToQuantRgb(canvas);
   renderStatGems(rgb, alpha, pack, textures, overlayGems);
   quantTrunc(rgb);
   if (pack.plan!.rarity_gem?.visible) {
-    renderRarityGemWrap(rgb, alpha, pack, textures);
+    renderRarityGemWrap(rgb, alpha, pack, textures, zbuf);
     quantTrunc(rgb);
   }
   return rgb;

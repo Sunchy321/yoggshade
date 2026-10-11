@@ -66,6 +66,17 @@ export interface PlanSlot {
   color_as_alpha?:  { color: number[], intensity: number, alpha_intensity: number };
   /** 该材质槽不参与光栅（运行时占位/被 spell 视觉替换的底板）。 */
   skip?:            boolean;
+  /** 佣兵 foils 族口径（材质 `_SrcBlend=1/_DstBlend=10`）。离线链实现 = rgb 直写
+   *  （`dst.rgb = src.rgb`，压卡区 bleed≈0 实测，见 raster.ts 分支注释）+ alpha 覆盖面=1
+   *  （导出器基准图的 alpha 走 AlphaFillOpaque 几何 mask + R2TColorAlphaCombineAdd，与纹理
+   *  alpha 无关；修「像框超出底框段亮度分界线」，2026-10-11）。
+   *  plan 按材质序列化 `_SrcBlend/_DstBlend` 自动判定（全仓仅佣兵帧三代材质命中）。 */
+  premultiplied?:   boolean;
+  /** 该槽跳过逐像素深度测试（引擎 Transparent 材质 ZWrite Off，zbuf 只含不透明写入的
+   *  几何；本链帧光栅对透明材质也写深度（简化），个别层序敏感槽需显式跳过）。
+   *  当前无使用方（佣兵旗影 OvalShadow 已回退为不渲染——引擎本就从不激活该节点，
+   *  见 findings §12.15）。 */
+  skip_depth_test?: boolean;
 }
 
 /** desc 卡集水印运行时写点（Actor.UpdateWatermark，Actor.cs:5075-5135 对译）；
@@ -107,6 +118,31 @@ export interface StatGem {
   intensity:     number;
   speed_xy:      number[];
   scale_xy:      number[];
+  /** 渲染全部子网格（缺省只画 sub0）。佣兵职业宝石网格 2 子网格（同一材质）。 */
+  all_subs?:     boolean;
+}
+
+/** 稀有度宝石 spec（renderRarityGemWrap 消费）。默认值 = 随从帧谱系材质序列化值
+ *  （Card_Inhand_RarityGem_*：_XSpeed 5 / _YSpeed 0.2 / _Intensity 1 / _ScaleXY 1 /
+ *  GenFX_RarityGems 图集）——佣兵本体帧的 RarityGem 是 Lettuce 专用材质
+ *  （GenFX_RarityGems_Lettuce 图集 + 2/1 滚动速度，探针实测），逐帧从材质序列化值填充。 */
+export interface RarityGemSpec {
+  visible?:      boolean;
+  atlas_offset?: number[];
+  tint_rgb?:     number[];
+  /** 图集文件（缺省 textures/GenFX_RarityGems.png = 随从/法术/英雄帧口径）。 */
+  tex_file?:     string;
+  /** _XSpeed/_YSpeed（滚动纹理采样相位）。 */
+  speed_xy?:     number[];
+  /** _ScaleX/_ScaleY（滚动纹理 UV 缩放）。 */
+  scale_xy?:     number[];
+  /** _Intensity（子网格亮度），缺省 1。 */
+  intensity?:    number;
+  /** 逐像素深度测试（对帧光栅 zbuf）。引擎里宝石是普通网格、由透明队列按距离排序；
+   *  本链的宝石阶段是 rgb 覆盖、排在帧光栅之后，故需要显式深度测试才能复刻「被更近的
+   *  帧几何（如名牌名条）压住」的层级。**逐帧开启**：帧光栅对透明材质也写深度（未建模
+   *  引擎的 ZWrite Off），全局开启会在其它帧误裁宝石边缘（33 张实测回归）。 */
+  depth_test?:   boolean;
 }
 
 export interface PlanTextEntry {
@@ -118,13 +154,17 @@ export interface PlanTextEntry {
   /** 换节点渲染（如 UpdateRace 多族：文本落 Multi_RaceUberText）——渲染期按该帧层级路径
    *  重新取 NodeSettings，替代 role_paths 的默认节点。 */
   node_path?:   string;
+  /** 节点世界缩放的补偿倍数（渲染期 localScale × mul）。用于引擎 UberText 排版字号与
+   *  序列化参数换算差异，逐帧反推：佣兵本体 level=2（节点自身 localScale 1.0 而非继承
+   *  容器的 0.5）、race=1.6（见 findings §§12.4/12.8）。缺省 1。 */
+  scale_mul?:   number;
   [k: string]:  unknown;
 }
 
 export interface RenderPlan {
   components:      PlanComponent[];
   input?:          { dbf_id?: string, card_id?: string };
-  rarity_gem?:     { visible?: boolean, atlas_offset?: number[], tint_rgb?: number[] };
+  rarity_gem?:     RarityGemSpec;
   gem?:            { enabled?: boolean, t?: number };
   stat_gems?:      StatGem[];
   texts?:          PlanTextEntry[];

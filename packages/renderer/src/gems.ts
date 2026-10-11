@@ -112,7 +112,7 @@ export function renderStatGems(
       py[i] = projectY(M[2][0] * vx + M[2][1] * vy + M[2][2] * vz + M[2][3]);
       wy[i] = M[1][0] * vx + M[1][1] * vy + M[1][2] * vz + M[1][3];
     }
-    const tris = mesh.subs[0];
+    const tris = g.all_subs ? mesh.subs.flat() : mesh.subs[0];
     const order = tris.map((tri, i) => [tri, i] as const)
       .sort((a, b) =>
         ((wy[a[0][0]] + wy[a[0][1]] + wy[a[0][2]]) - (wy[b[0][0]] + wy[b[0][1]] + wy[b[0][2]])) / 3)
@@ -135,11 +135,18 @@ export function renderStatGems(
   }
 }
 
-/** 带 UV 插值 + 像素回调的三角形遍历（宝石/RTT 共用骨架）。 */
+/** 带 UV 插值 + 像素回调的三角形遍历（宝石/RTT 共用骨架）。
+ *  zs/zbuf 给出时逐像素做深度测试：RarityGem 在**帧光栅里也画**（它是 plan 组件），
+ *  故 zbuf 在该像素保存的是「赢得深度测试的那块几何」——宝石自身赢 → 等值（通过），
+ *  被更近的名牌名条压住 → zbuf 更大（跳过）。无此测试的 rgb 覆盖会把宝石画到名条
+ *  之上（用户报告「等级宝石渲染层级不正确」；基准 LT23_816H 重导实证名条压宝石）。
+ *  攻血宝石**不**做此测试：它们被 buildRenderList 排除在帧光栅外，zbuf 处是别的几何
+ *  （底板等），逐像素比较会误裁宝石边缘（GDB_142 等 33 张实测 70px 级回归）。 */
 function rasterGemTri(
   xs: number[], ys: number[],
   uvA: number[], uvB: number[], uvC: number[],
   cb: (u: number, v: number, x: number, y: number) => void,
+  zs?: number[], zbuf?: Float64Array,
 ): void {
   const W = SIZE[0], H = SIZE[1];
   const xmin = Math.max(Math.floor(Math.min(...xs)), 0);
@@ -157,6 +164,10 @@ function rasterGemTri(
       const l2 = ((xs[1] - xs[0]) * (gy - ys[0]) - (ys[1] - ys[0]) * (gx - xs[0])) / d;
       const l0 = 1.0 - l1 - l2;
       if (l0 < -1e-6 || l1 < -1e-6 || l2 < -1e-6) continue;
+      if (zs && zbuf) {
+        const zpix = l0 * zs[0] + l1 * zs[1] + l2 * zs[2];
+        if (zpix < zbuf[y * W + x]) continue; // 帧几何更近 → 宝石被遮
+      }
       const u = l0 * uvA[0] + l1 * uvB[0] + l2 * uvC[0];
       const v = l0 * uvA[1] + l1 * uvB[1] + l2 * uvC[1];
       cb(u, v, x, y);
@@ -164,24 +175,32 @@ function rasterGemTri(
   }
 }
 
-/** 稀有度宝石（wrap 版）：main/clouds 都 Repeat；UV + 图集偏移；三角原序。 */
+/** 稀有度宝石（wrap 版）：main/clouds 都 Repeat；UV + 图集偏移；三角原序。
+ *  图集文件与滚动参数来自 plan.rarity_gem（材质序列化值；缺省 = 随从谱系常数
+ *  GenFX_RarityGems + 速度 (5,0.2) + 缩放 (1,1) + 强度 1——佣兵本体帧是 Lettuce 专用
+ *  材质 GenFX_RarityGems_Lettuce + 速度 (2,1)，见 plan.ts 佣兵段落）。 */
 export function renderRarityGemWrap(
   rgb: Float64Array, alpha: Float64Array | undefined, pack: AssetPack, textures: TextureStore,
+  zbuf?: Float64Array,
 ): void {
   const plan = pack.plan!;
-  const main = textures.get('GenFX_RarityGems.png');
+  const spec = plan.rarity_gem!;
+  const main = textures.get(spec.tex_file ?? 'GenFX_RarityGems.png');
   const clouds = textures.get('GenFX_clouds03.png');
-  const tint = plan.rarity_gem!.tint_rgb!;
-  const [offU, offV] = plan.rarity_gem!.atlas_offset!;
+  const tint = spec.tint_rgb!;
+  const [offU, offV] = spec.atlas_offset!;
   const t = plan.gem!.t!;
-  const du = posmod(t * SPEED_XY[0], 1.0);
-  const dv = posmod(t * SPEED_XY[1], 1.0);
+  const speed = spec.speed_xy ?? SPEED_XY;
+  const scale = spec.scale_xy ?? [1, 1];
+  const intensity = spec.intensity ?? 1.0;
+  const du = posmod(t * speed[0], 1.0);
+  const dv = posmod(t * speed[1], 1.0);
 
   const comp = plan.components.find(c => c.node === 'RarityGem' && c.visible);
   if (!comp) return;
   const hit = nodeByKeyPath(pack, comp.path);
   if (!hit) return;
-  const { mesh, px, py } = projectNode(pack, hit.key, hit.n.world!);
+  const { mesh, px, py, wy } = projectNode(pack, hit.key, hit.n.world!);
   for (const tri of mesh.subs[0]) {
     const ia = tri[0], ib = tri[1], ic = tri[2];
     const xs = [px[ia], px[ib], px[ic]];
@@ -189,12 +208,12 @@ export function renderRarityGemWrap(
     rasterGemTri(xs, ys, mesh.uv0[ia], mesh.uv0[ib], mesh.uv0[ic], (u, v, x, y) => {
       const uu = u + offU, vv = v + offV;
       sampleWrap(main, uu, vv, mainS);
-      sampleWrap(clouds, uu + du, vv + dv, cloudS);
-      const aMain = mainS[3] * 1.5;
+      sampleWrap(clouds, uu * scale[0] + du, vv * scale[1] + dv, cloudS);
+      const aMain = mainS[3] * 1.5 * intensity;
       const cr = Math.min(Math.max(cloudS[0] * tint[0] * aMain + mainS[0], 0), 1);
       const cg = Math.min(Math.max(cloudS[0] * tint[1] * aMain + mainS[1], 0), 1);
       const cb = Math.min(Math.max(cloudS[0] * tint[2] * aMain + mainS[2], 0), 1);
       writeRgb(rgb, alpha, x, y, cr, cg, cb);
-    });
+    }, spec.depth_test ? [wy[ia], wy[ib], wy[ic]] : undefined, spec.depth_test ? zbuf : undefined);
   }
 }

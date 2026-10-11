@@ -272,3 +272,58 @@ export function sampleBilinearClamp001(
     out[c] = a * (1 - fy) + b * fy;
   }
 }
+
+/** mipmap 链（box 2×2 逐级减半；8bpc 除 4 写回 = uint8 就近取整）。Unity importer 对 3D
+ *  模型纹理默认生成 mipmap（Mip Maps = Auto），游戏端 Bilinear+MipMap 过滤在 minification
+ *  时读取低级 mip——离线链此前恒采 level0，肖像（512 纹理 → 屏幕比例 ~0.6）偏锐、对比度
+ *  偏高（2026-10-10 LT23_816H oval 内逐像素回归 ref = 0.939·ours + 6.24；GDB_142/YOG_502/
+ *  LT23_802P2/CFM_902/LT23_036E2_04 五张同向，σ0.5 等效软化使 k→1.000）。
+ *  证据见 docs/findings/lettuce-frame-teardown-2026-10-10.md §12.12。 */
+const mipCache = new WeakMap<RGBAImage, RGBAImage[]>();
+
+function mipChain(img: RGBAImage): RGBAImage[] {
+  const cached = mipCache.get(img);
+  if (cached) return cached;
+  const chain: RGBAImage[] = [img];
+  let cur = img;
+  while (cur.w > 1 && cur.h > 1) {
+    const { w, h, data } = cur;
+    const nw = w >> 1, nh = h >> 1;
+    const nd = new Uint8ClampedArray(nw * nh * 4);
+    for (let y = 0; y < nh; y++) {
+      const r0 = y * 2 * w, r1 = r0 + w;
+      for (let x = 0; x < nw; x++) {
+        const x0 = x * 2, x1 = x0 + 1;
+        for (let c = 0; c < 4; c++) {
+          nd[(y * nw + x) * 4 + c] = (data[(r0 + x0) * 4 + c] + data[(r0 + x1) * 4 + c]
+            + data[(r1 + x0) * 4 + c] + data[(r1 + x1) * 4 + c]) / 4;
+        }
+      }
+    }
+    cur = { w: nw, h: nh, data: nd };
+    chain.push(cur);
+  }
+  mipCache.set(img, chain);
+  return chain;
+}
+
+const trilTmp = new Float64Array(4);
+
+/** 三线性 clamp 采样：λ（每三角形纹理足迹 log2，portrait.ts triLambda 计算）≤0 时与
+ *  sampleBilinearClamp001 逐位同值（放大/1:1 不受影响）；>0 时在 floor/ceil 两级 mip 间
+ *  按小数部分插值。v 翻转与 clamp 口径同 sampleBilinearClamp001。 */
+export function sampleTrilinearClamp001(
+  img: RGBAImage, u: number, v: number, lambda: number, out: Float64Array,
+): void {
+  if (lambda <= 0) {
+    sampleBilinearClamp001(img, u, v, out);
+    return;
+  }
+  const chain = mipChain(img);
+  const l0 = Math.min(Math.floor(lambda), chain.length - 1);
+  const f = Math.min(lambda - l0, 1);
+  sampleBilinearClamp001(chain[l0], u, v, out);
+  if (f <= 0 || l0 + 1 >= chain.length) return;
+  sampleBilinearClamp001(chain[l0 + 1], u, v, trilTmp);
+  for (let c = 0; c < 4; c++) out[c] += (trilTmp[c] - out[c]) * f;
+}

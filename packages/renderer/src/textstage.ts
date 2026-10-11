@@ -51,6 +51,8 @@ export async function renderTextStage(rgb: Float64Array, pack: AssetPack, alpha?
     if (delta) ns = { ...ns, worldPos: [ns.worldPos[0] + delta[0], ns.worldPos[1] + delta[1], ns.worldPos[2] + delta[2]] };
     // 换节点渲染（UpdateRace 多族 → Multi_RaceUberText，按其自有盒/锚点）
     if (entry.node_path) ns = nodeSettingsByPath(pack, entry.node_path) ?? ns;
+    // 世界缩放补偿（plan 逐帧反推；见 PlanTextEntry.scale_mul）
+    if (entry.scale_mul && entry.scale_mul !== 1) ns = { ...ns, localScale: ns.localScale * entry.scale_mul };
     const layer = renderText(pack, entry.text, ns, scene, CALIB[entry.role] ?? [0.0, 0.0],
       entry.role === 'name' ? pack.curved : undefined);
     // DEBUG_LAYER 仅 CLI 调试用（浏览器无 process，条件恒假——ADR-0002）

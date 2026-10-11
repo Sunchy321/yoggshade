@@ -185,7 +185,7 @@ export async function renderPackToRgba8(
     // 透明背景：宝石/文字阶段只消费直感 RGB，覆盖率平面随之并行累加（凸出卡框的
     // 宝石/数字的覆盖也在卡框轮廓外），末尾与 RGB 拼合输出
     const alpha = alphaPlane(canvas);
-    const rgb = renderGemsStage(canvas, pack, textures, overlayGems, alpha);
+    const rgb = renderGemsStage(canvas, pack, textures, overlayGems, alpha, zbuf);
     if (stage === 'p2') {
       // 静态导入（ticket 17）：动态 import 有冷启动窗口——isolate 刚起、模块未就绪时
       // 并发请求可能各跑一次模块初始化（全局态重复构建）。函数本体全同步，async 只剩

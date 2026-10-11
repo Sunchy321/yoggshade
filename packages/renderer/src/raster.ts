@@ -64,6 +64,8 @@ export function rasterZbuf(
   wm?: WatermarkLayer, // desc 水印第二纹理（见函数头注释）
   triUv1?: number[][], // [3][2] UV1（水印采样通道；与 triUv 同层级几何）
   colorAsAlpha?: { color: number[], intensity: number, alpha_intensity: number }, // 卡影（见函数头注释）
+  premultiplied = false, // 预乘透明（Blend One OneMinusSrcAlpha，见 types.PlanSlot.premultiplied）
+  skipDepthTest = false, // 跳过深度测试（见 types.PlanSlot.skip_depth_test）
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -98,7 +100,9 @@ export function rasterZbuf(
       if (l0 < -1e-6 || l1 < -1e-6 || l2 < -1e-6) continue;
       const z = l0 * triZ[0] + l1 * triZ[1] + l2 * triZ[2];
       const pi = y * W + x;
-      if (!(z >= zbuf[pi])) continue;
+      // skipDepthTest：引擎 zbuf 只含不透明写入的几何（Transparent 材质 ZWrite Off），本链帧光栅
+      // 对透明材质也写深度（既有简化）→ 该类槽需显式跳过（例：佣兵旗影，见 PlanSlot 注释）。
+      if (!skipDepthTest && !(z >= zbuf[pi])) continue;
 
       const u = l0 * u0 + l1 * u1 + l2 * u2 + uvOffset[0];
       const v = l0 * v0 + l1 * v1 + l2 * v2 + uvOffset[1];
@@ -137,9 +141,19 @@ export function rasterZbuf(
         // **不写深度**：该 shader 的 subshader tag 是 QUEUE=Transparent（ZWrite Off），阴影面片
         // 又比肖像面片更靠前（世界 Y 更大）；写深度会把随后绘制的肖像层挡在 zbuf 之外——游戏里
         // 异画/精英卡的卡图能透过银龙影显示（ETC_210/TLC_433 的画窗上缘），靠的就是这一点。
-        canvas[ci] = Math.max(Math.min(canvas[ci] * Math.min(scratch[0] + tr, 1), 1), 0);
-        canvas[ci + 1] = Math.max(Math.min(canvas[ci + 1] * Math.min(scratch[1] + tg, 1), 1), 0);
-        canvas[ci + 2] = Math.max(Math.min(canvas[ci + 2] * Math.min(scratch[2] + tb, 1), 1), 0);
+        // alpha 门控（**必需的复刻修正**）：阴影贴图里**透明像素的 rgb 是脏值**——FlagShadow
+        // 的透明区 rgb≈0.5，无门控时 min(0.5+0.34,1)=0.84 会把整个 quad 压暗一档，横跨卡面
+        // 就是一条矩形水平线（用户 2026-10-10 目检「顶端有水平划线、上面更暗」；OvalShadow
+        // 的 quad 正是内建 Plane 矩形）。引擎语义 = 阴影强度随贴图 alpha 淡出：
+        //   dst × lerp(1, min(tex+tint,1), tex.a)
+        // 不透明阴影贴图（银龙影/符文影等 alpha=1）下 lerp 退化为原式 → 逐位不变。
+        const ma = scratch[3];
+        const fR = 1 + ma * (Math.min(scratch[0] + tr, 1) - 1);
+        const fG = 1 + ma * (Math.min(scratch[1] + tg, 1) - 1);
+        const fB = 1 + ma * (Math.min(scratch[2] + tb, 1) - 1);
+        canvas[ci] = Math.max(Math.min(canvas[ci] * fR, 1), 0);
+        canvas[ci + 1] = Math.max(Math.min(canvas[ci + 1] * fG, 1), 0);
+        canvas[ci + 2] = Math.max(Math.min(canvas[ci + 2] * fB, 1), 0);
         continue;
       }
       if (additive) {
@@ -176,13 +190,69 @@ export function rasterZbuf(
       // 全透明纹素（sa=0）：引擎里要么 ZWrite Off 要么 alpha-test discard，**绝不产生遮挡**。
       // 离线链此前无条件写深度，饰品格子纹章（Trinket_Medallion）被 TrinketLevelIndicatorRing
       // 内圈的透明纹素挡在 zbuf 外（用户报告"大型/小型没渲染上"，2026-10-03）。
-      if (sa <= 0) continue;
+      // premultiplied 例外：几何覆盖即 stamp（alpha=1 覆盖面 + rgb=tex.rgb，与纹理 alpha 无关
+      // ——基准 (230,95)=(60,58,57,255) 与该处 texel rgba (59,58,57,0) 的 rgb 逐字节同源，
+      // 见下方 premultiplied 分支注释），故 sa=0 纹素不跳过。
+      if (sa <= 0 && !premultiplied) continue;
       const dstA = canvas[ci + 3];
-      const outA = sa + dstA * (1 - sa);
+      // premultiplied：alpha 写 1（几何覆盖面），不是纹理 alpha 的 over 累加——见下方分支注释
+      // 「alpha=1」节（导出器 AlphaFillOpaque mask + R2TColorAlphaCombineAdd 语义）。
+      const outA = premultiplied ? 1.0 : sa + dstA * (1 - sa);
       const safe = outA > 1e-6 ? outA : 1.0;
-      canvas[ci] = (srcR * wtr * sa + canvas[ci] * dstA * (1 - sa)) / safe;
-      canvas[ci + 1] = (srcG * wtg * sa + canvas[ci + 1] * dstA * (1 - sa)) / safe;
-      canvas[ci + 2] = (srcB * wtb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
+      if (premultiplied) {
+        // 佣兵 foils 族混合口径（材质 `_SrcBlend=1`/`_DstBlend=10`）——**rgb 直写、alpha 覆盖面=1**：
+        // `dst.rgb = src.rgb`（不做 alpha 衰减、不累加 dst）；alpha 通道写 1 而非纹理 alpha 的
+        // over 累加。
+        //
+        // —— rgb 直写（2026-10-10 第五轮定案）。三候选逐区域回归（LT23_816H 基准；环区 n=66582）：
+        //
+        //   | 口径 | 顶弧带 MAE(dst=0) | 压卡区 MAE | 全局 L2 |
+        //   |---|---|---|---|
+        //   | SrcAlpha over（旧旧） | 58.5 | 13.3 | — |
+        //   | `_LightingBlend` 插值 k=0.5（旧） | 29.2 | 7.0 | 9.575 |
+        //   | Blend One OneMinusSrcAlpha（+dst·(1−a)） | 0.6 | 16.1 | 10.795 |
+        //   | **本口径（rgb 直写）** | **1.5** | **5.8** | **8.996** |
+        //
+        // 决定性证据是顶弧带（环凸出卡体、身后空无一物的那一条）：基准逐像素 = 纹理 rgb 本身
+        // （回归 `ref = 0.999·src.rgb + 0.000·dst`，MAE 0.6），而那里 `Lettuce_FoilTiers` 的
+        // texel alpha 中位数仅 0.35 → 任何按 alpha 衰减的口径都会把顶弧压掉 ~1/3 亮度 = 用户
+        // 目检的「顶端一条横线、上面更暗」。压卡区同样不给 dst 项（2026-10-11 复测：环带压卡
+        // 区 bleed=ref−src 均值 0.43，n=400、底图均值 94.6；按 a=0.33 混合应 +63）。旧实现在此
+        // 按 `_LightingBlend`(0.5) 做源项插值属误用——`_LightingBlend` 是 VS 光照乘子
+        // COLOR0=(1+_LightingBlend·(L−1))·_TintColor（findings §12.3），不是混合权重。
+        //
+        // —— alpha=1（2026-10-11 第七轮，修「像框超出底框的部分与未超出部分之间有亮度分界线」）。
+        // 逐像素定位：基准环带 rgb 与本链一致（差≤2），但 **alpha 恒 255**（实心圆顶，x=250 列
+        // y93~113 全 255；y=95 行 x232~276 全 255），本链 = 纹理 alpha over 累加（108~208）→
+        // PNG 合成到任意背景上时超出底框的环带被冲淡（白底变亮/黑底变暗），与压卡段（不透明）
+        // 之间形成亮度阶跃 = 用户目检的分界线。根因：导出器基准图的 alpha 不是颜色 RT 的 alpha
+        // （ExporterController.cs RenderWithOfficialAlpha，:7519-7626）：
+        //   1) color pass 渲到 ARGB32 MSAA4x RT；
+        //   2) alpha mask pass：RenderCameraWithReplacementMaterial（:7893-7949）把 RenderType
+        //      匹配的 renderer 全部换成 Custom/AlphaFillOpaque——FS 恒输出 (1,1,1,1)
+        //      （Custom_AlphaFillOpaque_FS.metal:17），**与纹理 alpha 无关，纯几何覆盖**；
+        //   3) 合成 Hidden/R2TColorAlphaCombineAdd FS:30 `out.a = clamp(alphaRT.x + colorRT.a)`。
+        // 即参与材质的几何覆盖处最终 alpha=1。旁证排除「纹理/顶点色另有 1 的来源」：
+        // Lettuce_FoilTiers 原生 DXT5（format 12）UnityPy 解码 alpha 与抽取 PNG 一致（环带中心
+        // 行 95~110/255）；OvalFrame 网格无顶点色流（essential_base_global-mesh-0
+        // Card_InHand_Ally_Merc_Oval_Mesh m_VertexData m_Channels[3].dimension=0）→ COLOR0.a=1，
+        // 颜色 pass 的 src.a 不可能到 1。环带压卡区 bleed≈0（上表）进一步证明颜色 pass 里环的
+        // rgb 就是替换式覆盖，纹理 alpha 只在 MSAA 几何边缘行有残余贡献（基准顶行 224 = mask
+        // MSAA 覆盖 ~0.5 + colorRT.a≈0.38；本链无 MSAA，边缘行写 255，1px 残差）。
+        // 作用域：explore/2026-10-10-lettuce-frame/scripts/premul_scope.ts 全 43 fixture 仅
+        // LT23_816H 命中本分支（7 组件），
+        // 其余 42 张逐位不变。sa=0 纹素同样 stamp（本分支上方 skip 注释）：环带外沿网格覆盖、
+        // 图集光晕尾部 alpha=0 的像素，基准 = (texel.rgb, 255)——(230,95) 基准 (60,58,57,255)
+        // vs texel (59,58,57,0)；漏 stamp 会在不透明环带外圈留一圈半透明锯齿边（用户目检
+        // 「边框变成半透明」，2026-10-11）。
+        canvas[ci] = Math.min(Math.max(srcR * wtr, 0), 1);
+        canvas[ci + 1] = Math.min(Math.max(srcG * wtg, 0), 1);
+        canvas[ci + 2] = Math.min(Math.max(srcB * wtb, 0), 1);
+      } else {
+        canvas[ci] = (srcR * wtr * sa + canvas[ci] * dstA * (1 - sa)) / safe;
+        canvas[ci + 1] = (srcG * wtg * sa + canvas[ci + 1] * dstA * (1 - sa)) / safe;
+        canvas[ci + 2] = (srcB * wtb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
+      }
       canvas[ci + 3] = outA;
       zbuf[pi] = z;
     }

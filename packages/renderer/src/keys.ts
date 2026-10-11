@@ -96,6 +96,8 @@ export function collectRenderAssetKeys(
   for (const g of plan.stat_gems ?? []) {
     if (g.main_tex_file) packKeys.add(texKey(g.main_tex_file));
   }
+  // 稀有度宝石图集覆写（plan.rarity_gem.tex_file；佣兵本体帧 = Lettuce 专用图集）
+  if (plan.rarity_gem?.tex_file) packKeys.add(texKey(plan.rarity_gem.tex_file));
 
   // 战棋 overlay：JSON 键恒发；层级可读则展开材质纹理（浏览器首轮 JSON 未达时
   // 吞 KeyMissingError，纹理键由调用方下一轮收集补齐）
