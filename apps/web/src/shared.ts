@@ -25,8 +25,16 @@ export interface CardFields {
   armor:    number;
   elite:    boolean;
   race:     number;
-  /** 法术学派（TAG_SPELL_SCHOOL=1635）；只对法术类卡型有意义 */
+  /** 法术学派（TAG_SPELL_SCHOOL=1635）；只对法术类卡型（含佣兵技能）有意义 */
   school:   number;
+  /** 佣兵本体（TAG_LETTUCE_MERCENARY=1665 标识 >0）：仅随从卡型；勾选后卡面走佣兵收集卡帧 */
+  mercenary:   boolean;
+  /** 佣兵职业（TAG_LETTUCE_ROLE=1666）：1=施法者 2=斗士 3=护卫 4=中立（0=无） */
+  mercRole:    number;
+  /** 佣兵阵营（TAG_LETTUCE_FACTION=2720）：1=联盟 2=部落 3=黑暗帝国 4=探险者 5=燃烧军团 6=海盗 7=天灾（0=无） */
+  mercFaction: number;
+  /** 佣兵技能形态（仅卡型 23）：0=施法 1=召唤随从(TAG 1676) 2=装备(TAG 1855) */
+  lettuceForm: number;
 }
 
 export interface PresetInfo {

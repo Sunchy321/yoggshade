@@ -8,7 +8,7 @@
  * （第二轮判据 = DIY 组合冒烟矩阵 + fixture 全量走 HTTP，见 ticket 09 与地图 Not yet specified。） */
 import { join, resolve } from 'node:path';
 import { renderCard } from '@yoggshade/renderer/render-card';
-import { fsSource } from '@yoggshade/renderer/source';
+import { fsSource } from '@yoggshade/renderer/source-fs';
 import type { FixtureCard } from '@yoggshade/renderer/plan';
 import { prepareCard } from '../src/adapter.js';
 import { loadPresets } from '../src/meta.js';
@@ -17,7 +17,9 @@ import type { RenderRequest } from '../src/shared.js';
 const repoRoot = resolve(import.meta.dir, '../../..');
 const DIRS = { pack: fsSource(join(repoRoot, 'assets')), data: fsSource(join(repoRoot, 'data')) };
 
-/** 每个帧槽一张代表卡（覆盖 8 槽；战棋模板另取一张） */
+/** 每个帧槽一张代表卡（覆盖全部帧槽；战棋模板另取一张）。
+ *  佣兵四槽（2026-10-11 特性收尾补入）：卡面结构与 tag 组合判定全走专属帧后，
+ *  adapter 往返也必须逐位一致——尤其 name 的 builder 链（{0} 占位）与攻血 GetTag 口径。 */
 const SLOT_REPS = [
   'GDB_142', // hand-minion
   'TOY_519', // hand-spell
@@ -28,6 +30,10 @@ const SLOT_REPS = [
   'TTN_090', // hand-location
   'BG27_Anomaly_580', // hand-bg-anomaly
   'BG32_MagicItem_350', // hand-bg-trinket
+  'LT23_802P2', // hand-lettuce-ability（含攻血 0 复刻 + 学派板）
+  'LT24_021T1_01c', // hand-lettuce-ability-minion（攻血真值 5/20）
+  'LT23_036E2_04', // hand-lettuce-equipment（名字 {0} builder 链）
+  'LT23_816H', // hand-mercenary（角色图集/阵营旗/等级）
 ];
 
 function fixtureOf(cardId: string): FixtureCard {

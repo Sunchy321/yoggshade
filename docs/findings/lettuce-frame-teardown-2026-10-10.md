@@ -669,6 +669,29 @@ agent 自行基准比对，产出 fixture 交用户肉眼验收。
 （|d|>8），bbox x[353,470] y[104,241]，最强变化在旗左缘/环带下方（如 (368,224)
 198→89），与剪影投影吻合。L2 待用户肉眼验收后补记。
 
+## 13. 收尾（ticket 06）：全量 L2 与最终数字（2026-10-11）
+
+四族全部落地后的全量验收跑（`bun run fixtures` 43 张重渲 → `bun run l2` 42 张；BG24_Reward_107
+无基准图，为既有状态非本特性缺口）。**全部 42 张绿**，四个新槽最终数字：
+
+| 卡 | 槽 | mae_vis | 备注 |
+|---|---|---|---|
+| LT23_816H | hand-mercenary | **2.711** | 佣兵族最佳；worst_zone banner 8.267（阵营旗区） |
+| LT24_021T1_01c | hand-lettuce-ability-minion | **3.061** | |
+| LT23_036E2_04 | hand-lettuce-equipment | **3.690** | |
+| LT23_802P2 | hand-lettuce-ability | **4.113** | 肖像 mip 修复（§12.12）后进一步下降 |
+| LT23_803P2 | hand-lettuce-ability | **4.684** | 同上 |
+
+§12.15（旗影真源）的「L2 待补记」至此闭合：LT23_816H 2.711 = 第九轮修复后的实测。佣兵本体
+六至九轮的收敛轨迹：11.805 → 4.763 → 4.653 → 3.786 → 3.303 → 2.978 → 2.711。其余非佣兵
+fixture 数字与 §12.12 全量清单一致（肖像 mip 修复全局受益：39 降 3 平 0 升）。
+
+站点：`apps/web/src/meta.ts` 的 LT23 过滤移除（ticket 20 处置撤销），佣兵卡全部恢复收录。
+用户裁定（2026-10-11）收录佣兵技能卡型 + 佣兵专属控件：表单可表达全族——技能形态
+（施法/召唤/装备 → tag 1676/1855）、本体（佣兵勾选 + 职业/阵营 → tag 1665/1666/2720，
+官方 zhCN 取自游戏 Strings/zhCN：GLOBAL_ROLE_*/ GLOBAL_MERCENARY_FACTION_*，NEUTRAL
+角色无官方字符串取「中立」）。五形态冒烟与 parity 13/13 逐位一致。
+
 ## 证据文件索引
 
 - 探针输出：`explore/2026-10-10-lettuce-frame/pack/frames/{lettuce-ability-spell,

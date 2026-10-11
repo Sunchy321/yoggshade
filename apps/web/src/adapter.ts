@@ -21,10 +21,14 @@ const TAG = {
   COST:         48, ATK:          47, HEALTH:       45, ARMOR:        292,
   CLASS:        199, CARDTYPE:     202, RARITY:       203, ELITE:        114, CARDRACE:     200,
   SPELL_SCHOOL: 1635,
+  LETTUCE_MERCENARY:  1665, LETTUCE_ROLE: 1666, LETTUCE_FACTION: 2720,
+  LETTUCE_SUMMONED_MINION: 1676, LETTUCE_IS_EQUPIMENT: 1855,
 } as const;
 
-/** 法术类卡型（学派文本只在这些卡型的 race 行显示，plan.ts:905）。 */
-const SPELL_TYPES = new Set([5, 40, 42]);
+/** 学派（1635）由表单接管的卡型：法术族 + 佣兵技能（23 的 1635 是真学派，驱动描述板
+ *  school 网格替换；见 plan.ts hand-lettuce-ability 分支）。**其他卡型不碰**——饰品卡的
+ *  同名 tag 是等级徽章（LESSER/GREATER），写/清会丢等级（parity 实证）。 */
+const SPELL_TYPES = new Set([5, 40, 42, 23]);
 
 export class CardRequestError extends Error {}
 
@@ -130,6 +134,19 @@ export function prepareCard(
   // 学派（1635）只对法术类卡型由表单接管（写/清）；**其他卡型不碰**——饰品卡的同名 tag
   // 是等级徽章（LESSER/GREATER，plan.ts TRINKET_SCHOOLS），清掉会丢等级（parity 实证）。
   if (SPELL_TYPES.has(req.cardType)) setOrDelete(tags, TAG.SPELL_SCHOOL, req.school);
+  // 佣兵本体三件套（1665 标识 + 1666 职业 + 2720 阵营）：仅随从卡型；非随从/未勾选清空
+  // ——1665>0 会把任意卡型抢先分流到 hand-mercenary（plan.ts slotForCardType），
+  // 不能让 preset 继承的佣兵 tag 漏到换了卡型的卡上。
+  const mercBody = req.cardType === 4 && req.mercenary;
+  setOrDelete(tags, TAG.LETTUCE_MERCENARY, mercBody ? 1 : 0);
+  setOrDelete(tags, TAG.LETTUCE_ROLE, mercBody ? req.mercRole : 0);
+  setOrDelete(tags, TAG.LETTUCE_FACTION, mercBody ? req.mercFaction : 0);
+  // 佣兵技能形态（1676 召唤随从 / 1855 装备）：仅卡型 23；值写 1——渲染只判存在性
+  // （HasTag 语义，plan.ts slotForCardType）；游戏里 1676 的值是召唤随从的 dbfId
+  // （玩法数据，站点无输入面）。
+  const lettuceForm = req.cardType === 23 ? req.lettuceForm : 0;
+  setOrDelete(tags, TAG.LETTUCE_SUMMONED_MINION, lettuceForm === 1 ? 1 : 0);
+  setOrDelete(tags, TAG.LETTUCE_IS_EQUPIMENT, lettuceForm === 2 ? 1 : 0);
 
   fixture.name = { ...fixture.name, zhCN: req.name };
   fixture.textInHand = { ...fixture.textInHand, zhCN: req.text };

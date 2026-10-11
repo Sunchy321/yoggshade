@@ -11,8 +11,10 @@ import type { AssetSource } from '@yoggshade/renderer/source';
 import { CARD_TYPE_TO_SLOT, type FixtureCard } from '@yoggshade/renderer/plan';
 import type { CardFields, CardTypeOption, LabelOption, MetaResponse, PresetInfo } from './shared.js';
 
-/** 可渲染卡型（帧槽已移植的 8 槽 + 同槽不同纹理族的奖励/酒馆法术）。
- *  未列出的卡型（佣兵技能/宠物/…）渲染会回落随从帧，故不进表单。 */
+/** 可渲染卡型（帧槽已移植的 8 槽 + 同槽不同纹理族的奖励/酒馆法术 + 佣兵技能）。
+ *  佣兵全族可由表单表达：佣兵技能（23，含召唤/装备形态）走卡型下拉 + 形态字段；
+ *  佣兵本体（随从 + 佣兵勾选）走「数值」区的佣兵控件（职业/阵营下拉）。
+ *  其余未列卡型（宠物等）仍回落随从帧。 */
 const CARD_TYPE_LABELS: [number, string][] = [
   [4, '随从'],
   [5, '法术'],
@@ -24,6 +26,7 @@ const CARD_TYPE_LABELS: [number, string][] = [
   [40, '任务奖励'],
   [43, '战棋畸变'],
   [44, '战棋饰品'],
+  [23, '佣兵技能'],
 ];
 
 /** 战棋模板卡型（plan.ts:626 `preset.template === 'Battlegrounds'` 消费 → 铸币/tier 图标视觉） */
@@ -77,9 +80,8 @@ export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] 
   const out: PresetInfo[] = [];
   for (const f of names) {
     if (!f.endsWith('.json') || f === 'manifest.json') continue;
-    // LT23 佣兵技能两张（ticket 20）：佣兵帧族不在 8 帧槽范围，按随从帧占位渲染出的
-    // 卡面是误导性的错误框架——不进站点预设列表；data/fixtures 冻结集保留不动（ADR-0001）。
-    if (f.startsWith('LT23_')) continue;
+    // 佣兵卡（LT23_*/LT24_*）此前因「回落随从帧 = 误导性错误框架」被摘除（ticket 20）；
+    // 四个专属帧族落地后（.scratch/lettuce-frames），过滤移除、全部恢复收录。
     const fx = JSON.parse(data.text(`fixtures/${f}`)) as FixtureCard;
     const t = (k: number): number => fx.tags[String(k)] ?? 0;
     const fields: CardFields = {
@@ -93,6 +95,10 @@ export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] 
       elite:    t(114) !== 0,
       race:     t(200),
       school:   t(1635),
+      mercenary:   t(1665) !== 0,
+      mercRole:    t(1666),
+      mercFaction: t(2720),
+      lettuceForm: t(1676) !== 0 ? 1 : t(1855) !== 0 ? 2 : 0,
     };
     out.push({
       cardId:      fx.cardId,
