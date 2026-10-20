@@ -3,19 +3,21 @@
  *  不出现任何实现词汇；卡牌预览是视觉中心。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardFields, MetaResponse, PresetInfo, RenderRequest } from './shared.js';
-import { loadMetaClient, renderClient } from './render-client.js';
+import { loadMetaClient } from './render-client.js';
+import { useAutoRender } from './use-auto-render.js';
+import { descriptionText } from './description-text.js';
 
 const EMPTY_FIELDS: CardFields = {
-  cardType: 4,
-  classTag: 12,
-  rarity:   1,
-  cost:     1,
-  attack:   1,
-  health:   1,
-  armor:    0,
-  elite:    false,
-  race:     0,
-  school:   0,
+  cardType:    4,
+  classTag:    12,
+  rarity:      1,
+  cost:        1,
+  attack:      1,
+  health:      1,
+  armor:       0,
+  elite:       false,
+  race:        0,
+  school:      0,
   mercenary:   false,
   mercRole:    0,
   mercFaction: 0,
@@ -113,52 +115,85 @@ export function Editor() {
   const [name, setName] = useState('我的卡牌');
   const [portrait, setPortrait] = useState<string | undefined>(undefined);
   const [fileNote, setFileNote] = useState('');
-  const [png, setPng] = useState<string | undefined>(undefined);
-  const [busy, setBusy] = useState(false);
+  const [text, setText] = useState('');
+  const [composing, setComposing] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const [error, setError] = useState('');
   const [editorKey, setEditorKey] = useState(0);
-  const pngRef = useRef<string | undefined>(undefined);
   const descRef = useRef<HTMLDivElement | null>(null);
   const pendingDesc = useRef('');
+  const descSelection = useRef<Range | null>(null);
+  const [formats, setFormats] = useState({ bold: false, italic: false });
 
   /** 描述富文本（contentEditable，所见即所得）：换行 → <br> 供显示；
    *  提交时转回纯文本换行、只保留加粗/斜体标记——标记语法不出现在界面上。
    *  渲染链 <b>/<i> 独立且可嵌套（CATA_190h "<i><b>兆示</b>…" 先例）。 */
   const toDisplay = (t: string): string => t.replace(/\n/g, '<br>');
 
-  const htmlToText = (el: HTMLElement): string =>
-    el.innerHTML
-      .replace(/<div>/gi, '\n')
-      .replace(/<\/div>/gi, '')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<(?!\/?(?:b|i)>)[^>]+>/gi, '');
-
   const readDesc = useCallback((): string =>
-    descRef.current ? htmlToText(descRef.current) : '', []);
+    descRef.current ? descriptionText(descRef.current.innerHTML) : '', []);
 
-  /** 把选中的描述文字套进 <b>/<i>（游戏里的关键词/斜体样式；实现细节不出现在界面上）。 */
-  const wrapSelection = useCallback((tag: 'b' | 'i') => {
+  const body = useMemo<RenderRequest>(() => ({
+    ...fields, presetId: presetId || undefined, name, text, portrait,
+  }), [fields, presetId, name, text, portrait]);
+  const { png, status, error: renderError } = useAutoRender(body, meta !== null, composing);
+  const renderMessage = renderError
+    ? (renderError as Error).name === 'TtfMissingError'
+      ? `暂不支持字符：${(renderError as Error & { char?: string }).char ?? '特殊字符'}`
+      : friendlyError((renderError as Error).message)
+    : '';
+  const statusLabel = { waiting: '待更新', updating: '更新中', updated: '已更新', error: '更新失败' }[status];
+
+  const updateSelection = useCallback(() => {
     const el = descRef.current;
-    const sel = window.getSelection();
-    if (!el || !sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    if (range.collapsed || !el.contains(range.commonAncestorContainer)) return;
-    try {
-      const el2 = document.createElement(tag);
-      range.surroundContents(el2);
-    } catch {
-      document.execCommand(tag === 'b' ? 'bold' : 'italic');
-    }
+    const selection = window.getSelection();
+    if (!el || !selection?.rangeCount || !el.contains(selection.anchorNode)
+      || !el.contains(selection.focusNode)) return;
+    descSelection.current = selection.getRangeAt(0).cloneRange();
+    const bold = document.queryCommandState('bold');
+    const italic = document.queryCommandState('italic');
+    setFormats(previous => previous.bold === bold && previous.italic === italic
+      ? previous
+      : { bold, italic });
   }, []);
+
+  // surroundContents 只能叠加标签，重复点击会形成 <b><b>…</b></b>，无法取消。
+  // 浏览器编辑命令负责切换选区/光标格式并保留原生撤销记录；强制语义标签，
+  // 与渲染协议已有的 <b>/<i> 一致。selectionchange 同步工具栏与键盘快捷键。
+  const toggleFormat = useCallback((command: 'bold' | 'italic') => {
+    const el = descRef.current;
+    const selection = window.getSelection();
+    if (!el || !selection) return;
+    const range = descSelection.current;
+    el.focus();
+    if (range && el.contains(range.commonAncestorContainer)) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    document.execCommand('styleWithCSS', false, 'false');
+    document.execCommand(command);
+    setText(readDesc());
+    updateSelection();
+  }, [readDesc, updateSelection]);
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', updateSelection);
+    return () => document.removeEventListener('selectionchange', updateSelection);
+  }, [updateSelection]);
 
   const pastePlain = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
     document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
-  }, []);
+    setText(readDesc());
+    updateSelection();
+  }, [readDesc, updateSelection]);
 
   // 描述初始内容：编辑区按 editorKey 重建，重建后写入（避免直接被 React 管理 innerHTML）
   useEffect(() => {
     if (descRef.current) descRef.current.innerHTML = pendingDesc.current;
+    descSelection.current = null;
+    setFormats({ bold: false, italic: false });
   }, [editorKey]);
 
   useEffect(() => {
@@ -172,11 +207,6 @@ export function Editor() {
       }
     })();
   }, []);
-
-  const preset = useMemo(
-    () => meta?.presets.find(p => p.cardId === presetId),
-    [meta, presetId],
-  );
 
   /** 预设下拉的选项文案：卡名 +「稀有度 · 职业 · 卡型」——光看卡名/内部标签
    *  分不清这张样板是什么（如「无界空宇」是随从、「默认烟测卡」是测试叫法）。
@@ -197,6 +227,7 @@ export function Editor() {
     setError('');
     if (!id) {
       pendingDesc.current = '';
+      setText('');
       setEditorKey(k => k + 1);
       setName('我的卡牌');
       return;
@@ -206,6 +237,7 @@ export function Editor() {
     setFields(p.fields);
     setName(p.name || '我的卡牌');
     pendingDesc.current = toDisplay(p.text);
+    setText(p.text);
     setEditorKey(k => k + 1);
     setPortrait(undefined);
     setFileNote('');
@@ -217,8 +249,8 @@ export function Editor() {
   const changeType = useCallback((t: number) => {
     setFields(f => ({
       ...f,
-      cardType: t,
-      school:   SPELL_TYPES.has(t) ? f.school : 0,
+      cardType:    t,
+      school:      SPELL_TYPES.has(t) ? f.school : 0,
       // 佣兵字段跟卡型走（同 school 口径）：切走再切回不保留——避免把本体/形态残留
       // 到别的卡型上（1665>0 会把任意卡型抢先分流到 hand-mercenary）
       mercenary:   t === 4 ? f.mercenary : false,
@@ -246,62 +278,32 @@ export function Editor() {
     setFileNote('');
   }, []);
 
-  const render = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
-    setError('');
-    try {
-      const body: RenderRequest = {
-        ...fields, presetId: presetId || undefined, name, text: readDesc(), portrait,
-      };
-      // 浏览器内渲染（ADR-0002）：首次出图会先拉 wasm/字体/帧纹理，之后走缓存
-      const { url } = await renderClient(body);
-      if (pngRef.current) URL.revokeObjectURL(pngRef.current);
-      pngRef.current = url;
-      setPng(url);
-    } catch (err) {
-      console.error('[render] 出图失败', err);
-      if ((err as Error).name === 'TtfMissingError') {
-        const ch = (err as Error & { char?: string }).char;
-        setError(`卡牌文字包含暂不支持的字（${ch ?? '特殊字符'}），请改用常见汉字/字母/数字。`);
-      } else {
-        setError(friendlyError((err as Error).message));
-      }
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, fields, name, portrait, presetId, readDesc]);
-
   const t = fields.cardType;
   const downloadName = `${name.trim() || '我的卡牌'}.png`;
 
   if (metaError) {
     return (
-      <div className="shell">
+      <div className="shell" data-theme={theme}>
         <p className="error">{metaError}</p>
       </div>
     );
   }
 
   return (
-    <div className="shell">
+    <div className="shell" data-theme={theme}>
       <header className="masthead">
         <h1>炉石卡牌工坊</h1>
-        <p>写下你的卡牌，看它铸成卡面。</p>
+        <button type="button" className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+          {theme === 'dark' ? '浅色' : '深色'}
+        </button>
       </header>
 
-      <form
-        className="workbench"
-        onSubmit={e => {
-          e.preventDefault();
-          void render();
-        }}
-      >
+      <div className="workbench">
         <div className="bench">
-          <Section title="从一张真实的卡开始">
-            <Field label="灵感" wide>
+          <Section title="预设">
+            <Field label="卡牌" wide>
               <select value={presetId} onChange={e => applyPreset(e.target.value)}>
-                <option value="">从空白开始</option>
+                <option value="">空白</option>
                 {(meta?.presets ?? []).map(p => (
                   <option key={p.cardId} value={p.cardId}>{presetTitle(p)}</option>
                 ))}
@@ -309,7 +311,7 @@ export function Editor() {
             </Field>
           </Section>
 
-          <Section title="这张卡是什么">
+          <Section title="基础信息">
             <div className="field-row">
               <Field label="卡型">
                 <select value={t} onChange={e => changeType(Number(e.target.value))}>
@@ -475,32 +477,68 @@ export function Editor() {
                 value={name}
                 maxLength={40}
                 onChange={e => setName(e.target.value)}
+                onCompositionStart={() => setComposing(true)}
+                onCompositionEnd={() => setComposing(false)}
                 placeholder="给这张卡起个名字"
               />
             </Field>
-            <Field label="描述" wide>
-              <div
-                key={editorKey}
-                ref={descRef}
-                className="desc-edit"
-                contentEditable
-                suppressContentEditableWarning
-                data-placeholder="战吼：造成 8 点伤害。"
-                onPaste={pastePlain}
-              />
-            </Field>
-            <div className="text-tools">
-              <button type="button" className="text-tool" onClick={() => wrapSelection('b')}>
-                加粗
-              </button>
-              <button type="button" className="text-tool" onClick={() => wrapSelection('i')}>
-                斜体
-              </button>
-              <span className="tip">先选中一句话，再选加粗或斜体，它可以像游戏里那样突出显示。</span>
+            <div className="field field-wide">
+              <span className="field-label">描述</span>
+              <div className="rich-text">
+                <div className="text-tools" role="toolbar" aria-label="描述格式">
+                  <button
+                    type="button"
+                    className="text-tool"
+                    aria-pressed={formats.bold}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => toggleFormat('bold')}
+                  >
+                    加粗
+                  </button>
+                  <button
+                    type="button"
+                    className="text-tool"
+                    aria-pressed={formats.italic}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => toggleFormat('italic')}
+                  >
+                    斜体
+                  </button>
+                </div>
+                <div
+                  key={editorKey}
+                  ref={descRef}
+                  className="desc-edit"
+                  contentEditable
+                  suppressContentEditableWarning
+                  data-placeholder="战吼：造成 8 点伤害。"
+                  onPaste={pastePlain}
+                  role="textbox"
+                  aria-label="描述"
+                  aria-multiline="true"
+                  onInput={() => {
+                    setText(readDesc());
+                    updateSelection();
+                  }}
+                  onKeyDown={e => {
+                    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey
+                      && (e.key.toLowerCase() === 'b' || e.key.toLowerCase() === 'i')) {
+                      e.preventDefault();
+                      toggleFormat(e.key.toLowerCase() === 'b' ? 'bold' : 'italic');
+                    }
+                  }}
+                  onCompositionStart={() => setComposing(true)}
+                  onCompositionEnd={() => {
+                    setText(readDesc());
+                    setComposing(false);
+                    updateSelection();
+                  }}
+                />
+              </div>
             </div>
           </Section>
 
-          <Section title="画作">
+          <Section title="原画">
             {portrait
               ? (
                 <div className="art-row">
@@ -519,53 +557,41 @@ export function Editor() {
                     className="sr-only"
                     onChange={e => void onFile(e.target.files?.[0])}
                   />
-                  <span className="dropzone-main">选择一张图片</span>
-                  <span className="dropzone-sub">
-                    {preset?.hasPortrait ? '不选的话，就用原卡的画' : '会自动裁剪为正方形'}
-                  </span>
+                  <span className="dropzone-main">上传图片</span>
                 </label>
               )}
-            {preset?.hasPortrait && portrait && (
-              <p className="tip">已替换原卡画作。</p>
-            )}
           </Section>
 
-          <button className="forge" type="submit" disabled={busy}>
-            {busy ? '铸造中…' : '生成卡牌'}
-          </button>
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error" role="alert">{error}</p>}
         </div>
 
         <div className="stage">
+          <div className="preview-toolbar">
+            <h2>预览</h2>
+            <span className={`render-status ${status}`} role="status">{statusLabel}</span>
+            {png && status === 'updated'
+              ? <a className="save" href={png} download={downloadName}>下载 PNG</a>
+              : <button className="save" type="button" disabled>下载 PNG</button>}
+          </div>
           <div className="stage-inner">
-            <div className={`card-slot${busy ? ' is-busy' : ''}`}>
+            <div className="card-slot">
               {png
-                ? <img key={png} className="card" src={png} alt="你的卡牌" />
+                ? <img className="card" src={png} alt="你的卡牌" />
                 : (
                   <div className="card-empty">
-                    <span>
-                      你的卡牌
-                      <br />
-                      会出现在这里
-                    </span>
+                    <span>{meta ? '预览' : '加载中'}</span>
                   </div>
                 )}
-              {busy && (
-                <div className="casting">
-                  <span className="casting-ring" />
-                  <span>铸造中</span>
-                </div>
-              )}
+
             </div>
-            {png && (
-              <a className="save" href={png} download={downloadName}>保存图片</a>
-            )}
+
           </div>
+          {renderMessage && <p className="error preview-error" role="alert">{renderMessage}</p>}
         </div>
-      </form>
+      </div>
 
       <footer className="colophon">
-        本站是非官方的粉丝工具，与暴雪娱乐无关。炉石传说及全部游戏素材的版权归暴雪娱乐所有，卡图仅供个人娱乐。
+        炉石传说及游戏素材版权归暴雪娱乐所有。
       </footer>
     </div>
   );

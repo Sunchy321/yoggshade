@@ -41,6 +41,7 @@ function repoAssets(): Plugin {
 
 export default defineConfig({
   plugins: [react(), repoAssets()],
+  worker:  { format: 'es' },
   server:  { port: 5173 },
   build:   { outDir: 'dist' },
 });
