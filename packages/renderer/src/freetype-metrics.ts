@@ -136,13 +136,21 @@ export class FreeTypeWasmMetrics implements FontMetricsLike {
     const out = new Float64Array(nw * mask.h);
     for (let r = 0; r < mask.h; r++) {
       const dx = this.shear * (info.maxY - r - 0.5);
-      for (let x = 0; x < mask.w; x++) {
-        const sx = x - dx;
+      // 2026-10-21 (visually verified by user): italic strokes protruding beyond
+      // the upright glyph were clipped.
+      // Visit the entire padded destination, then inverse-shear into the source;
+      // the old mask.w loop left the added columns unwritten. This is an offline
+      // bitmap-shear bug: Unity requests a separate FontStyle.Italic glyph with
+      // its own bounds (UberTextMgr.cs:72-74; Angelia text-rdc-align findings/
+      // desc-atlas-canon.md §4). Minimal coverage repro: 4 -> 2.25 before this fix
+      // (explore/2026-10-21-italic-clipping/repro.ts); advance remains unchanged.
+      for (let x = 0; x < nw; x++) {
+        const sx = x - leftPad - dx;
         const x0 = Math.floor(sx);
         const fx = sx - x0;
         const c0 = x0 >= 0 && x0 < mask.w ? mask.data[r * mask.w + x0]! : 0;
         const c1 = x0 + 1 >= 0 && x0 + 1 < mask.w ? mask.data[r * mask.w + x0 + 1]! : 0;
-        out[r * nw + x + leftPad] = c0 * (1 - fx) + c1 * fx;
+        out[r * nw + x] = c0 * (1 - fx) + c1 * fx;
       }
     }
     return {
