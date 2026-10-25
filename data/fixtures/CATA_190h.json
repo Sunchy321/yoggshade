@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "多职业英雄样例，用于验证多职业英雄手牌框体渲染。"
+  "reason": "多职业英雄样例，用于验证多职业英雄手牌框体渲染。",
+  "signatureFrameId": 14
  },
  "textBuilderType": 28,
  "watermarkTextureOverride": "",

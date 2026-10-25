@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "暗金教阵营横幅样例（卡扎库斯），用于验证 KABAL 图标象限。"
+  "reason": "暗金教阵营横幅样例（卡扎库斯），用于验证 KABAL 图标象限。",
+  "signatureFrameId": 2
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

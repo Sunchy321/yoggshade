@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "双种族随从样例，用于验证多种族文本布局与换行。"
+  "reason": "双种族随从样例，用于验证多种族文本布局与换行。",
+  "signatureFrameId": 2
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

@@ -6,7 +6,8 @@
   "premium": "GOLDEN",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "金卡样例，用于验证金卡导出。"
+  "reason": "金卡样例，用于验证金卡导出。",
+  "signatureFrameId": 10
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

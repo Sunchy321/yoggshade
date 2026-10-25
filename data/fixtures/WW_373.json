@@ -6,7 +6,8 @@
   "premium": "SIGNATURE",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "异画样例 2，用于验证异画导出。"
+  "reason": "异画样例 2，用于验证异画导出。",
+  "signatureFrameId": 2
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

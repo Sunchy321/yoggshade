@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "污手党阵营横幅样例（唐·汉古），用于验证 GRIMY_GOONS 图标象限。"
+  "reason": "污手党阵营横幅样例（唐·汉古），用于验证 GRIMY_GOONS 图标象限。",
+  "signatureFrameId": 2
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

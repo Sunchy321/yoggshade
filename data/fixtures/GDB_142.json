@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "当前导出器默认卡，用于验证普通手牌渲染基线。"
+  "reason": "当前导出器默认卡，用于验证普通手牌渲染基线。",
+  "signatureFrameId": 9
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

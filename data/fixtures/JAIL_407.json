@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "准备机制样例（大头目梵妮莎），用于验证预备横幅渲染。"
+  "reason": "准备机制样例（大头目梵妮莎），用于验证预备横幅渲染。",
+  "signatureFrameId": 9
  },
  "textBuilderType": 0,
  "watermarkTextureOverride": "",

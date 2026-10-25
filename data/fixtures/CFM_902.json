@@ -6,7 +6,8 @@
   "premium": "NORMAL",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "玉莲帮阵营横幅样例（艾雅·黑掌），用于验证 JADE_LOTUS 图标象限。"
+  "reason": "玉莲帮阵营横幅样例（艾雅·黑掌），用于验证 JADE_LOTUS 图标象限。",
+  "signatureFrameId": 2
  },
  "textBuilderType": 2,
  "watermarkTextureOverride": "",
