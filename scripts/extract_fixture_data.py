@@ -12,7 +12,8 @@ Angelia docs/notes/textbuilder-drift-measurement.md 记录 Windows 侧同文件�
 产出 data/fixtures/：
   manifest.json   —— fixture 清单（30 张 CardPresets + glow 基准 12 token）+ 提取元数据
   {CARD_ID}.json  —— 单卡 canonical 数据：全部 14 语言 name/text、全量 tags、
-                     textBuilderType、preset/glow 归属
+                     textBuilderType、preset/glow 归属；preset.signatureFrameId
+                     （CARD.m_signatureFrameId 非零时才有，签名帧选择依据）
 
 用法：uv run scripts/extract_fixture_data.py [--out data/fixtures]
 """
@@ -144,11 +145,20 @@ def main() -> int:
             print(f"[miss] {card_id}（DBF 无此卡，登记后跳过）")
             continue
         dbf = row["m_ID"]
+        preset_obj = {"label": label, "premium": premium, "template": template,
+                      "zone": zone, "reason": reason}
+        # CARD.m_signatureFrameId → SIGNATURE_FRAME 表键（卡→签名帧映射，卡级事实：
+        # NORMAL fixture 的 SC_004/CATA_190h 等有签名变体的卡同样非零，消费端按
+        # premium === 'SIGNATURE' 才使用——ActorNames.GetNameWithPremiumType
+        # :822-883 的回退链语义）。camelCase 同 dbfId 惯例（spec 实现决策 3）；
+        # 零值省略——非签名卡 fixture JSON 保持逐字节不变。
+        sig_frame = row.get("m_signatureFrameId") or 0
+        if sig_frame:
+            preset_obj["signatureFrameId"] = sig_frame
         doc = {
             "cardId": card_id,
             "dbfId": dbf,
-            "preset": {"label": label, "premium": premium, "template": template,
-                       "zone": zone, "reason": reason},
+            "preset": preset_obj,
             "textBuilderType": row.get("m_cardTextBuilderType", 0),
             "watermarkTextureOverride": row.get("m_watermarkTextureOverride", ""),
             "name": loc_dict(row["m_name"]),

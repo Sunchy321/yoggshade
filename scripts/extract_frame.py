@@ -11,6 +11,16 @@
   hand-hero    Card_Hand_Hero      （英雄）
   hand-location Card_Hand_Location （地标）
 
+签名帧槽位（SIG_SLOT_TO_FRAME，异画 SIGNATURE premium）：引用不经 actor_names.csv
+normal 档（那是 GetHandActor 普通链），走 SIGNATURE_FRAME DBF「名字:GUID 直指」——
+签名链 = ActorNames.GetSignatureActor → SignatureHand[frameId]（ActorNames.cs:885-923），
+frame → hand prefab AssetReference 在 dbf.unity3d SIGNATURE_FRAME.m_handActorPrefab：
+  hand-minion-sig1   frame 1  Card_Hand_Ally_Signature_25     （旧式玻璃，RLK_706）
+  hand-minion-sig2   frame 2  Card_Hand_Ally_Signature_26     （WW_373）
+  hand-minion-sig9   frame 9  Card_Hand_Ally_Signature_Evergreen（GDB_477）
+  hand-spell-sig10   frame 10 Card_Hand_Ability_Signature_Evergreen（TLC_433；play prefab 空串）
+  hand-weapon-sig12  frame 12 Card_Hand_Weapon_Signature_Evergreen（TLC_EVENT_402）
+
 每个帧输出到 PACK/frames/{slot}/：
   frame_recon.json       帧层级（world 矩阵 / active_in_hierarchy / mesh_stats / renderers+材质）
   meshes.json            网格（npz_key → verts/uv0/uv1/subs；extra/{actor字段} 为 actor 直引网格）
@@ -29,7 +39,8 @@
 
 用法：
   uv run scripts/extract_frame.py --slot hand-spell
-  uv run scripts/extract_frame.py --all
+  uv run scripts/extract_frame.py --all          # 全部常规帧（不含签名帧）
+  uv run scripts/extract_frame.py --sig          # 全部签名帧（引用来自 SIGNATURE_FRAME 表）
 """
 from __future__ import annotations
 
@@ -76,6 +87,35 @@ SLOT_TO_ACTOR_KEY = {
     "hand-mercenary": "HAND_MERCENARY",
 }
 
+# 签名帧槽位 → SIGNATURE_FRAME frame id（spec 方案表
+# .scratch/signature-frames/spec.md；槽位命名 hand-{minion,spell,weapon}-sig{frameId}
+# 直接对表可反查，不用架构名避免 hero/location 加入后 Evergreen 重名——spec 实现决策 2）
+SIG_SLOT_TO_FRAME = {
+    "hand-minion-sig1": 1,
+    "hand-minion-sig2": 2,
+    "hand-minion-sig9": 9,
+    "hand-spell-sig10": 10,
+    "hand-weapon-sig12": 12,
+}
+
+_SIG_HAND_REFS: dict[int, str] | None = None
+
+
+def signature_hand_refs() -> dict[int, str]:
+    """SIGNATURE_FRAME DBF → {frame_id: hand prefab "名字:GUID"}（dbf.unity3d 只读一次）。
+
+    表结构探针 2026-10-25：8 条记录，字段 m_ID / m_handActorPrefab / m_playActorPrefab
+    （AssetReference 串；frame 10 的 play 侧为空串——法术签名帧无 play prefab）。
+    """
+    global _SIG_HAND_REFS
+    if _SIG_HAND_REFS is None:
+        env = UnityPy.load(str(HS_DATA / "dbf.unity3d"))
+        # container 直取（同 extract_watermarks.py 的 CARD_SET 惯例；探针实证键存在）
+        recs = env.container["Assets/Game/DBF-Asset/SIGNATURE_FRAME.asset"].read_typetree()["Records"]
+        _SIG_HAND_REFS = {r["m_ID"]: r["m_handActorPrefab"]
+                          for r in recs if r.get("m_handActorPrefab")}
+    return _SIG_HAND_REFS
+
 # UberText 节点名 → 物理角色（TS plan 编译按卡型决定渲染与否与文本来源）
 ROLE_BY_NODE = {
     "CostUberText": "cost",
@@ -121,7 +161,15 @@ def ptr_dict(p) -> dict:
 
 
 def list_actor_ref(slot: str) -> str:
-    """data/actor_names.csv：normal × actor_slot 行（ActorNames.GetHandActor 离线等价）。"""
+    """签名帧：SIGNATURE_FRAME 表「名字:GUID 直指」（先例 five-cardtypes
+    explore/2026-10-03-five-cardtypes/scripts/extract_signature_probe.py 的硬编码版转正）。
+    常规帧：data/actor_names.csv normal × actor_slot 行（ActorNames.GetHandActor 离线等价）。"""
+    if slot in SIG_SLOT_TO_FRAME:
+        refs = signature_hand_refs()
+        frame_id = SIG_SLOT_TO_FRAME[slot]
+        if frame_id not in refs:
+            raise KeyError(f"SIGNATURE_FRAME 无 frame {frame_id} 的 m_handActorPrefab")
+        return refs[frame_id]
     key = SLOT_TO_ACTOR_KEY[slot]
     with open(REPO / "data" / "actor_names.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
@@ -173,6 +221,17 @@ class Recon:
             return None
         info = {"name": mt.get("m_Name"), "bundle": mbundle, "path_id": m_reader.path_id,
                 "shader": None, "tex": {}, "colors": {}, "floats": {}}
+        # shader keyword 状态（多变体 shader 如 Uber/UberCardBack 的变体选择证据）：
+        # Unity 6 序列化为 m_ValidKeywords/m_InvalidKeywords，旧字段 m_ShaderKeywords 已不在
+        # typetree（存在则一并带出）。实测签名帧 uber 图集材质 valid/invalid 皆空 = nokw
+        # 基础变体——特效层 keyword/参数由运行时 UberShaderAnimation 驱动
+        # （CardDef.GetUberShaderAnimationPath(SIGNATURE)，CardDef.cs:1292-1297），
+        # 离线静态口径按序列化态冻结（spec 实现决策 6）。_Layer{1,2,3}_ 参数族
+        # （Translate/Rotate/Scale/Blend/Mask/Color/Distortion/FlowTranslate/FlowScale +
+        # _Seed/_TimeScale/_ShaderTime）是普通 floats/colors，走下方全量导出，无需特判。
+        info["keywords"] = {kf: (mt.get(kf) or [])
+                            for kf in ("m_ShaderKeywords", "m_ValidKeywords", "m_InvalidKeywords")
+                            if kf in mt}
         saved = mt.get("m_SavedProperties", {})
 
         # shader 名（PPtr → Shader.m_ParsedForm.m_Name）。混合语义靠它区分：
@@ -477,12 +536,17 @@ def tris_json(mesh: dict) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--slot", default="hand-spell", choices=sorted(SLOT_TO_ACTOR_KEY))
-    ap.add_argument("--all", action="store_true", help="全部 5 帧")
+    ap.add_argument("--slot", default="hand-spell",
+                    choices=sorted([*SLOT_TO_ACTOR_KEY, *SIG_SLOT_TO_FRAME]))
+    ap.add_argument("--all", action="store_true", help="全部常规帧（不含签名帧）")
+    ap.add_argument("--sig", action="store_true",
+                    help="全部签名帧（SIG_SLOT_TO_FRAME，引用来自 SIGNATURE_FRAME 表）")
     ap.add_argument("--pack", default=str(REPO / "assets"))
     args = ap.parse_args()
 
-    slots = sorted(SLOT_TO_ACTOR_KEY) if args.all else [args.slot]
+    slots = (sorted(SLOT_TO_ACTOR_KEY) if args.all
+             else sorted(SIG_SLOT_TO_FRAME) if args.sig
+             else [args.slot])
     pack = Path(args.pack)
     for slot in slots:
         rc = extract_one(pack, slot)
@@ -548,6 +612,14 @@ def extract_one(pack: Path, slot: str) -> int:
     # ---- actor 绑定 + actor 直引 extra 网格 ----
     actor = rec.finalize_actor(rec.actor_owner)
     refs = actor.get("object_refs", {})
+    # m_premiumRibbon：SIGNATURE/GOLDEN 时类色注入的材质槽索引（Actor.m_premiumRibbon
+    # 默认 -1，Actor.cs:211；SetMaterialPremium → m_cardMesh.renderer.GetMaterial(
+    # m_premiumRibbon)，Actor.cs:6577-6599——单类 material.color=CLASS_COLOR_* 且
+    # _EnableDualClass=0，多类 _Color/_SecondColor 且 _EnableDualClass=1，spec 实现决策 7）
+    premium_ribbon_slot = actor.get("scalars", {}).get("m_premiumRibbon")
+    if premium_ribbon_slot is not None and premium_ribbon_slot >= 0:
+        card_mesh_node = (refs.get("m_cardMesh") or {}).get("node")
+        print(f"[ribbon] m_premiumRibbon={premium_ribbon_slot}（m_cardMesh={card_mesh_node}）")
     extra = {}
     for field, e in refs.items():
         if e.get("type") != "Mesh" or not e.get("bundle"):
@@ -758,6 +830,7 @@ def extract_one(pack: Path, slot: str) -> int:
     (out / "manifest.json").write_text(json.dumps({
         "slot": slot, "frame_root": frame_root, "prefab_ref": actor_ref,
         "role_paths": role_paths,
+        "premium_ribbon_slot": premium_ribbon_slot,
         "portrait_node_key": portrait_node_key,
         "second_tex": second_tex,
         "carrier": ({k: v for k, v in carrier.items()} if carrier else None),
