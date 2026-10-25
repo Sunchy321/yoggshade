@@ -137,6 +137,13 @@ ROLE_BY_NODE = {
     #    LETTUCE_MERCENARY_EXPERIENCE tag（Actor.UpdateMercenaryLevelTextMesh，:3516-3528）。
     "Race_Tribe_Merc_text": "race",
     "LevelText": "level",
+    # 签名帧（Evergreen/26 族）文本节点命名带下划线（T2 抽取探针：
+    # Attack_UberText/Health_UberText/RacePlate_UberText，普通帧是 AttackUberText 等）；
+    # Multi_RacePlate_UberText 故意不登记——walk 序在单族节点之前，登记会让单族卡绑错节点
+    # （多族换节点由 plan.ts 按 wanted 集扫层级，见 plan.ts texts race 分支）。
+    "Attack_UberText": "attack",
+    "Health_UberText": "health",
+    "RacePlate_UberText": "race",
 }
 
 
