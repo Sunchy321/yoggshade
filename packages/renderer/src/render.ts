@@ -1,9 +1,10 @@
 /** P0 渲染主流程：build_render_list_ally + raster_bucket_zbuf + 肖像公式层（dz_render 对译）。 */
 import { projectX, projectY, SIZE } from './camera.js';
-import { rasterZbuf, type WatermarkLayer } from './raster.js';
+import { rasterZbuf, type DiffuseAlphaMaskScrollerLayer, type WatermarkLayer } from './raster.js';
 import { renderPortraitSubmesh } from './portrait.js';
 import { walkWithKey, TextureStore } from './assets.js';
 import { renderStatGems, renderRarityGemWrap, type OverlayGemSource } from './gems.js';
+import { rasterUberCardBack, type UberCardBackTextures } from './uber-card-back.js';
 import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent, RenderPlan, SpellOverlayPack } from './types.js';
 
 interface FrameNode {
@@ -44,27 +45,30 @@ export function buildRenderList(
 }
 
 interface BucketTri {
-  depth:         number;
-  seq:           number;
-  tri2d:         number[][];
-  triUv:         number[][];
-  triZ:          number[];
-  texKey:        string;
-  tint:          number[];
-  uvOffset:      [number, number];
-  opaque:        boolean;
-  multiply:      boolean;
-  additive:      boolean;
-  wrap:          boolean;
+  depth:                     number;
+  seq:                       number;
+  tri2d:                     number[][];
+  triUv:                     number[][];
+  triZ:                      number[];
+  texKey:                    string;
+  tint:                      number[];
+  uvOffset:                  [number, number];
+  opaque:                    boolean;
+  multiply:                  boolean;
+  additive:                  boolean;
+  wrap:                      boolean;
   /** Effects/FX_Transparent_ColorAsAlpha（卡影）：a=亮度×alphaIntensity、rgb=tex×color、×intensity */
-  colorAsAlpha?: { color: number[], intensity: number, alpha_intensity: number };
+  colorAsAlpha?:             { color: number[], intensity: number, alpha_intensity: number };
   /** 预乘透明合成（Blend One OneMinusSrcAlpha；见 types.PlanSlot.premultiplied） */
-  premultiplied: boolean;
+  premultiplied:             boolean;
   /** 跳过深度测试（见 types.PlanSlot.skip_depth_test） */
-  skipDepthTest: boolean;
+  skipDepthTest:             boolean;
   /** desc 卡集水印（仅 Description_mesh + 材质 _SecondTex 槽；见装配处注释） */
-  wm?:           WatermarkLayer;
-  triUv1?:       number[][];
+  wm?:                       WatermarkLayer;
+  triUv1?:                   number[][];
+  triCloudUv?:               number[][];
+  diffuseAlphaMaskScroller?: DiffuseAlphaMaskScrollerLayer;
+  uber?:                     { material: FrameMaterial, textures: UberCardBackTextures };
 }
 
 /** 水印纹理裁决空串占位（引擎不换纹理 → _SecondTex 保持序列化占位、alpha=0；
@@ -83,7 +87,6 @@ export function rasterBucketZbuf(
   const W = SIZE[0], H = SIZE[1];
   const trisOut: BucketTri[] = [];
   let seq = 0;
-
   for (const { key, materials: mats, world: M, comp } of bucket) {
     // 网格覆写：Actor 运行期 MeshFilter.sharedMesh 替换（法术学派板 Actor.cs:6174-6185；
     // plan 编译器写入 comp.mesh，键为资产包 meshes 表的 extra/{actor字段}）。
@@ -135,6 +138,47 @@ export function rasterBucketZbuf(
       const uvArr = stS && (stS[0] !== 1 || stS[1] !== 1)
         ? uv0.map(([u, v]) => [u * stS[0], v * stS[1]])
         : uv0;
+
+      // Signature frame 9 uses the no-keyword UberCardBack variant (m_ValidKeywords=[] in
+      // frame_recon). Its FS samples mask + three serialized layers; static MainTex-only sampling
+      // leaves the signature rails and corner material incomplete. The variants and material
+      // values are documented in findings/signature-frame-research-2026-10-25.md §4.3 and the
+      // exact VS/FS sources cited by uber-card-back.ts.
+      const keywords = mat.keywords?.m_ValidKeywords ?? [];
+      const uber = mat.shader === 'Uber/UberCardBack' && keywords.length === 0
+        ? {
+          material: mat,
+          textures: {
+            main:   textures.get(texKey),
+            mask:   textures.get(mat.tex?.['_MaskTex']?.texture?.file ?? ''),
+            layer1: textures.get(mat.tex?.['_Layer1_Tex']?.texture?.file ?? ''),
+            layer2: textures.get(mat.tex?.['_Layer2_Tex']?.texture?.file ?? ''),
+            layer3: textures.get(mat.tex?.['_Layer3_Tex']?.texture?.file ?? ''),
+          },
+        }
+        : undefined;
+
+      // The opaque gem shader's DXBC uses raw UV for clouds, _MainTex_ST for the atlas,
+      // alpha=1, Blend One/Zero, and pass zWrite=1 (shader_meta.json, pass 0; see
+      // findings/signature-frame-research-2026-10-25.md §11 for the GDB_477 attribution).
+      // Scope the newly supported pass to signature frame packs per the batch's nonpremium
+      // bitwise invariant; within that frame family, consume serialized atlas/cloud textures and
+      // each selected rarity variant's own scale/speed/intensity values.
+      const cloudFile = mat.tex?.['_ScrollingTex']?.texture?.file;
+      const diffuseAlphaMaskScroller = pack.slot?.includes('-sig')
+        && mat.shader === 'Hero/Diffuse/DiffuseAlphaMaskScroller'
+        && cloudFile
+        ? {
+          clouds:    textures.get(cloudFile),
+          tint:      mat.colors?.['_tint'] ?? [1, 1, 1, 1],
+          intensity: mat.floats?.['_Intensity'] ?? 1,
+          fade:      mat.colors?.['_Fade'] ?? [1, 1, 1, 1],
+          tintColor: mat.colors?.['_TintColor'] ?? [1, 1, 1, 1],
+          scale:     [mat.floats?.['_ScaleX'] ?? 1, mat.floats?.['_ScaleY'] ?? 1] as [number, number],
+          speed:     [mat.floats?.['_XSpeed'] ?? 0, mat.floats?.['_YSpeed'] ?? 0] as [number, number],
+          time:      pack.plan?.gem?.t ?? 0,
+        }
+        : undefined;
 
       const tris = mesh.subs[si];
       // desc 卡集水印装配（plan.WatermarkSpec + 材质序列化；Actor.cs:5075-5135 写点对译）：
@@ -193,6 +237,9 @@ export function rasterBucketZbuf(
           premultiplied: slotPlan?.premultiplied ?? false,
           skipDepthTest: slotPlan?.skip_depth_test ?? false,
           wm, triUv1:        uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
+          triCloudUv:    diffuseAlphaMaskScroller ? [uv0[a], uv0[b], uv0[c]] : undefined,
+          diffuseAlphaMaskScroller,
+          uber,
         });
       }
     }
@@ -200,9 +247,15 @@ export function rasterBucketZbuf(
 
   trisOut.sort((e1, e2) => e1.depth - e2.depth || e1.seq - e2.seq);
   for (const e of trisOut) {
-    rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
-      textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
-      e.wm, e.triUv1, e.colorAsAlpha, e.premultiplied, e.skipDepthTest);
+    if (e.uber) {
+      rasterUberCardBack(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
+        e.uber.material, e.uber.textures, 0);
+    } else {
+      rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
+        textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
+        e.wm, e.triUv1, e.colorAsAlpha, e.premultiplied, e.skipDepthTest,
+        e.diffuseAlphaMaskScroller, e.triCloudUv);
+    }
   }
   return trisOut.length;
 }

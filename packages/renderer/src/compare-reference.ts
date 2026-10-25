@@ -222,13 +222,21 @@ for (const cid of ids) {
     }
     writeFileSync(join(outDir, `${cid}_heat.png`), PNG.sync.write(heatPng));
     const side = new PNG({ width: cand.w * 2, height: cand.h });
-    for (let i = 0; i < n; i++) {
-      for (let c = 0; c < 3; c++) {
-        side.data[i * 4 + c] = ref.rgb[i * 3 + c];
-        side.data[(i + cand.w) * 4 + c] = cand.rgb[i * 3 + c];
+    // The side canvas has a 2W row stride; source index i uses W. A linear `i + W`
+    // offset does not map to the same (x,y) on the right half, so it interleaves rows
+    // and made the L2 preview look like duplicate/mixed reference cards.
+    for (let y = 0; y < cand.h; y++) {
+      for (let x = 0; x < cand.w; x++) {
+        const src = y * cand.w + x;
+        const left = (y * side.width + x) * 4;
+        const right = (y * side.width + x + cand.w) * 4;
+        for (let c = 0; c < 3; c++) {
+          side.data[left + c] = ref.rgb[src * 3 + c];
+          side.data[right + c] = cand.rgb[src * 3 + c];
+        }
+        side.data[left + 3] = 255;
+        side.data[right + 3] = 255;
       }
-      side.data[i * 4 + 3] = 255;
-      side.data[(i + cand.w) * 4 + 3] = 255;
     }
     writeFileSync(join(outDir, `${cid}_side.png`), PNG.sync.write(side));
   }

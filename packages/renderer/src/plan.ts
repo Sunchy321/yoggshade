@@ -18,9 +18,12 @@ function resolveDescText(fixture: FixtureCard, cardId: string): string {
 }
 
 export interface FixtureCard {
-  cardId:                    string;
-  dbfId:                     number;
-  preset:                    { label: string, premium: string, template: string, zone: string, reason: string };
+  cardId: string;
+  dbfId:  number;
+  preset:                    { label: string; premium: string; template: string; zone: string; reason: string;
+    /** CARD DBF m_signatureFrameId（SIGNATURE_FRAME 表键；卡级事实，
+                                *  仅 premium=SIGNATURE 时消费——T2 落地，spec 实现决策 3） */
+    signatureFrameId?: number; };
   textBuilderType:           number;
   name:                      Record<string, string>;
   textInHand:                Record<string, string>;
@@ -78,6 +81,24 @@ const GEM_COLOR: Record<string, [number, number, number]> = {
 };
 /** TAG_RARITY 枚举值 → 名（0=INVALID 2=FREE 不显示宝石）。 */
 const RARITY_NAMES: Record<number, string> = { 1: 'Common', 3: 'Rare', 4: 'Epic', 5: 'Legendary' };
+
+/** SetMaterialPremium 类色常量（Actor.cs:107-129 照抄：protected readonly Color CLASS_COLOR_*，
+ *  Color(r,g,b) alpha=1）。地标另表 CLASS_COLOR_LOCATION_*（:131-153）——异画地标帧未抽，
+ *  入票时再引（GetClassColor 对 IsLocation 分流，Actor.cs:6461-6466）。 */
+const CLASS_COLOR: Record<string, [number, number, number]> = {
+  GENERIC:     [0.7, 0.7, 0.7],
+  WARLOCK:     [0.33, 0.2, 0.4],
+  ROGUE:       [0.23, 0.23, 0.23],
+  DRUID:       [0.42, 0.29, 0.14],
+  SHAMAN:      [0, 0.32, 0.71],
+  HUNTER:      [0.26, 0.54, 0.18],
+  MAGE:        [0.44, 0.48, 0.69],
+  PALADIN:     [0.71, 0.49, 0.2],
+  PRIEST:      [1, 1, 1],
+  WARRIOR:     [0.43, 0.14, 0.14],
+  DEATHKNIGHT: [0.0666667, 0.5294, 0.5843],
+  DEMONHUNTER: [0.0902, 0.2275, 0.1961],
+};
 
 /** TAG_CARDTYPE → switcher 族（Actor.cs SetMaterialWithTexture + CardColorSwitcher.GetTexture
  * 的 switch 对译；INVALID/QUEST_REWARD → 空串 = 不覆写）。 */
@@ -428,6 +449,42 @@ export function slotForCardType(tags: FixtureCard['tags']): string {
   return CARD_TYPE_TO_SLOT[t] ?? 'hand-minion';
 }
 
+/** SIGNATURE_FRAME frame id → 签名槽位（spec 实现决策 2：命名 hand-{minion,spell,weapon}-
+ *  sig{frameId} 直接对表可反查；与卡型无关——GetSignatureActor 命中即返回签名 prefab，
+ *  ActorNames.cs:885-923）。帧引用/抽取见 scripts/extract_frame.py SIG_SLOT_TO_FRAME。 */
+export const SIGNATURE_FRAME_TO_SLOT: Record<number, string> = {
+  1:  'hand-minion-sig1',
+  2:  'hand-minion-sig2',
+  9:  'hand-minion-sig9',
+  10: 'hand-spell-sig10',
+  12: 'hand-weapon-sig12',
+};
+
+/** 是否签名帧槽位（SIG_SLOT_TO_FRAME 的 TS 侧镜像判定）。 */
+export function isSignatureSlot(slot: string): boolean {
+  return Object.values(SIGNATURE_FRAME_TO_SLOT).includes(slot);
+}
+
+/** premium 帧族选择（renderCard/keys 与 slotForCardType 的 premium 感知包装）：
+ *  premium=SIGNATURE 且 preset.signatureFrameId 命中「已实现（FRAME_RULES 有规则）∧
+ *  资产包已抽」的签名槽 → 签名帧；否则回落普通帧并显式告警（未实现帧型不崩，
+ *  spec T3 口径：回落要有显式日志）。GOLDEN/DIAMOND 不经此路（阶段 B / 另行决策）。 */
+export function slotForFixture(
+  fixture: FixtureCard,
+  hasFrame?: (manifestKey: string) => boolean,
+): string {
+  const fallback = slotForCardType(fixture.tags);
+  if (fixture.preset.premium !== 'SIGNATURE') return fallback;
+  const fid = fixture.preset.signatureFrameId;
+  const sig = fid !== undefined ? SIGNATURE_FRAME_TO_SLOT[fid] : undefined;
+  if (sig && FRAME_RULES[sig] && (!hasFrame || hasFrame(`frames/${sig}/manifest.json`))) {
+    return sig;
+  }
+  console.warn(`[signature] ${fixture.cardId} premium SIGNATURE 无可用签名帧`
+    + `（signatureFrameId=${fid ?? '缺失'}${sig ? `，槽位 ${sig} 尚未实现` : ''}）→ 回落普通帧 ${fallback}`);
+  return fallback;
+}
+
 /** 帧 slot → 该帧的原生卡型（ActorNames 的 actor 归属；4=MINION，47=战棋英雄伙伴同用随从 actor，
  *  23=LETTUCE_ABILITY 施法/召唤型走 BigCard_LettuceAbility[_Minion]；佣兵本体 actor 由
  *  ActorNames.HAND_MERCENARY 归属，卡型 tag 是 MINION=4）。
@@ -445,6 +502,8 @@ export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
   'hand-heropower':              [10],
   'hand-bg-anomaly':             [43],
   'hand-bg-trinket':             [44],
+  // 签名帧原生卡型：frame 9 = 随从（异画 fixture GDB_477）；攻血文本走 GetTag-0 原生口径
+  'hand-minion-sig9':            [4, 47],
 };
 
 /** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）+ 战棋模板相关（GAME_TAG.cs 实测行号）：
@@ -463,12 +522,23 @@ const TRINKET_SCHOOLS = { LESSER: 11, GREATER: 12 } as const;
 /** 全帧型静态隐藏（运行时默认态；出处见 py _frame_components_* 各分支）：
  *  Highlight=无高亮（Actor.cs:4924-4929）；Ghost=ghostCard 默认 NONE；Shadow=ContactShadow(true) 才显；
  *  RuneBanner 族=默认 Hide()；Multiclass_Ribbon=序列化失活（activity 已兜底）；
- *  CostGem_DropShadow_Mesh=乘法阴影（地标帧；队列序语义 v1 未实现，登记残差）。 */
+ *  CostGem_DropShadow_Mesh=乘法阴影（地标帧；队列序语义 v1 未实现，登记残差）。
+ *  签名帧（Evergreen 族）的 Ghost/Highlight 节点名带 _Mesh 后缀（探针 T2：
+ *  FX_Ghost_Quad_Mesh 等）——不带后缀的普通帧名对不上会漏网：Ghost quad 以 ~0.186
+ *  深度浮在卡体前（卡面平面 ~0.0235），漏网时盖住整卡画区（平蓝 GhostCard 纹理）
+ *  且把肖像层（0.0287）挡在 zbuf 外（2026-10-25 GDB_477 首渲实测）。 */
 const STATIC_HIDDEN = new Set([
   'Highlight_Card_Plane', 'FX_Ghost_Quad', 'FX_Ghost_Quad_Unique',
+  'Highlight_Card_Plane_Mesh', 'FX_Ghost_Quad_Mesh', 'FX_Ghost_Quad_Unique_Mesh',
   'Shadow', 'ShadowUnique',
   'RuneHolder_Mesh', 'RuneHolder_Shadow_Mesh', 'HolderGlow_Tutorial',
   'CostGem_DropShadow_Mesh',
+]);
+
+/** Signature Evergreen 的四个 Actor.SetRarityGemShape 子物体（Actor.cs:4992-5022）。 */
+const SIG_RARITY_VARIANTS = new Set([
+  'RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
+  'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh',
 ]);
 
 /** 逐帧 tag 规则（节点名 → 谓词键）。 */
@@ -620,6 +690,29 @@ const FRAME_RULES: Record<string, FrameRules> = {
     forcedHidden: ['Unique_Ally_Dragon'],
     roles:        ['name', 'race', 'attack', 'health', 'level'],
   },
+  // 异画随从帧（Card_Hand_Ally_Signature_Evergreen，frame 9 / GDB_477；T3 静态结构切片）：
+  // 结构实证 = research findings §2.2 + T2 抽取（探针对照 5/5 全对上）。
+  // - 无精英龙节点；稀有度 = 框环 RarityGem_Frame_Mesh（UberCardBack 静态）+ 四变体宝石
+  //   网格（DiffuseAlphaMaskScroller 云纹 + Multiply_AlphaFade 底影，Actor.cs
+  //   UpdateRarityComponent:4939-4959 / SetRarityGemShape:4992-5022 按稀有度四选一）。
+  //   签名帧不走通用 rarity_gem 图集公式，必须选择该 frame 自身的形状网格。
+  // - 攻/血/费用宝石节点名与普通帧同名（Gem_Attack/Gem_Health/Gem_Mana）→ stat_gems
+  //   公式管线按签名材质序列化值自动采集，框位随帧。
+  // - Evergreen 全出血：RacePlate 无网格（种族文字 = RacePlate_UberText 浮在画上），
+  //   描述/名字也全 UberText（无 Description 网格 → 无水印写点）。
+  'hand-minion-sig9': {
+    elite:        [],
+    rarity:       ['RarityGem_Frame_Mesh'],
+    attack:       ['Gem_Attack'],
+    health:       ['Gem_Health'],
+    forcedHidden: [
+      'RarityGem_Common_Mesh',
+      'RarityGem_Rare_Mesh',
+      'RarityGem_Epic_Mesh',
+      'RarityGem_Legendary_Mesh',
+    ],
+    roles: ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+  },
 };
 
 /** 战棋种族定位（BACON_SUBSET_*，GAME_TAG.cs:974-985）→ TAG_RACE（EntityBase.cs:25-90
@@ -744,11 +837,22 @@ export function compileFramePlan(
     const [stem, guid] = atlasRef.split(':');
     atlasFile = `textures/${stem.replace(/\.tif$/, '')}_${guid.slice(0, 8)}.png`;
   }
-  const portraitFile = base.src.has(`portraits/${fixture.cardId}.png`)
-    ? `portraits/${fixture.cardId}.png`
-    : base.src.has(`textures/portrait_${fixture.cardId}.png`)
-      ? `textures/portrait_${fixture.cardId}.png`
-      : null;
+  // 原画解析（premium 后缀：spec 实现决策 8）——异画签名帧优先 -signature 图：引擎侧 =
+  // CardTextureLoader.LoadSignature（CardTextureLoader.cs:235-259）把 CardDef.
+  // GetSignaturePortraitRef 的专属原画装进实例化肖像材质；包内约定
+  // portraits/{cardId}-signature.png（extract_fixture_assets，异画 fixture 5 张已全在包）。
+  // -GOLDEN 后缀随阶段 B 接线（金卡帧未落地，这里不区分 GOLDEN）。
+  // 签名帧激活判定（四写点统一门）：槽位是签名帧 ∧ premium=SIGNATURE。槽位单看不够——
+  // input.slot 可强制签名槽渲染 NORMAL 卡（CLI 调试），裸 sigSlot 门会让肖像后缀/晚通道/
+  // rarity 抑制与类色注入四者口径分裂（2026-10-25 评审指认，阶段 B GOLDEN 前收紧）。
+  const sigActive = isSignatureSlot(slot) && fixture.preset.premium === 'SIGNATURE';
+  const portraitFile = sigActive && base.src.has(`portraits/${fixture.cardId}-signature.png`)
+    ? `portraits/${fixture.cardId}-signature.png`
+    : base.src.has(`portraits/${fixture.cardId}.png`)
+      ? `portraits/${fixture.cardId}.png`
+      : base.src.has(`textures/portrait_${fixture.cardId}.png`)
+        ? `textures/portrait_${fixture.cardId}.png`
+        : null;
 
   const rarityName = RARITY_NAMES[tags[TAG.RARITY] ?? 0] ?? 'INVALID';
   const rarityVisible = rarityName in GEM_TEXTURE_OFFSET;
@@ -954,6 +1058,14 @@ export function compileFramePlan(
     const isActive = active.get(node.path) ?? true;
     let visible = isActive && !STATIC_HIDDEN.has(name)
       && !(rules.forcedHidden ?? []).includes(name);
+    // Signature Evergreen 序列化 prefab 仅激活 Common；Actor.cs UpdateRarityComponent
+    // :4939-4959 调 SetRarityGemShape，:4992-5022 按 rarity 对四个子物体 SetActive。
+    // T3 曾强制隐藏全部变体，离线图因此缺宝石。重建运行时选择；网格和材质仍取自当前
+    // 节点（含 Legendary 自身 UV、云纹材质和阴影子网格）。
+    if (sigActive && SIG_RARITY_VARIANTS.has(name)) {
+      const variant = rarityName === 'INVALID' ? '' : `RarityGem_${rarityName}_Mesh`;
+      visible = rarityVisible && name === variant;
+    }
     // 战棋饰品帧例外：Shadow（CardShadow_Ally，Effects/FX_Transparent_ColorAsAlpha）序列化
     // 激活且 renderer 启用，基准图带整卡外圈投影（94k 半透明像素，2026-10-08 对账）；其余
     // 帧型的 Shadow 在导出中不可见（ref 仅抗锯齿软边）维持隐藏。ShadowUnique renderer
@@ -1037,7 +1149,15 @@ export function compileFramePlan(
   const portraitMeshComp = components.find(c => c.path === portraitMeshPath);
   const cardFrontMatName = report.nodes.find(n => n.path === cardMeshPath)
     ?.components.renderer?.material_slots?.find(s => s.slot === cardFrontIdx)?.name ?? null;
-  if (atlasFile) {
+  // GDB_477 signature-frame regression: Actor.UpdateCardColor calls SetMaterialNormal before
+  // SetMaterial only for mercenary cards (Actor.cs:6263-6427); ordinary SIGNATURE cards go
+  // through SetMaterial -> SetMaterialPremium (Actor.cs:6429-6444, 6577-6599), which writes
+  // class color only to m_premiumRibbon (slot 2). The prefab's slot 0 already owns
+  // Signature_Evergreen_Atlas (assets/frames/hand-minion-sig9/frame_recon.json,
+  // RootObject/Mesh / Genfx_Inhand_Signature_Evergreen_Atlas_Mat). Injecting the normal
+  // CardColorSwitcher atlas here replaced its carved frame with a flat class panel. Keep the
+  // signature atlas bound as serialized; this gate triggers for every resolved SIGNATURE slot.
+  if (atlasFile && !sigActive) {
     if (cardMeshComp && cardFrontIdx > -1) setSlotTex(cardMeshComp, cardFrontIdx, atlasFile);
     // SPELL 分支恒写 portraitFrameMatIdx；其余帧按"同名材质实例共享"（引擎内同一 Material 资产）
     const isSpell = (tags[TAG.CARDTYPE] ?? 0) === 5 || (tags[TAG.CARDTYPE] ?? 0) === 42;
@@ -1054,6 +1174,28 @@ export function compileFramePlan(
   }
   if (portraitMeshComp && portraitIdx > -1 && portraitFile) {
     setSlotTex(portraitMeshComp, portraitIdx, portraitFile);
+  }
+  // ---- 类色注入（Actor.SetMaterialPremium 对译，Actor.cs:6577-6599；spec 实现决策 7）----
+  // m_premiumRibbon（Actor.cs:211，T2 随帧导出）= m_cardMesh 渲染器材质槽索引，
+  // 签名帧恒 2（RootObject/Mesh 三 submesh：uber 图集 / 卡背 / 类色——UnlitDualClass-
+  // TextureTint 材质 Card_Signature_Evergreen_ClassColor_Mat）。
+  // 单类：material.color（Unity 即写 _Color）= CLASS_COLOR_*、_EnableDualClass=0 →
+  // Custom/Card/UnlitDualClassTextureTint FS（_nokw 变体反编译）坍缩为
+  // out = _Color × tex × vcol（firstMix ≡ 1、secondMix ≡ 0、(1−sum) ≡ 0）→ 渲染端 =
+  // material_override._tint_rgb（rgb 乘、alpha=1 同 FS 的 _Color.a）。
+  // 多类：_Color=left / _SecondColor=right（GetDualClassColors = combo.colors[0]/[1] 经
+  // GetDualClassColor，同 CLASS_COLOR 表）+ _EnableDualClass=1，阶梯按 POSITION.x 对
+  // _MiddleValue(材质序列化 −0.04)/_FirstColorRightMargin(0.02) 分左右（VS：TEXCOORD0.z =
+  // POSITION.x）。现 fixture 无多类异画卡——阶梯参数已随 T2 材质入包（frame_recon colors/
+  // floats），实现留待 fixture 触发（T3 口径）。
+  const premiumRibbon = sc['m_premiumRibbon'] ?? -1;
+  if (sigActive && premiumRibbon >= 0 && cardMeshComp) {
+    const ribbonSlot = cardMeshComp.material_slots?.find(s => s.slot === premiumRibbon);
+    if (ribbonSlot) {
+      ribbonSlot.material_override = {
+        _tint_rgb: CLASS_COLOR[className] ?? CLASS_COLOR.GENERIC,
+      };
+    }
   }
   if (slot === 'hand-bg-trinket' && portraitFile) {
     // 饰品原画窗：NonQuestObjects/Mesh 的 slot0（BG_Trinket_BigCard_FramePortrait_Mat，6 tri
@@ -1258,6 +1400,18 @@ export function compileFramePlan(
     }
   }
 
+  // ---- 文字压画层晚通道（签名帧特有；spec 实现决策 10 的层序面）----
+  // TextGradient（Hero/Multiply/Multiply × card_signature_text_gradient）/Divider
+  // （Unlit_TransparentColor）是 Transparent 队列层，引擎里画在**不透明肖像之后**压暗
+  // 文字带。本链肖像公式层（renderPortraitLayer）在全帧光栅后强画且全出血覆盖
+  // y127-616——若渐变留在主光栅，会被肖像层整片擦掉（2026-10-25 GDB_477 实测：desc 带
+  // 压暗完全丢失）。走 late_nodes（肖像/overlay 之后、独立 zbuf 按序合成）复刻队列序。
+  if (sigActive) {
+    for (const nm of ['TextGradient', 'Divider']) {
+      if (components.some(c => c.node === nm && c.visible)) lateNodes.push(nm);
+    }
+  }
+
   // ---- 文字角色 ----
   const bodyFor = (role: string): string => {
     switch (role) {
@@ -1327,7 +1481,9 @@ export function compileFramePlan(
     // 佣兵本体帧的多族节点名是 DualRace_Tribe_Merc_text（探针 role 表外的 actor 绑定字段）。
     if (role === 'race' && raceCount > 1) {
       const multiNode = (() => {
-        const wanted = new Set(['Multi_RaceUberText', 'DualRace_Tribe_Merc_text']);
+        // Evergreen 签名帧的多族节点名（extract_frame ROLE_BY_NODE 注释：带下划线命名族）
+        const wanted = new Set(['Multi_RaceUberText', 'DualRace_Tribe_Merc_text',
+          'Multi_RacePlate_UberText']);
         const stack: Array<{ path?: string, name?: string, children?: unknown[] }> = [base.frameRecon.hierarchy as never];
         while (stack.length) {
           const n = stack.pop()!;
@@ -1375,7 +1531,10 @@ export function compileFramePlan(
     input:        { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
     frame_center: frameCenter(base, keyByPath, slot, fixture.cardId, fixture.preset.premium, cardType),
     rarity_gem:   {
-      visible:      rarityVisible,
+      // 签名帧抑制既有稀有度宝石公式（普通帧的宝石位/图集不适用：Evergreen 宝石在框环
+      // 大宝石位、四变体网格 + 云纹滚动 + 底影 = 04/05 票范围；变体网格 forcedHidden，
+      // 残差记 findings 归因）。
+      visible:      rarityVisible && !sigActive,
       atlas_offset: rarityVisible ? GEM_TEXTURE_OFFSET[rarityName] : undefined,
       tint_rgb:     rarityVisible ? GEM_COLOR[rarityName] : undefined,
       ...rarityGemMatSpec,
@@ -1459,6 +1618,10 @@ const MESH_ANCHORED_SLOTS = new Set([
   // 锚预测 = 该网格世界包围盒中心 (x,z)=(0,−0.0530) → 相对原点取景 (0,+10.2)px
   // （基准对账：L2 与 XP 条/宝石/文本位置逐项吻合，见 findings）。
   'hand-mercenary',
+  // 签名帧（T3）：premium 基准 = premium actor 自家帧网格导出（取景锚随网格不同，
+  // 本表头注释既载）；sig9 无 FrameMesh → Mesh 回落支（RootObject/Mesh 三子网格
+  // 整体 AABB，与 exporter GetMeshRenderer 口径一致）。
+  'hand-minion-sig9',
 ]);
 
 /** 根锚定特例（= location 帧全部基准）。exporter 对 normal 地标的 Mesh 世界包围盒中心被
@@ -1492,7 +1655,11 @@ function frameCenter(
   premium: string,
   cardType: number,
 ): [number, number] | undefined {
-  if (!MESH_ANCHORED_SLOTS.has(slot) || premium !== 'NORMAL') return undefined;
+  // premium 门：异画签名帧放行（premium 基准 = 自家帧网格锚，见 MESH_ANCHORED_SLOTS 注）；
+  // GOLDEN/DIAMOND 与「SIGNATURE 回落普通帧」（未实现帧型）都不锚——回落卡保持原点取景
+  // 的既有回归基线，逐位不变。
+  if (!MESH_ANCHORED_SLOTS.has(slot)) return undefined;
+  if (premium !== 'NORMAL' && !(premium === 'SIGNATURE' && isSignatureSlot(slot))) return undefined;
   if (!SLOT_NATIVE_CARD_TYPES[slot]?.includes(cardType)) return undefined;
   if (ROOT_ANCHORED_CARDS.has(cardId)) return undefined;
 

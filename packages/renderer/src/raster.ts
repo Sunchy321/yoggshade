@@ -20,6 +20,36 @@ export interface WatermarkLayer {
   blend: number;
 }
 
+/** Hero/Diffuse/DiffuseAlphaMaskScroller front pass (gem material properties + plan time). */
+export interface DiffuseAlphaMaskScrollerLayer {
+  clouds:    RGBAImage;
+  tint:      number[];
+  intensity: number;
+  fade:      number[];
+  tintColor: number[];
+  scale:     [number, number];
+  speed:     [number, number];
+  time:      number;
+}
+
+const scratchCloud = new Float64Array(4);
+
+/** Unity sampler Repeat with bilinear texel-center coordinates. */
+function sampleBilinearRepeat(tex: RGBAImage, u: number, v: number, out: Float64Array): void {
+  const x = ((u * tex.w - 0.5) % tex.w + tex.w) % tex.w;
+  const y = (((1 - v) * tex.h - 0.5) % tex.h + tex.h) % tex.h;
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const x1 = (x0 + 1) % tex.w, y1 = (y0 + 1) % tex.h;
+  const fx = x - x0, fy = y - y0;
+  for (let c = 0; c < 4; c++) {
+    const a = tex.data[(y0 * tex.w + x0) * 4 + c]! / 255 * (1 - fx)
+      + tex.data[(y0 * tex.w + x1) * 4 + c]! / 255 * fx;
+    const b = tex.data[(y1 * tex.w + x0) * 4 + c]! / 255 * (1 - fx)
+      + tex.data[(y1 * tex.w + x1) * 4 + c]! / 255 * fx;
+    out[c] = a * (1 - fy) + b * fy;
+  }
+}
+
 /**
  * 单三角形：barycentric 覆盖（eps -1e-6）→ 世界 Y 深度插值 → LEqual(>=) z-test →
  * 双线性采样（uv + uvOffset）→ tint → 直感 alpha 合成（premultiplied 口径）→ 写色写深。
@@ -66,6 +96,8 @@ export function rasterZbuf(
   colorAsAlpha?: { color: number[], intensity: number, alpha_intensity: number }, // 卡影（见函数头注释）
   premultiplied = false, // 预乘透明（Blend One OneMinusSrcAlpha，见 types.PlanSlot.premultiplied）
   skipDepthTest = false, // 跳过深度测试（见 types.PlanSlot.skip_depth_test）
+  diffuseAlphaMaskScroller?: DiffuseAlphaMaskScrollerLayer,
+  triCloudUv?: number[][],
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -83,6 +115,9 @@ export function rasterZbuf(
   const u0 = triUv[0][0], v0 = triUv[0][1];
   const u1 = triUv[1][0], v1 = triUv[1][1];
   const u2 = triUv[2][0], v2 = triUv[2][1];
+  const cu0 = triCloudUv?.[0][0] ?? u0, cv0 = triCloudUv?.[0][1] ?? v0;
+  const cu1 = triCloudUv?.[1][0] ?? u1, cv1 = triCloudUv?.[1][1] ?? v1;
+  const cu2 = triCloudUv?.[2][0] ?? u2, cv2 = triCloudUv?.[2][1] ?? v2;
   const tr = tint[0], tg = tint[1], tb = tint[2], ta = tint[3];
   // wm 每三角形固定项（UV1 三顶点 / ST）；见函数头注释的水印 pass 语义
   const wu0 = triUv1?.[0][0] ?? 0, wv0 = triUv1?.[0][1] ?? 0;
@@ -113,6 +148,34 @@ export function rasterZbuf(
       const vv = wrapRepeat ? v - Math.floor(v) : v;
       sampleBilinearClamp(tex, uu * tw - 0.5, (1.0 - vv) * th - 0.5, scratch);
       const ci = pi * 4;
+      if (diffuseAlphaMaskScroller) {
+        // GDB_477's selected rarity child uses this exact game shader. Its pass state is
+        // Blend One/Zero + ZWrite On (shader_meta.json: pass 0), and the DXBC PS writes
+        // alpha=1 with rgb=(cloud.r*_tint*main.a*1.5*_Intensity+main.rgb)*_Fade*_TintColor
+        // (2026-10-07-dxbc-rarity-alignment/NOTES.md §2). Generic alpha-over was making the
+        // orange atlas diamond translucent against the frame. Main UV has material _MainTex_ST;
+        // cloud UV uses raw mesh UV × scale + T×speed with no atlas offset (DXBC VS same note).
+        // The signature mesh/material evidence is frame_recon.json at
+        // RootObject/Mesh/RarityGem_Frame_Mesh/RarityGem_Legendary_Mesh and
+        // 2026-10-22-rarity-gem-props/NOTES.md row Signature_Evergreen_Rarity_Gem_Mat.
+        const cu = l0 * cu0 + l1 * cu1 + l2 * cu2;
+        const cv = l0 * cv0 + l1 * cv1 + l2 * cv2;
+        const cloudU = cu * diffuseAlphaMaskScroller.scale[0]
+          + diffuseAlphaMaskScroller.time * diffuseAlphaMaskScroller.speed[0];
+        const cloudV = cv * diffuseAlphaMaskScroller.scale[1]
+          + diffuseAlphaMaskScroller.time * diffuseAlphaMaskScroller.speed[1];
+        sampleBilinearRepeat(diffuseAlphaMaskScroller.clouds, cloudU, cloudV, scratchCloud);
+        const cloudGain = scratchCloud[0] * 1.5 * diffuseAlphaMaskScroller.intensity * scratch[3];
+        canvas[ci] = Math.min(Math.max((cloudGain * diffuseAlphaMaskScroller.tint[0] + scratch[0])
+          * diffuseAlphaMaskScroller.fade[0] * diffuseAlphaMaskScroller.tintColor[0], 0), 1);
+        canvas[ci + 1] = Math.min(Math.max((cloudGain * diffuseAlphaMaskScroller.tint[1] + scratch[1])
+          * diffuseAlphaMaskScroller.fade[1] * diffuseAlphaMaskScroller.tintColor[1], 0), 1);
+        canvas[ci + 2] = Math.min(Math.max((cloudGain * diffuseAlphaMaskScroller.tint[2] + scratch[2])
+          * diffuseAlphaMaskScroller.fade[2] * diffuseAlphaMaskScroller.tintColor[2], 0), 1);
+        canvas[ci + 3] = 1;
+        zbuf[pi] = z;
+        continue;
+      }
       if (colorAsAlpha) {
         // 卡影（FS 反编译语义，见函数头注释）：a = 亮度×alphaIntensity×intensity，
         // rgb = tex.rgb×color（_Color=(0,0,0) → 纯黑影）。alpha-over 合成、写深——

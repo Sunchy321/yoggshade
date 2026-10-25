@@ -208,7 +208,11 @@ export function renderText(
   const fs = Math.trunc((fd.fields['m_FontSizeModifier'] ?? 1)
     * (locale['m_FontSizeModifier'] ?? 1) * (f('m_FontSize') ?? 0));
   const fm = getFontMetrics(pack, fd.ttfPath, fs);
-  const layout: Layout = layoutText({ fields: ns.fields, locale, fontdef: fd.fields, fm, text });
+  // Signature frames opt ResizeToFit height checks into the game's floating TextMesh bounds;
+  // GDB_477's 4-line desc crosses the 0.87 box boundary only before lineHeight rounding. Keep
+  // the established nonpremium text pixels frozen for this signature-frame batch (spec decision 17).
+  const layout: Layout = layoutText({ fields:            ns.fields, locale, fontdef:           fd.fields, fm, text,
+    fitLineSpanBounds: pack.slot?.includes('-sig') ?? false });
   // 斜体字形 metrics（仅渲染取 mask/ink 用；布局 advance 恒走正体——引擎斜体不改 advance）
   const hasItalic = layout.lines.some(row => row.some(g => g.italic));
   const fmItalic = hasItalic ? getItalicMetrics(pack, fd.ttfPath, fs, fm) : fm;
@@ -234,10 +238,30 @@ export function renderText(
   const kPx = layout.k * ns.localScale * scene.s * ss;
   const [cx0, cy0] = project(scene, ns.worldPos[0], ns.worldPos[2]);
   const cx = (cx0 + offset[0]) * ss;
-  const cy = (cy0 + offset[1]) * ss;
   const nsScaleS = ns.localScale * scene.s * ss;
   const pitchC = layout.pitch * nsScaleS;
   const boxHC = layout.boxH * nsScaleS;
+  let anchorShiftC = 0;
+  const anchor = ns.fields['m_Anchor'];
+  if (pack.slot?.includes('-sig') && (anchor === 0 || anchor === 2)) {
+    // Signature race labels are serialized as Center/Lower (m_Anchor=2), but the offline
+    // text pass centered every line block on the node origin. Unity's SetupTextMeshAlignment
+    // moves the text object by -GetHeight()/2 and sets TextAnchor.LowerCenter; the net shift
+    // from our centered layout is (box height - line-block height)/2. For GDB_477 this fixes
+    // the visibly high "野兽" label (reference ink center y≈596 vs render y≈593; z_race=15.074).
+    // Evidence: explore/ilspy/UberText.Runtime.full.cs:1931-1991; serialized RacePlate_UberText
+    // m_Anchor=2, m_Height=0.2 in assets/frames/hand-minion-sig9/prefab_ubertext.json.
+    // The discrepancy exists because the offline path draws text around node origin and had
+    // omitted the signature prefab's non-middle vertical anchor semantics.
+    const localizedHeight = locale['m_Height'];
+    const serializedHeight = ns.fields['m_Height'];
+    const textBoxHeight = typeof localizedHeight === 'number' && localizedHeight > 0
+      ? localizedHeight
+      : typeof serializedHeight === 'number' ? serializedHeight : 0;
+    const anchorSign = anchor === 2 ? 1 : -1;
+    anchorShiftC = anchorSign * (textBoxHeight * nsScaleS - boxHC) / 2;
+  }
+  const cy = (cy0 + offset[1]) * ss + anchorShiftC;
   const descentC = fm.descent * kPx;
   const radiusOut = outline ? outline.r * kPx : 0.0;
   // 画布 = 字形 tile 并集的子矩形（ticket 18 位级等价）：印章只落在 tile 内、tile 外画布恒 0，

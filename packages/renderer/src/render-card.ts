@@ -19,7 +19,7 @@ import type { OverlayGemSource } from './gems.js';
 import { encodePngBytes } from './image.js';
 import { renderTextStage } from './textstage.js';
 import {
-  compilePlan, compileFramePlan, slotForCardType,
+  compilePlan, compileFramePlan, slotForFixture,
   type FixtureCard, type StaticTables, type WatermarkTables,
 } from './plan.js';
 import { initFreeTypeBackend } from './freetype-metrics.js';
@@ -202,8 +202,10 @@ export async function renderCard(input: RenderInput, dirs: RenderDirs): Promise<
   const t0 = Date.now();
   const stage = input.stage ?? 'p2';
   const { tables, wmTables } = loadStaticData(dirs);
-  // 卡型 → 手牌帧 slot（TAG_CARDTYPE；actor_names.csv/ActorNames.cs）；未知卡型回落随从帧
-  const slot = input.slot ?? slotForCardType(input.fixture.tags);
+  // 帧族 slot：premium 感知（SIGNATURE → 已实现签名槽，回落普通帧时 slotForFixture 内
+  // 显式告警；ActorNames.GetNameWithPremiumType 回退链的离线对译，plan.ts slotForFixture）
+  const slot = input.slot ?? slotForFixture(
+    input.fixture, key => dirs.pack.has(key));
   const pack = loadPack(dirs.pack, slot);
   pack.plan = pack.prefabReport
     ? compileFramePlan(input.fixture, tables, pack, slot, wmTables)

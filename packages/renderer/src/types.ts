@@ -26,9 +26,11 @@ export interface MeshEntry {
 
 /** frame_recon 材质（renderers[].materials[] 元素；null = 空槽）。 */
 export interface FrameMaterial {
-  name?:   string | null;
+  name?:     string | null;
   /** 材质 shader 名（如 Hero/Multiply/Multiply = 乘法阴影）。 */
-  shader?: string | null;
+  shader?:   string | null;
+  /** Unity Shader keyword 状态（frame_recon 的 m_ValidKeywords/m_InvalidKeywords）。 */
+  keywords?: { m_ValidKeywords?: string[], m_InvalidKeywords?: string[] };
   tex?: Record<string, {
     scale?:   number[];
     offset?:  number[];

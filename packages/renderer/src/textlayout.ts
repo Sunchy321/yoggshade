@@ -279,11 +279,13 @@ function fieldGetter(fields: Record<string, unknown>) {
 }
 
 export interface LayoutInputs {
-  fields:  Record<string, unknown>;
-  locale:  Record<string, number>;
-  fontdef: Record<string, number>;
-  fm:      FontMetricsLike;
-  text:    string;
+  fields:             Record<string, unknown>;
+  locale:             Record<string, number>;
+  fontdef:            Record<string, number>;
+  fm:                 FontMetricsLike;
+  text:               string;
+  /** Use the native floating TextMesh bounds for the signature-frame fit step. */
+  fitLineSpanBounds?: boolean;
 }
 
 export function layoutText(inp: LayoutInputs): Layout {
@@ -376,11 +378,25 @@ export function layoutText(inp: LayoutInputs): Layout {
     const locW = locale['m_ResizeToFitWidthModifier'];
     const resizeWMod = locW && locW > 0 ? locW : 1;
     // intra = bounds("|\n|") − 2×bounds("|") = pitch − LH（UB:2389-2398，行框口径）
-    const meshH = (): number => meshLineBoxHeightFp(wrapped.length, fm.lineHeight * spEff, fm) * k;
+    // ResizeToFit measures TextMeshRenderer.bounds (UberTextRendering.GetTextMeshBounds), whose
+    // single-line height is Unity metrics.height. FranklinGothic/BlizzardGlobal@40 has
+    // asc-desc = 48.046875px while this offline font metric's rounded lineHeight is 48px
+    // (linegap-promotion.md §1). For GDB_477's four-line PowersUberText (height=.87, spacing=.75),
+    // the first 0.95 step is 0.86925 with rounded metrics but 0.87010 with Unity's float bounds;
+    // that missed threshold leaves the body text exactly one 5% step too wide. Keep wrap and glyph
+    // placement semantics intact. Signature-frame packs opt into the native float bounds here;
+    // the current batch freezes nonpremium fixture pixels (see signature-frame spec decision 17).
+    // The decompiled loop is UberText.ReduceText_CharSize (entry subtracts intra-line height,
+    // subsequent iterations compare raw GetTextMeshBounds); this mirrors the two measurements
+    // without applying the entry correction twice.
+    const fitLineHeight = inp.fitLineSpanBounds ? fm.lineSpan : fm.lineHeight;
+    const meshH = (): number => (wrapped.length > 1
+      ? (wrapped.length - 1) * (fitLineHeight * spEff) + fitLineHeight
+      : fitLineHeight) * k;
     const meshW = (): number => maxInkWidthFp(wrapped, fm) * k;
     let x = meshW();
     // 首判 y = raw − intra（UB:2417）
-    let y = meshH() - (fm.lineHeight * spEff - fm.lineHeight) * k;
+    let y = meshH() - (fitLineHeight * spEff - fitLineHeight) * k;
     let iters = 0;
     while (y > height || x > width * resizeWMod) {
       iters++;

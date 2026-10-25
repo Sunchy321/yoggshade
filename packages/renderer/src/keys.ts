@@ -26,7 +26,7 @@ import { KeyMissingError } from './source.js';
 import { loadPack, loadSpellOverlay, walkWithKey } from './assets.js';
 import { buildRenderList } from './render.js';
 import {
-  slotForCardType,
+  slotForFixture,
   compilePlan, compileFramePlan,
   type FixtureCard,
 } from './plan.js';
@@ -64,7 +64,9 @@ export function collectRenderAssetKeys(
   const dataKeys = new Set<string>(DATA_JSONS);
 
   const { tables, wmTables } = loadStaticData(dirs);
-  const slot = input.slot ?? slotForCardType(input.fixture.tags);
+  // premium 感知槽位（与 renderCard 同一入口，防口径漂移；plan.ts slotForFixture）
+  const slot = input.slot ?? slotForFixture(
+    input.fixture, key => dirs.pack.has(key));
   const pack = loadPack(dirs.pack, slot);
   for (const f of FRAME_JSONS) packKeys.add(`frames/${slot}/${f}`);
   packKeys.add('fontdefs.json');
@@ -80,6 +82,12 @@ export function collectRenderAssetKeys(
       for (const slotName of ['_MainTex', '_SecondTex']) {
         const file = mat?.tex?.[slotName]?.texture?.file;
         if (file) packKeys.add(texKey(file));
+      }
+      if (mat?.shader === 'Uber/UberCardBack') {
+        for (const slotName of ['_MaskTex', '_Layer1_Tex', '_Layer2_Tex', '_Layer3_Tex']) {
+          const file = mat.tex?.[slotName]?.texture?.file;
+          if (file) packKeys.add(texKey(file));
+        }
       }
     }
     for (const s of comp.material_slots ?? []) {

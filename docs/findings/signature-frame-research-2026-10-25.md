@@ -196,3 +196,145 @@ keyword 后缀（不修则每次手工用本实验脚本抽）。
 - `explore/2026-10-25-signature-frame/list_shader_variants.py` → `output/Uber_UberCardBack_FS_*.metal`
   （30 个采样 FS 变体，keyword 后缀命名）
 - L2 数字：`out/l2/summary.json`（2026-10-25 跑）；对照图 `reference/*.png` vs `out/fixtures/*.png`
+
+## 8. T3 落地记录（2026-10-25，GDB_477 静态结构 tracer）
+
+工单 `.scratch/signature-frames/issues/03`。GDB_477 以 hand-minion-sig9 出图，
+L2 mae_vis **92.2 → 34.1**（desc 带 68→10、race 57→36、art-low 44→36）；
+其余 42 张 fixture 逐位零回归（sha256 全等）。取景/框体/文字/攻血宝石框位并排目检对齐。
+
+### 8.1 实现面
+
+- 帧族选择 `slotForFixture`（plan.ts）：premium=SIGNATURE × signatureFrameId → 已实现
+  （FRAME_RULES 有规则 ∧ 包内已抽）槽位；回落普通帧 + 显式 console.warn。GOLDEN 不经此路。
+- Evergreen 文本节点命名带下划线（`Attack_UberText`/`Health_UberText`/`RacePlate_UberText`），
+  普通帧名（`AttackUberText`…）对不上 → extract_frame ROLE_BY_NODE 扩展 + 重抽（role_paths 补齐）。
+  `Multi_RacePlate_UberText` 故意不登记（walk 序在单族节点之前，登记会绑错单族卡）。
+- uber 静态主体 = 纯 `_MainTex` 采样走既有默认光栅路径：VS_nokw 反编译 `TEXCOORD0.xy =
+  uv×ST`（无动画）、COLOR0 = 1+`_LightingBlend`×环境光（材质序列化 0 → 恒 1）、`_Color` 白。
+- 类色注入 = `SetMaterialPremium` 对译（Actor.cs:6577-6599）：m_premiumRibbon=2 槽
+  material_override._tint_rgb = CLASS_COLOR_*（Actor.cs:107-129 常量表入 plan.ts）。
+  **GDB_477 实为 DEATHKNIGHT（class tag=1）非工单所写「战士」**——数据为准。
+  单类时 tint FS 坍缩 out=_Color×tex（FS_nokw 反编译：firstMix≡1/secondMix≡0）；
+  多类阶梯参数（_MiddleValue −0.04/_StepValue 0.5/margin 0.02，VS 梯度坐标 = POSITION.x）
+  已随 T2 材质入包，实现留待多类异画 fixture。
+- 肖像：`-signature` 后缀接线（renderPortraitLayer 公式层零改动，_SecondTex 阴影图集 +
+  _BlendIntensity 1.75 走 PS 772B 既有直译）。
+- 取景锚：frameCenter premium 门放行签名槽（premium 基准 = 自家帧网格导出，
+  ExporterController TryGetActorFrameBounds Mesh 回落支）。
+- 卡影：零代码改动走既有通路——sig9 `Shadow_Mesh` 节点名不被 STATIC_HIDDEN（精确匹配
+  'Shadow'）命中，markOpaqueEdgeSlots 按 FX_Transparent_ColorAsAlpha shader 自动标
+  colorAsAlpha 并取材质序列化参数（_Intensity 0.5 / _AlphaIntensity 1.0，与工单口径一致）。
+
+### 8.2 两个渲染序根因（离线链与引擎的结构性差异，后续 sig 帧通用）
+
+1. **Ghost 节点命名后缀漏网**：STATIC_HIDDEN 收 `FX_Ghost_Quad`（普通帧名），
+   Evergreen 名为 `FX_Ghost_Quad_Mesh` → 未命中。Ghost quad 深度 ~0.186 浮在卡体
+   （~0.0235）前 0.16，漏网时以平蓝 GhostCard 纹理盖住整卡画区、并把肖像层（0.0287）
+   挡在 zbuf 外——症状 = 画区平色 + 肖像消失。修法：表补 `_Mesh` 后缀三名。
+2. **肖像公式层擦掉乘法层**：签名帧肖像是全出血网格（y127-616，覆盖文字带），而
+   TextGradient（Hero/Multiply）在帧光栅阶段已乘上；肖像层（renderPortraitLayer，
+   在全帧光栅后强画）以更近深度整片覆写 → 渐变压暗丢失。引擎语义 = Transparent 队列
+   画在不透明肖像之后。修法：sig 帧把 TextGradient/Divider 归入 late_nodes
+   （既有晚通道 = 肖像/overlay 之后、独立 zbuf）复刻队列序。04 票（spell/weapon 文字层）
+   沿用该口径。
+
+### 8.3 残差归因（后续票）
+
+- z_rarity_gem 58.2：宝石四变体网格 + 云纹滚动 + 底影未画（04/05 票；T3 强制隐 +
+  rarity_gem 公式抑制）。
+- z_art 30.4 / art-mid 行带：UberCardBack Layer1/2/3 流动混合未画（06 票；参考图
+  FlickerBright35 高光使画区更亮，本链偏暗 ~20）。
+- z_race 36.1：均值已对齐，细结构 = 邻接宝石框边缘 + FX 层。
+- Portrait_Mesh_BG（随机像占位，portrait 后 0.005）保持序列化可见——被前肖像覆盖，
+  对基准无观测差异；如后续卡出现边缘透出再裁决。
+
+## 9. GDB_477 外框、稀有度与描述文字复核（2026-10-26）
+
+本节更新 §8.3 的 GDB_477 残差快照：外框绑定与 Legendary gem 已修复；L2 对照产物放在
+`/private/tmp/GDB_477-fixed-l2/`，不覆盖旧 fixture 或 `explore/**/output/` 证据。
+
+### 9.1 主框 atlas
+
+`Actor.UpdateCardColor` 的普通 premium 路径 (`Actor.cs:6429-6444, 6577-6599`) 只把类色写入
+`m_premiumRibbon` slot 2；`SetMaterialNormal` 的普通图集替换仅在佣兵路径
+(`Actor.cs:6263-6427`)。GDB_477 `RootObject/Mesh` slot 0 序列化为
+`Genfx_Inhand_Signature_Evergreen_Atlas_Mat` + `Signature_Evergreen_Atlas`
+(`assets/frames/hand-minion-sig9/frame_recon.json`)。因此帧规划保留该 atlas，不把普通
+CardColorSwitcher atlas 注入 slot 0。此修正后的 L2 `mae_visible=25.313`，外框金属角件、木轨与
+雕花边完整恢复。
+
+此外，UberCardBack 主材质不只采 `_MainTex`：GDB_477 `m_ValidKeywords=[]`，所选 no-keyword
+FS 还采 `_MaskTex` 与 Layer1/2/3、级联 distortion，并用序列化 blend vectors 混层
+(`explore/2026-10-25-signature-frame/output/Uber_UberCardBack_FS_nokw.metal:107-168`)；VS 生成
+三组 layer UV (`../exporter/tmp/shader/Uber_UberCardBack_VS.metal:145-161`)。旧离线静态主纹理
+路径漏掉这些颜色/遮罩层，签名框轨和角件材质因此不完整。现在 no-keyword 分支在 frozen phase
+0 采 mask/layers 并按 FS 直译混合（spec 实现决策 5/6）；截图参考对照见 §9.4。
+
+### 9.2 Legendary rarity gem
+
+plan 已选 `RarityGem_Legendary_Mesh`，其 probe 路径为
+`RootObject/Mesh/RarityGem_Frame_Mesh/RarityGem_Legendary_Mesh`；两个材质子网格分别是
+`Signature_Evergreen_Rarity_Gem_Mat` 与 `Signature_Evergreen_Shadow_Mat`
+(`frame_recon.json`)。Actor 按 rarity 激活对应 mesh (`Actor.cs:4939-4959, 4992-5022`)。
+缺失外观的原因是通用帧光栅把第一材质按纹理 alpha 做 alpha-over；原 shader 并非透明 pass：
+`Hero/Diffuse/DiffuseAlphaMaskScroller` pass 0 为 Blend One/Zero、ZWrite=1
+(`../Angelia/lab/2026-10-07-dxbc-rarity-alignment/evidence/shader_meta.json`)，DXBC 像素公式是
+`rgb=(cloud.r×_tint×main.a×1.5×_Intensity+main.rgb)×_Fade×_TintColor`、`alpha=1`
+(`../Angelia/lab/2026-10-07-dxbc-rarity-alignment/NOTES.md` §2)。VS 的 cloud UV 使用 raw mesh
+UV×`(_ScaleX,_ScaleY)` + `T×(_XSpeed,_YSpeed)`，没有 atlas offset；main UV 独立消费
+`_MainTex_ST`（同处 §2）。`frame_recon.json` 中 Evergreen 材质参数为 intensity=.7、scale=(6,6)、
+speed=(5,.3)、tint=(.90566,.90566,.90566)，贴图是签名 atlas 和 `GenFX_clouds03`；属性族复核见
+`../Angelia/lab/2026-10-22-rarity-gem-props/NOTES.md` 表格 Signature_Evergreen 行。
+
+帧光栅现按该 shader 公式直写 RGB、覆盖 alpha=1 并写深度。单独光栅 probe 已显示 atlas UV
+能够生成完整菱形；合入正确的 One/Zero pass 后，参考图中的顶端橙色稀有度钻石恢复。旧 L2
+`z_rarity_gem` 区间不覆盖 ally 宝石真实投影，不能把它当作宝石局部验收值（位置裁决见
+`../Angelia/lab/2026-10-07-dxbc-rarity-alignment/NOTES.md` §3）；本轮可复核的整体 L2 从
+外框修复态 `mae_visible=25.313` 降到 `17.776`。
+
+### 9.3 描述文字高度 fit
+
+目标 `PowersUberText` 序列化盒为 width=1.95、height=.87、fontSize=40、characterSize=5、
+lineSpacing=.75、ResizeToFit=1，locale 9 没有 width/height override
+(`assets/frames/hand-minion-sig9/prefab_ubertext.json`)。断行不变，旧布局停在 cs=.0475；四行
+正文的最大墨迹宽因此比参考宽约 5%。
+
+根因在 fit 高度的取整时点：decompiled `UberText.ReduceText_CharSize` 入口先从
+`GetTextMeshBounds()` 减 intra-line height，后续 shrink 迭代直接比较裸 bounds；
+`UberTextRendering.GetTextMeshBounds` 返回 TextMeshRenderer bounds。引擎抓帧 `localBounds` 与字体
+度量账确认 fit 节点的行盒消费 FreeType `metrics.height`（见
+`../Angelia/lab/2026-10-17-text-rdc-align/findings/linegap-promotion.md` §10.1）。
+FranklinGothic/BlizzardGlobal@40 的 hhea asc−desc 是 48.046875px，而离线 `lineHeight` 先 round
+成 48px (`linegap-promotion.md` §1；`freetype-metrics.ts`)。第一次 shrink 后 k=.00475：旧四行盒
+`(3×45+48)×k=.86925`，错误地低于 .87；原生浮点 bounds
+`(3×48.046875×.9375+48.046875)×k=.87010`，超过 .87，故引擎再乘 .95。fit 判据改用 float
+`lineSpan` 测 TextMesh bounds；wrap、字形 advance 与渲染 pitch 不变。完整出图的 `z_desc` 从
+45.226 降到 20.182，正文宽度与参考图对齐。
+
+### 9.4 全量 L2
+
+2026-10-26 对全部 42 张 reference fixture 重渲并跑 L2。与 2026-10-25 T3 验收结果逐键比较：
+**仅 GDB_477 一行变化，10 个数值全改善，其余 41 行逐键不变，0 回退**。manifest 中 36 张
+`premium=NORMAL` fixture 的 RGBA 像素 buffer 与先前渲染逐张相同（36/36）。当前 GDB_477 指标为
+`mae_visible=17.776`、`mae_nontext=15.140`、`z_desc=20.182`；T3 已记录的起点为 `mae_visible=34.1`
+（§8）。正文前三行在 reference/candidate 的阈值墨迹包围盒分别为 x=123..394/122..394、
+123..396/122..395、122..396/122..395（512×768 原图像素），佐证旧 5% 宽差已消失。
+`bun run typecheck` 通过；本轮未新增测试 seam。
+
+### 9.5 种族文字下锚点（2026-10-26）
+
+GDB_477 的「野兽」候选墨迹比 reference 高约 4 px。签名帧探针
+`assets/frames/hand-minion-sig9/prefab_ubertext.json` 中 `RacePlate_UberText` 的
+`m_Alignment=Center`、`m_Anchor=Lower`、`m_Height=.2`、`m_LineSpacing=.7`；TS 文字层此前
+一律围绕节点原点居中排版，未消费这个下锚点。
+
+反编译 `explore/ilspy/UberText.Runtime.full.cs:1931-1991`
+（`UberText.SetupTextMeshAlignment`）证实 Center/Lower 会把 TextMesh 对象按
+`GetAlignmentOffset(0, -height/2)` 下移，并设置 `TextAnchor.LowerCenter`。相对于离线居中的
+行块，净位移为 `(文字框高度 - 行块高度)/2`。`ubertext.ts` 现对签名帧的非中间垂直锚点应用此
+补偿；门限只按签名帧槽位与序列化 anchor 触发。
+
+GDB_477 的 `z_race` 从 **15.074** 降至 **13.053**，`mae_visible` 从 **17.776** 降至
+**17.623**。修正后的并排图为 `/private/tmp/signature-frames-final-current-l2/GDB_477_side.png`；
+`bun run typecheck` 与 `git diff --check` 通过。
