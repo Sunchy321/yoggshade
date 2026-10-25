@@ -32,6 +32,14 @@ fixture 数据 JSON + 基准图 PNG 成对冻结入库，不接全量卡池数�
   移植行为的验收 = 对同一请求的基准图做 L2 diff。
 - **Angelia**：py 渲染链参照工作区——行为仲裁与实现参照，不是同步目标。
 
+### 异画（SIGNATURE）
+
+premium 品质轴之一（NORMAL / GOLDEN / SIGNATURE / DIAMOND）。异画卡按
+`SIGNATURE_FRAME` 帧表（frame id → 专属手牌/出牌 prefab）走**专属帧族**，
+与卡型无关；卡→帧映射在 `CARD.m_signatureFrameId`。全游戏 8 帧 645 张卡、
+三种帧架构（Signature_25 旧式玻璃 / Signature_26 / Evergreen）。
+「金卡」（GOLDEN premium）与「钻石」（DIAMOND，RTT 3D 链路）是另外两条品质轴，勿混称。
+
 ### 卡集水印（watermark）
 
 desc 文字区材质第二纹理槽上的乘法压暗徽记，**仅限 desc 一层**（画窗/肖像没有）。
