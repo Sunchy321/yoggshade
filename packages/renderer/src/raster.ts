@@ -183,10 +183,21 @@ export function rasterZbuf(
           + l2 * triReflectionUv[2]![1]!;
         sampleBilinearRepeat(textureReflection.spec, u, v, scratchW);
         sampleBilinearRepeat(textureReflection.reflection, ru, rv, scratchCloud);
-        for (let c = 0; c < 4; c++) {
+        for (let c = 0; c < 3; c++) {
           canvas[ci + c] = Math.min(Math.max(scratch[c]!
             + 0.5 * scratchW[c]! * scratchCloud[c]! * textureReflection.intensity, 0), 1);
         }
+        const reflectedAlpha = Math.min(Math.max(scratch[3]!
+          + 0.5 * scratchW[3]! * scratchCloud[3]! * textureReflection.intensity, 0), 1);
+        // The reflection pass returns early, so it must carry the plan's opaque-edge repair itself.
+        // For JAIL_887, Mesh submesh 0 uses Card_InHand_Location_Class_Premium.png and is marked
+        // opaque by markOpaqueEdgeSlots; otherwise its atlas mask alpha (191 at output pixel 85,500)
+        // leaks through the transparent PNG, darkening the left outer frame against black. The
+        // exporter selects opaque-edge geometry by renderer/material/texture name and runs its
+        // Custom/AlphaFillOpaque pass (ExporterController.cs:7578, 8225-8227, 8303-8308; see also
+        // docs/findings/five-cardtypes-frame-parity-2026-10-03.md §3). Preserve reflected RGB while
+        // emitting alpha=1 for slots already proven opaque by that game-side rule.
+        canvas[ci + 3] = opaque ? 1 : reflectedAlpha;
         if (writeDepth) zbuf[pi] = z;
         continue;
       }
