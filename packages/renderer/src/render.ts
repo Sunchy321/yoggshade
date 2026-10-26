@@ -139,11 +139,12 @@ export function rasterBucketZbuf(
         ? uv0.map(([u, v]) => [u * stS[0], v * stS[1]])
         : uv0;
 
-      // Signature frame 9 uses the no-keyword UberCardBack variant (m_ValidKeywords=[] in
-      // frame_recon). Its FS samples mask + three serialized layers; static MainTex-only sampling
-      // leaves the signature rails and corner material incomplete. The variants and material
-      // values are documented in findings/signature-frame-research-2026-10-25.md §4.3 and the
-      // exact VS/FS sources cited by uber-card-back.ts.
+      // Signature frame IDs 2/9/10/12 serialize m_ValidKeywords=[] for every UberCardBack
+      // material, so this slice selects the no-keyword FS variant even when unused FlowTex slots
+      // are populated. That variant samples MaskTex + Layers 1–3; a MainTex-only path omits the
+      // frame rails' animated color/distortion. Keyword-bearing variants are not selected by
+      // these four frame packs. Probe paths, keyword counts, phase/L2 findings, and the exact
+      // no-keyword VS/FS sources are recorded in signature-frame-research-2026-10-25.md §12.
       const keywords = mat.keywords?.m_ValidKeywords ?? [];
       const uber = mat.shader === 'Uber/UberCardBack' && keywords.length === 0
         ? {

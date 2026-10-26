@@ -434,3 +434,48 @@ pass 0 的 Blend One/Zero、ZWrite=1、alpha=1 语义，公式证据见 `../Ange
 
 用户目视反馈：画面相对一致；这不代表当前残差可接受，后续可能需要单独立项修正。上面的 L2
 数字用于记录本次变化，不构成残差验收阈值。
+
+## 12. UberCardBack 三层特效与相位判定（frame 2/9/10/12，2026-10-26）
+
+工单 `.scratch/signature-frames/issues/06`。本轮确认运行时代码已在 GDB_477 的外框修复中按
+no-keyword Metal 变体实现 Layer1/2/3；本票补齐逐层 L2 与相位证据，不再复制一份 shader 路径。
+`packages/renderer/src/render.ts` 依据 `mat.keywords.m_ValidKeywords.length === 0` 选择该分支。
+四个当前槽位（`hand-minion-sig2/sig9`、`hand-spell-sig10`、`hand-weapon-sig12`）所有
+`Uber/UberCardBack` 材质的 `m_ValidKeywords` 都是空数组；因此材质虽序列化了部分
+`_Layer*_FlowTex`，这些 frame 当前不启用 `_LAYER*_FLOWMAP` keyword，也不应采 FlowTex。
+各槽探针位于对应 `assets/frames/<slot>/frame_recon.json` 的 `RootObject/Mesh` 子网格材质。
+
+选中变体的 Metal 证据：`explore/2026-10-25-signature-frame/output/Uber_UberCardBack_FS_nokw.metal`
+107-131 行按 Mask 通道计算层权重并采样 Layer3→2→1→MainTex，132-211 行逐层执行序列化
+颜色/Blend 公式，212 行 clamp 输出；`../exporter/tmp/shader/Uber_UberCardBack_VS.metal`
+145-161 行展示 Layer1 的旋转、缩放与时间平移，后续块对 Layer2/3 同构。
+离线先前的 MainTex-only 路径漏掉这些层，签名框轨与角件少了动画颜色/扰动；当前
+`packages/renderer/src/uber-card-back.ts` 对该 no-keyword FS 做逐像素 CPU 直译。源代码中的
+`_ShaderTime=0` 回落到 `render.ts` 传入的时间 0，因此基准输出采用 `_Time.x=0`。
+
+为分离每层贡献，在实验 pack 副本中将后续层的 `_LayerN_Mask` 置零，并按 none → +Layer1 →
++Layer2 → +Layer3 各跑四张卡的 L2；没有改动 `assets/` 原 pack。`mae_visible` 逐阶段数字：
+
+| fixture | no layers | +Layer1 | +Layer2 | +Layer3 | `z_art`（同顺序） |
+|---|---:|---:|---:|---:|---|
+| GDB_477 | 18.092 | 17.863 | 17.752 | 17.623 | 26.666 → 26.544 → 26.544 → 26.464 |
+| WW_373 | 41.573 | 41.625 | 41.686 | 41.695 | 34.946 → 35.084 → 35.084 → 35.090 |
+| TLC_433 | 45.975 | 45.893 | 45.995 | 46.056 | 49.622 → 49.563 → 49.562 → 49.599 |
+| TLC_EVENT_402 | 49.466 | 49.332 | 49.821 | 49.902 | — |
+
+增量较小且不同卡方向不一：Layer1 对 GDB_477/TLC_433/TLC_EVENT_402 有轻微改善，对 WW_373
+略差；Layer2 的整卡误差对除 GDB_477 外三卡均增加；Layer3 只给 GDB_477 带来小幅改善，另外
+三卡近似持平或略差。保留 shader 层是因为它们是该 prefab 选中材质的真实 FS 行为，而非按
+fixture MAE 调参关闭效果。
+
+按 spec 决策 6 对四个基准图做 `_Time.x=0..1.2`、步长 0.1 粗扫，并在 0.4..0.65 步长 0.025
+细扫；武器卡另扫 0.8..1.0。效果像素域定义为相位候选与 no-layer 输出不相同的可见像素并集。
+细扫局部最佳相位分散：GDB_477=0.500（效果域 MAE 5.502→4.904），WW_373=0.425
+（42.650→41.529），TLC_433=0.625（49.269→49.081），TLC_EVENT_402=0.625
+（51.734→50.518）。单个共同采样点 0.5 令四卡全卡 MAE 均略降，但各曲线没有共同的单峰；
+全卡 MAE 的改善仅 0.022–0.106，最佳共同采样相位对效果域误差的合计改善也只有约 1.3%。因此这组
+基准没有给出足以替换默认相位的稳定共同拟合，运行时继续使用 `_Time.x=0`，不按卡写入特例相位。
+
+全量 43 张当前 zero-phase 输出与工单 05 的候选 PNG 解码 RGBA 对比 **43/43 逐像素相同**；
+对 42 张 reference fixture 的 L2 与工单 05 基线相比 **无分区回退**。检查点、相位扫描、摘要和
+最终 L2 产物保存在 `explore/2026-10-26-signature-uber-layers-phase/output/`。
