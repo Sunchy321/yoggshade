@@ -146,9 +146,13 @@ export function rasterBucketZbuf(
       // Signature frame IDs 2/9/10/12 serialize m_ValidKeywords=[] for every UberCardBack
       // material, so this slice selects the no-keyword FS variant even when unused FlowTex slots
       // are populated. That variant samples MaskTex + Layers 1–3; a MainTex-only path omits the
-      // frame rails' animated color/distortion. Keyword-bearing variants are not selected by
-      // these four frame packs. Probe paths, keyword counts, phase/L2 findings, and the exact
-      // no-keyword VS/FS sources are recorded in signature-frame-research-2026-10-25.md §12.
+      // frame rails' animated color/distortion. That MainTex-only sampling was the offline/game
+      // divergence: Unity executes the selected GPU shader, while this renderer must translate it
+      // into CPU raster operations. Keyword-bearing variants are not selected by these four frame
+      // packs. Probes are assets/frames/{hand-minion-sig2,hand-minion-sig9,hand-spell-sig10,
+      // hand-weapon-sig12}/frame_recon.json; Metal evidence is
+      // `Uber_UberCardBack_FS_nokw.metal:107-211` and `../exporter/tmp/shader/Uber_UberCardBack_VS.metal:145-161`;
+      // phase/L2 results are in signature-frame-research-2026-10-25.md §12.
       const keywords = mat.keywords?.m_ValidKeywords ?? [];
       const uber = mat.shader === 'Uber/UberCardBack' && keywords.length === 0
         ? {

@@ -1,6 +1,11 @@
 /** Frozen-frame CPU path for the no-keyword Uber/UberCardBack material variant.
- * VS: ../exporter/tmp/shader/Uber_UberCardBack_VS.metal (no-keyword 209-line variant);
- * FS: explore/2026-10-25-signature-frame/output/Uber_UberCardBack_FS_nokw.metal.
+ * GDB_477's original offline path sampled only MainTex, leaving the signature frame rails without
+ * the serialized mask/layer color and distortion that Unity's selected UberCardBack shader draws.
+ * The CPU rasterizer translates that selected no-keyword GPU variant because it cannot execute the
+ * game's Unity material directly. Probes: assets/frames/hand-minion-sig9/frame_recon.json and the
+ * equivalent frame_recon.json files for sig2/sig10/sig12 (all m_ValidKeywords=[]).
+ * VS: ../exporter/tmp/shader/Uber_UberCardBack_VS.metal:145-161 (UV animation);
+ * FS: explore/2026-10-25-signature-frame/output/Uber_UberCardBack_FS_nokw.metal:107-211.
  * The vertex shader supplies three affine UV sets; the fragment shader samples the atlas mask,
  * layers 1–3, cascades their distortion, applies the serialized blend vectors, and adds specular.
  * In the no-keyword variant TEXCOORD2.y is zero, so the specular term is identically zero.

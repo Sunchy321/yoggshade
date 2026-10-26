@@ -1,6 +1,6 @@
 # 异画（SIGNATURE）渲染研究
 
-日期：2026-10-25。性质：**研究记录，未做任何渲染实现**（用户口径的「异画」= `TAG_PREMIUM.SIGNATURE`）。
+日期：2026-10-25。性质：**研究记录**（用户口径的「异画」= `TAG_PREMIUM.SIGNATURE`）；阶段 A 的实现与收口结果后续追加于 §8–§14。
 前置：`docs/findings/five-cardtypes-frame-parity-2026-10-03.md` §6（首次记录帧族事实）、
 exporter `docs/premium-card-rendering-decompile.md`（premium 反编译总表）。本文补齐：帧族逐 prefab
 结构、shader 变体实况、L2 现状、素材/工具缺口、移植路径。
@@ -520,5 +520,35 @@ WW_373 41.695、GDB_477 17.623、TLC_433 46.056、TLC_EVENT_402 49.902。43 张 
 `out/fixtures/` 的解码 RGBA：只有 RLK_706 改变（335,626 像素，bbox `[0,35,511,709]`）；其余
 42 张完全相同，含 38 张非 SIGNATURE 输出。并排与热图为
 `explore/2026-10-26-signature25-glass-ordering/output/l2/RLK_706_side.png` / `RLK_706_heat.png`。
-`bun run typecheck`、改动 renderer 文件 ESLint 与 `git diff --check` 通过。实现/量化完成；用户视觉
-验收仍待完成，工单保持 open。
+`bun run typecheck`、改动 renderer 文件 ESLint 与 `git diff --check` 通过。2026-10-26 用户目视通过
+RLK_706 的帧体、描述框、种族板、玻璃层与名称框两端；工单 07 已完成。五卡整体验收由工单 08 跟进。
+
+## 14. 阶段 A 收口：五张异画最终 L2 与遗留残差（2026-10-26）
+
+最终值取自工单 07 的全量候选 `explore/2026-10-26-signature25-glass-ordering/output/l2/summary.json`；
+批次前值取自 `explore/2026-10-25-image-residual-diagnosis/output/full-fixtures-baseline-l2/summary.json`。
+两边使用相同的 frozen reference 图和 L2 口径。改善量为批次前 `mae_visible` 减最终值，仅描述变化，
+不构成残差验收阈值。
+
+| fixture | 批次前 `mae_visible` | 阶段 A 最终 | 改善量 | 当前可见分区残差（最终 L2） |
+|---|---:|---:|---:|---|
+| TLC_433 | 109.384 | 46.056 | 63.328 | `z_rarity_gem` 62.450、`z_desc` 51.576、`z_art` 49.599、`z_banner` 47.437 |
+| WW_373 | 102.015 | 41.695 | 60.320 | `z_rarity_gem` 71.241、`z_desc` 51.716、`z_attack` 41.721、`z_health` 41.209 |
+| GDB_477 | 92.167 | 17.623 | 74.544 | `z_banner` 32.549、`z_art` 26.464、`z_rarity_gem` 24.622 |
+| RLK_706 | 91.865 | 50.765 | 41.100 | `z_cost` 76.316、`z_rarity_gem` 66.888、`z_race` 64.919、`z_desc` 61.646 |
+| TLC_EVENT_402 | 83.008 | 49.902 | 33.106 | 当前 L2 summary 未提供该卡分区项，保留整体值，不推断局部根因 |
+
+阶段 A 累计像素回归依据各实现票的 RGBA 对照：03 只改变 GDB_477，04 只改变 TLC_433 / TLC_EVENT_402，
+05 只改变 WW_373，06 与 05 候选 43/43 逐像素相同，07 只改变 RLK_706；因此其余 38 张非 SIGNATURE
+fixture 在本批次保持逐像素不变。每票对 42 张已有 reference 的 L2 分区门均无回退；manifest 中
+`BG24_Reward_107` 没有 reference PNG，不纳入 L2。
+
+### 14.1 遗留残差与可证实的归因边界
+
+| 类别 | 当前证据 | 后续归因口径 |
+|---|---|---|
+| 结构 / 局部 | 上表中 `z_rarity_gem`、`z_desc`、`z_banner`、`z_race`、`z_art` 仍有较高残差；这些数值只定位区域，不单独证明几何或绘制顺序根因。 | 后续若继续降低 L2，按热区隔离具体网格、文字、宝石或帧层；不能仅凭总体 MAE 做结构性改动。 |
+| 相位 | frame 2/9/10/12 的 `_Time.x` 扫描最佳点分散在 GDB_477=0.500、WW_373=0.425、TLC_433/TLC_EVENT_402=0.625；共同采样点没有稳定单峰，整体收益很小。阶段 A 因而保留规范冻结相位 `_Time.x=0`，没有逐卡拟合。 | 动画定格带来的单卡残差仍可能存在；RLK_706 的 Signature_25 玻璃也按 `_Time.x=0` 冻结，尚无单独相位扫描。若新增证据，按各卡本地 reference 重新扫描并做等量平亮对照。 |
+| 素材 / 材质 | 四个 UberCardBack 材质的 `m_ValidKeywords=[]`，所以当前 prefab 不选 `_LAYER*_FLOWMAP` 变体；Layer1/2/3 的无 keyword 数学已按 Metal 变体翻译。RLK_706 玻璃仅绘制 RTT 选中的 pass 0；`AppendRenderCommands` 不收 GlowPrePass/Glow。 | 已核实的纹理、mask、keyword 与 pass 边界没有显示遗漏的已选输入。剩余局部差异若怀疑素材/材质，须以新的 UnityPy 探针或 RTT/Metal 证据定位；现阶段不把残差笼统归因于“贴图不对”。 |
+
+本表记录已定位的热点和证据边界。用户于 2026-10-26 确认五张最终对照图整体观感与基准对齐；该确认不代表这些残差已被接受或达到数值阈值，继续优化可另立工单。

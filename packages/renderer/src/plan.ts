@@ -695,8 +695,13 @@ const FRAME_RULES: Record<string, FrameRules> = {
     forcedHidden: ['Unique_Ally_Dragon'],
     roles:        ['name', 'race', 'attack', 'health', 'level'],
   },
-  // 异画随从帧（Card_Hand_Ally_Signature_Evergreen，frame 9 / GDB_477；T3 静态结构切片）：
-  // 结构实证 = research findings §2.2 + T2 抽取（探针对照 5/5 全对上）。
+  // 2026-10-25 工单 03：GDB_477（SIGNATURE, signatureFrameId=9）此前因离线 slotForFixture
+  // 要求 FRAME_RULES 与抽取帧同时存在而回落 hand-minion；游戏 ActorNames.GetSignatureActor
+  // （ActorNames.cs:885-923）按 frameId 直接选 SignatureHand[9]。登记此规则让签名帧主体、类色
+  // 子网格与原画进入已有渲染路径。证据：assets/frames/hand-minion-sig9/frame_recon.json；
+  // `explore/2026-10-25-signature-frame/output/Uber_UberCardBack_FS_nokw.metal:107-168`
+  // （mask/layer blend）、Actor.cs:6577-6599（类色）。
+  // 帧结构实证 = research findings §2.2 + T2 抽取（探针对照 5/5 全对上）。
   // - 无精英龙节点；稀有度 = 框环 RarityGem_Frame_Mesh（UberCardBack 静态）+ 四变体宝石
   //   网格（DiffuseAlphaMaskScroller 云纹 + Multiply_AlphaFade 底影，Actor.cs
   //   UpdateRarityComponent:4939-4959 / SetRarityGemShape:4992-5022 按稀有度四选一）。
@@ -2143,9 +2148,11 @@ function compileBanners(
   }
 
   // 阵营横幅（HasHearthstoneFaction → FactionColorType；SetFactionType 换图标/底板材质）。
-  // SIGNATURE premium 按用户裁定（2026-10-05）照常渲染（SC_004 凯瑞甘需出虫族横幅）；
-  // 材质取 normal 表（真实图标象限）——引擎签名卡用 FX 滚动材质
-  // （Unlit_TransparentTexAlpha2uvScroll，无静态象限），静态近似登记残差。
+  // 2026-10-26 工单 08：2026-10-05 裁定只管 faction banner 的静态图标选择，不代表 SIGNATURE
+  // 帧族仍按 NORMAL 渲染。帧族延后实现的历史结论见 five-cardtypes findings §6，已被
+  // 2026-10-25 用户确认的 signature-frames spec 与阶段 A 移植取代（signature findings §14）；
+  // 此处的 banner 规则仍生效：材质取 normal 表（有静态图标象限），游戏签名材质为 FX 滚动
+  // （Unlit_TransparentTexAlpha2uvScroll，无静态象限），其近似残差仍单独记录。
   let factionIdx = 0;
   for (const [tag, idx] of FACTION_PRIORITY) {
     if ((tags[tag] ?? 0) !== 0) {
