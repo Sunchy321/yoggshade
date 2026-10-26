@@ -630,8 +630,8 @@ const FRAME_RULES: Record<string, FrameRules> = {
   // Unique_Ally_Dragon，子节点 Shadow 使用 GenFX_Card_InHand_Premium_BannerAtlas；故非精英卡必须
   // 同样隐藏该子节点，避免把金卡 atlas 的龙形采到画窗外框上。
   'hand-minion-golden': {
-    elite: ['Unique_Ally_Dragon', 'Unique_Ally_Dragon_Shadow'],
-    rarity: ['RarityGemFrame', 'RarityGem'],
+    elite:     ['Unique_Ally_Dragon', 'Unique_Ally_Dragon_Shadow'],
+    rarity:    ['RarityGemFrame', 'RarityGem'],
     attack:    ['Gem_Attack'], health:    ['Gem_Health'],
     race:      ['RacePlate_mesh'], multiRace: ['Multi_RacePlate_mesh'],
     roles:     ['cost', 'name', 'desc', 'race', 'attack', 'health'],
@@ -879,22 +879,22 @@ const FRAME_RULES: Record<string, FrameRules> = {
   // `frame_recon.json` 均含 RarityGem_Frame_Mesh 及四个稀有度子网格。Actor.cs:4934-5022
   // 明确运行时切换四个 rarity 子物体；共用签名光栅已覆盖 Uber/UberCardBack 材质，故只登记节点规则。
   'hand-hero-sig11': {
-    elite: [], rarity: ['RarityGem_Frame_Mesh'],
-    attack: ['Gem_Attack'], armor: ['Armor_Whole_mesh'],
+    elite:        [], rarity:       ['RarityGem_Frame_Mesh'],
+    attack:       ['Gem_Attack'], armor:        ['Armor_Whole_mesh'],
     forcedHidden: ['RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
       'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh'],
     roles: ['cost', 'name', 'desc', 'attack', 'armor'],
   },
   'hand-location-sig13': {
-    elite: [], rarity: ['RarityGem_Frame_Mesh'],
-    health: ['Wep_SheildBroken'],
+    elite:        [], rarity:       ['RarityGem_Frame_Mesh'],
+    health:       ['Wep_SheildBroken'],
     forcedHidden: ['RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
       'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh', 'RacePlate_Mesh'],
     roles: ['cost', 'name', 'desc', 'health'],
   },
   'hand-hero-sig14': {
-    elite: [], rarity: ['RarityGem_Frame_Mesh'],
-    attack: ['Gem_Attack'], armor: ['Armor_Whole_mesh'],
+    elite:        [], rarity:       ['RarityGem_Frame_Mesh'],
+    attack:       ['Gem_Attack'], armor:        ['Armor_Whole_mesh'],
     forcedHidden: ['RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
       'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh'],
     roles: ['cost', 'name', 'desc', 'attack', 'armor'],
@@ -1801,11 +1801,11 @@ export function compileFramePlan(
 
   const plan: RenderPlan = {
     components,
-    input:        { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
-    frame_center: frameCenter(base, keyByPath, slot, fixture.cardId, fixture.preset.premium, cardType),
+    input:                           { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
+    frame_center:                    frameCenter(base, keyByPath, slot, fixture.cardId, fixture.preset.premium, cardType),
     portrait_direct_material_output: goldenPortraitAvailable,
-    portrait_skip_depth_test: false,
-    rarity_gem:   {
+    portrait_skip_depth_test:        false,
+    rarity_gem:                      {
       // 签名帧抑制既有稀有度宝石公式（普通帧的宝石位/图集不适用：Evergreen 宝石在框环
       // 大宝石位、四变体网格 + 云纹滚动 + 底影 = 04/05 票范围；变体网格 forcedHidden，
       // 残差记 findings 归因）。
@@ -1904,14 +1904,6 @@ const MESH_ANCHORED_SLOTS = new Set([
   'hand-hero-sig11', 'hand-location-sig13', 'hand-hero-sig14',
 ]);
 
-/** 根锚定特例。exporter 对 location 的 Mesh 世界包围盒中心若由节点摆位解释
- *  （bounds.center≈meshRenderer.transform.localPosition），会按游戏 actor 根重锚，
- *  见 ExporterController.cs:11675-11689。SC_403、TTN_090 已由旧基准验证；T11 的
- *  TIME_446 探针 `assets/frames/hand-location-sig13/frame_recon.json` 给出 RootObject/Mesh
- *  world bounds center=(0.01008,0.00506)，localPosition=(0.01008,0.00382)，差值小于
- *  exporter 的 0.01 阈值，故签名地标也必须根锚。 */
-const ROOT_ANCHORED_CARDS = new Set(['SC_403', 'TTN_090', 'TIME_446']);
-
 /** exporter 取景中心 = 主体网格世界包围盒中心（TryGetActorFrameBounds，
  *  ExporterController.cs:11483-11549）：先找**层级激活且 renderer 启用**的 FrameMesh
  *  （FindEnabledMeshRendererByName；hand-bg-trinket 饰品框、hand-heropower 英雄技能框
@@ -1940,7 +1932,6 @@ function frameCenter(
     && !(premium === 'SIGNATURE' && isSignatureSlot(slot))
     && !(premium === 'GOLDEN' && isGoldenSlot(slot))) return undefined;
   if (!SLOT_NATIVE_CARD_TYPES[slot]?.includes(cardType)) return undefined;
-  if (ROOT_ANCHORED_CARDS.has(cardId)) return undefined;
 
   const enabled = (path: string): boolean => {
     const n = findNode(base.frameRecon.hierarchy, path) as
@@ -1958,7 +1949,8 @@ function frameCenter(
     return parts[n - 1] === 'Mesh' && (n === 3 || (n === 4 && parts[2] === 'NonQuestObjects'));
   });
   if (!bodyPath) return undefined;
-  const node = findNode(base.frameRecon.hierarchy, bodyPath) as { world?: number[][] } | null;
+  const node = findNode(base.frameRecon.hierarchy, bodyPath) as
+    { world?: number[][], local?: { pos?: number[] } | null } | null;
   const mesh = node?.world ? base.meshes[keyByPath.get(bodyPath)!] : undefined;
   if (!mesh?.verts.length) return undefined;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -1989,6 +1981,20 @@ function frameCenter(
   let anchorZ = (wz0 + wz1) / 2;
   // heroPowerFrameAnchor：英雄技能取景中心 z = FrameMesh 世界包围盒 min.z + 装饰框半高
   if (frameMeshPath && cardType === 10) anchorZ = wz0 + 3.18 / 2;
+
+  // 地标底图的节点摆位会带着整张离线卡面左下移；游戏按 actor 根定位结构件，不按 Mesh bounds 取景。
+  // 与 exporter 一致，仅当 Mesh world bounds center≈其 localPosition (X/Z, <0.01) 时回到根锚；
+  // 已由几何补偿的帧仍使用 bounds 锚。证据：ExporterController.cs:11675-11689；当前普通/金卡帧
+  // assets/frames/hand-location{,-golden}/frame_recon.json 的 RootObject/Mesh 都满足该判据，
+  // 而 JAIL_887 旧白名单遗漏导致参考图与 TS 输出相差约 6×12px。
+  const locationLocalPosition = node?.local?.pos;
+  if (!frameMeshPath && slot.startsWith('hand-location')
+    && locationLocalPosition && locationLocalPosition.length >= 3
+    && Math.abs(anchorX - locationLocalPosition[0]!) < 0.01
+    && Math.abs(anchorZ - locationLocalPosition[2]!) < 0.01) {
+    return undefined;
+  }
+
   return [anchorX, anchorZ];
 }
 
