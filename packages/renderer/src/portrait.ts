@@ -50,6 +50,7 @@ export function renderPortraitSubmesh(
   secondTint: number[], // [r,g,b,a]
   blendIntensity: number,
   directMaterialOutput = false,
+  skipDepthTest = false,
 ): void {
   const tR = secondTint[0] * blendIntensity;
   const tG = secondTint[1] * blendIntensity;
@@ -93,7 +94,13 @@ export function renderPortraitSubmesh(
         if (l0 < -1e-6 || l1 < -1e-6 || l2 < -1e-6) continue;
         const zpix = l0 * zA + l1 * zB + l2 * zC;
         const pi = y * W + x;
-        if (!(zpix >= zbuf[pi])) continue;
+        // Deathwing frame 14's opaque UberCardBack RootObject/Mesh writes depth over the art
+        // window before this independent Portrait_Mesh is composed. Unity assigns the SIGNATURE
+        // material to Actor.m_portraitMesh (Actor.cs:2960-2976, 3051-3079) and submits renderer
+        // queues separately (RenderCommandLists.cs:209-245); offline render-card uses one shared
+        // zbuf for frame then portrait. The CATA signature probe is blank with that shared test
+        // and reveals the portrait when cleared; plan.ts enables this bypass only for frame 14.
+        if (!skipDepthTest && !(zpix >= zbuf[pi])) continue;
 
         const u0 = l0 * uv0[ia][0] + l1 * uv0[ib][0] + l2 * uv0[ic][0];
         const v0 = l0 * uv0[ia][1] + l1 * uv0[ib][1] + l2 * uv0[ic][1];

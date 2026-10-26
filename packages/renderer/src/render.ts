@@ -275,9 +275,9 @@ export function rasterBucketZbuf(
             throw new Error(`金卡反射材质缺 SpecTex/ReflTex: ${pack.slot}/${key}/${mat.name ?? 'material'}`);
           }
           return {
-            spec: textures.get(specFile),
+            spec:       textures.get(specFile),
             reflection: textures.get(reflectionFile),
-            intensity: mat.floats?.['_ReflectionIntensity'] ?? 1,
+            intensity:  mat.floats?.['_ReflectionIntensity'] ?? 1,
           };
         })()
         : undefined;
@@ -394,6 +394,7 @@ export function renderPortraitLayer(
     st ? [st.r, st.g, st.b, st.a] : [0, 0, 0, 0],
     pack.materialProps?.m_Floats._BlendIntensity ?? 0,
     pack.plan!.portrait_direct_material_output ?? false,
+    pack.plan!.portrait_skip_depth_test ?? false,
   );
 }
 

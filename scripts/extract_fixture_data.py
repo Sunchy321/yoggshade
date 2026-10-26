@@ -10,7 +10,7 @@ Angelia docs/notes/textbuilder-drift-measurement.md 记录 Windows 侧同文件�
 语言序：m_locValues 为 14 语言定长数组，下标 12 = zhCN 简体（Angelia 台账同口径）。
 
 产出 data/fixtures/：
-  manifest.json   —— fixture 清单（30 张 CardPresets + glow 基准 12 token）+ 提取元数据
+  manifest.json   —— fixture 清单（data/fixture.md 中的 presets + glow 基准）+ 提取元数据
   {CARD_ID}.json  —— 单卡 canonical 数据：全部 14 语言 name/text、全量 tags、
                      textBuilderType、preset/glow 归属；preset.signatureFrameId
                      （CARD.m_signatureFrameId 非零时才有，签名帧选择依据）
@@ -56,7 +56,7 @@ def loc_dict(field: dict) -> dict:
 
 
 def parse_fixture_md(path: Path) -> tuple[list[tuple], list[dict]]:
-    """data/fixture.md → (presets 行, glow-bench 行)。按表头列名定位，容忍空列。"""
+    """data/fixture.md → (presets 行, glow-bench 行)。"""
     lines = path.read_text(encoding="utf-8").splitlines()
     tables: dict[str, list[list[str]]] = {}
     section = None

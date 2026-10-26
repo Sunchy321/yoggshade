@@ -2,11 +2,11 @@
  "cardId": "CATA_190h",
  "dbfId": 125467,
  "preset": {
-  "label": "多职业英雄基线",
-  "premium": "NORMAL",
+  "label": "死亡之翼异画 frame 14",
+  "premium": "SIGNATURE",
   "template": "Normal",
   "zone": "Hand",
-  "reason": "多职业英雄样例，用于验证多职业英雄手牌框体渲染。",
+  "reason": "多职业英雄异画基准，用于验证原生英雄签名帧；保留 DBF 护甲标签 12，与用户提供的基准图一致。",
   "signatureFrameId": 14
  },
  "textBuilderType": 28,
@@ -39,7 +39,7 @@
   "plPL": "<b>Okrzyk bojowy:</b> Wybierz do_rozpętania {0}_|4(Kataklizm,Kataklizmy,Kataklizmów)! <i><b>Apeluj</b> dwukrotnie, aby_ulepszyć.</i>@<b>Okrzyk bojowy:</b> Wybierz do_rozpętania {0}_|4(Kataklizm,Kataklizmy,Kataklizmów)! <i><b>Apeluj</b> jeden raz, aby_ulepszyć.</i>@<b>Okrzyk bojowy:</b> Wybierz_do_rozpętania {0}_|4(Kataklizm,Kataklizmy,Kataklizmów)!",
   "ptBR": "<b>Grito de Guerra:</b> Escolha {0} |4(Cataclismo,Cataclismos) para libertar! <i><b>Proclame</b> duas vezes para_aprimorar.</i>@<b>Grito de Guerra:</b> Escolha {0} |4(Cataclismo,Cataclismos) para libertar! <i><b>Proclame</b> uma vez para_aprimorar.</i>@<b>Grito de Guerra:</b> Escolha {0} 4(Cataclismo,Cataclismos) para libertar!",
   "ruRU": "[x]<b>Боевой клич:</b> вы\nвыбираете и обрушиваете\n{0} |4(катаклизм,катаклизма,катаклизмов)!\n <i><b>Возвестите</b> дважды,\n чтобы улучшить.</i>@[x]<b>Боевой клич:</b> вы\nвыбираете и обрушиваете\n{0} |4(катаклизм,катаклизма,катаклизмов)!\n <i><b>Возвестите</b> один раз,\nчтобы улучшить.</i>@[x]<b>Боевой клич:</b> вы\nвыбираете и обрушиваете\n{0} |4(катаклизм,катаклизма,катаклизмов)!",
-  "thTH": "<b>คำรามสู้ศึก:</b>_เลือก[b]ปลดปล่อยมหาวินาศภัย {0}_อย่าง!_<i><b>ป่าวประกาศ</b> สองครั้งเพื่ออัพเกรด</i>@<b>คำรามสู้ศึก:</b>_เลือก[b]ปลดปล่อยมหาวินาศภัย {0}_อย่าง!_<i><b>ป่าวประกาศ</b> หนึ่งครั้งเพื่ออัพเกรด</i>@<b>คำรามสู้ศึก:</b> เลือกปลดปล่อย[b]_มหาวินาศภัย_{0}_อย่าง!",
+  "thTH": "<b>คำรามสู้ศึก:</b>_เลือกปลดปล่อย[b]มหาวินาศภัย_{0}_อย่าง! <i><b>ป่าวประกาศ</b>_สองครั้ง[b]เพื่ออัพเกรด</i>@<b>คำรามสู้ศึก:</b>_เลือกปลดปล่อย[b]มหาวินาศภัย_{0}_อย่าง! <i><b>ป่าวประกาศ</b>_หนึ่งครั้ง[b]เพื่ออัพเกรด</i>@<b>คำรามสู้ศึก:</b> เลือกปลดปล่อย[b]_มหาวินาศภัย_{0}_อย่าง!",
   "zhCN": "<b>战吼：</b>选择并释放{0}项灾变！<i><b>兆示</b>两次后升级。</i>@<b>战吼：</b>选择并释放{0}项灾变！<i><b>兆示</b>一次后升级。</i>@<b>战吼：</b>选择并释放{0}项灾变！",
   "zhTW": "<b>戰吼：</b>選擇釋放\n{0}場大災變！\n<i><b>預兆</b>兩次以升級</i>@<b>戰吼：</b>選擇釋放\n{0}場大災變！\n<i><b>預兆</b>一次以升級</i>@<b>戰吼：</b>選擇釋放\n{0}場大災變！"
  },

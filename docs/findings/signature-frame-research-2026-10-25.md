@@ -551,4 +551,165 @@ fixture 在本批次保持逐像素不变。每票对 42 张已有 reference 的
 | 相位 | frame 2/9/10/12 的 `_Time.x` 扫描最佳点分散在 GDB_477=0.500、WW_373=0.425、TLC_433/TLC_EVENT_402=0.625；共同采样点没有稳定单峰，整体收益很小。阶段 A 因而保留规范冻结相位 `_Time.x=0`，没有逐卡拟合。 | 动画定格带来的单卡残差仍可能存在；RLK_706 的 Signature_25 玻璃也按 `_Time.x=0` 冻结，尚无单独相位扫描。若新增证据，按各卡本地 reference 重新扫描并做等量平亮对照。 |
 | 素材 / 材质 | 四个 UberCardBack 材质的 `m_ValidKeywords=[]`，所以当前 prefab 不选 `_LAYER*_FLOWMAP` 变体；Layer1/2/3 的无 keyword 数学已按 Metal 变体翻译。RLK_706 玻璃仅绘制 RTT 选中的 pass 0；`AppendRenderCommands` 不收 GlowPrePass/Glow。 | 已核实的纹理、mask、keyword 与 pass 边界没有显示遗漏的已选输入。剩余局部差异若怀疑素材/材质，须以新的 UnityPy 探针或 RTT/Metal 证据定位；现阶段不把残差笼统归因于“贴图不对”。 |
 
-本表记录已定位的热点和证据边界。用户于 2026-10-26 确认五张最终对照图整体观感与基准对齐；该确认不代表这些残差已被接受或达到数值阈值，继续优化可另立工单。
+本表记录已定位的热点和证据边界。此前用户于 2026-10-26 确认五张旧样本对照图整体观感；本次 T11 首轮目视复核发现 SC_754 与 CATA_190h 的多职业徽记错误。对应签名网格选择已修正，更新后的并排图正等待复核。数值改善不代表其他残差已被接受或达到阈值。
+
+## 15. 剩余异画手牌帧探针（frame 11/13/14，2026-10-26）
+
+工单 `.scratch/signature-frames/issues/11-remaining-signature-hand-frames.md`。用户提供的异画基准为
+`reference/SC_754.png`（frame 11）、`reference/TIME_446.png`（frame 13）和
+`reference/CATA_190h.png`（frame 14）；均为 512×768。用户另提供 `reference/SC_400.png` 作为普通多职业
+英雄基准。CATA 与 SC_400 现各自使用原始 Card ID 对应单一用途的 fixture。
+
+### 15.1 帧归属和 prefab 结构
+
+客户端 `SIGNATURE_FRAME` 表的 UnityPy 记录及 `scripts/extract_frame.py` 输出确认：11 →
+`Card_Hand_Hero_Signature_Evergreen.prefab:397e25c6f95bcd04f9a23b76479a74d8`，13 →
+`Card_Hand_Ally_Signature_Location.prefab:d476a7c7b9be61c4cb2c024909dad87e`，14 →
+`Card_Hand_Hero_Signature_Deathwing.prefab:78fd781e84ecf2948874d9f8c595e728`。相同映射由游戏
+`ActorNames.GetSignatureActor`（`../exporter/tmp/ilspy/Assembly-Csharp-247416/ActorNames.cs:885-923`）
+按 `CARD.m_signatureFrameId` 查询 `SignatureHand[frameId]`；`Initialize`（同文件 :948-985）从
+`SIGNATURE_FRAME` 的 DBF 记录组装卡→帧和帧→hand-prefab 映射。因此 frame ID 11/13/14 与这三种新帧
+是数据驱动选择，不能由普通 Hero/Location 帧或其它签名帧代替。
+
+三个提取槽位的完整结构保存在被忽略的 `assets/frames/{slot}/frame_recon.json`、
+`prefab_report.json`、`manifest.json`。11 与 14 的活动主层级是 Hero，Actor 直接绑定
+`RootObject/Mesh`、`Portrait_Mesh`、`AttackObject`、`ArmorObject` 和 `CostObject/Gem_Mana`；数值网格为
+`AttackObject/Gem_Attack`、`ArmorObject/.../Armor_Whole_mesh`。文字角色由提取 manifest 绑定为
+`cost/name/desc/armor/race`，Hero 的 Actor 同时保留 attack UberText。13 的活动根 prefab 为地标，Actor
+绑定 `Wep_SheildBroken` 作为耐久、`CostObject/Gem_Mana` 作为费用，文字角色为
+`cost/name/desc/health/race`；`RacePlate_Mesh` 及 race TextComponent 在该 prefab 中存在，但 location
+没有种族 tag，实际 `UpdateRace` 只在 minion/location/trinket 分支处理种族板，而 Hero 分支早退
+（`Actor.cs:6084-6125`）。三个帧都含 `RarityGem_Frame_Mesh` 与 Common/Rare/Epic/Legendary 子网格；
+`Actor.UpdateRarityComponent` / `SetRarityGemShape`（`Actor.cs:4879-4999`）按 rarity 启用对应子网格。
+因此实现复用现有签名四选一逻辑，不另造通用稀有度 atlas。
+
+11/13/14 的主框材质均为 `Uber/UberCardBack`，并引用 `MainTex + MaskTex` 及 Layer1/2/3 材质纹理；
+其 Serialized keyword 集为空，继续走已移植的 `explore/2026-10-25-signature-frame/output/`
+`Uber_UberCardBack_FS_nokw.metal` 路径。第 14 帧只在活动主网格使用 Deathwing Atlas/Mask；嵌套的
+`Card_Hand_Ally_Signature_Evergreen` 子 prefab 在 `frame_recon.json` 中标为非活动层级，按现有
+`active_in_hierarchy` 门控排除。其 Layer1 纹理为 `GenFX_CloudFire4b`，与 Evergreen 的
+`GenFX_clouds03` 不同；通用材质键收集从活动节点所引用材质提取输入，不需要 shader 特判。
+frame 13 的卡背与类色输入也落在 prefab 自身的 premium material slots。
+
+签名肖像仍走游戏 `CardTextureLoader.LoadSignature`（`../exporter/tmp/ilspy/Assembly-Csharp-247416/`
+`CardTextureLoader.cs:235-259`）对应的 `portraits/{cardId}-signature.png` 约定。英雄 armor 显隐和文本
+写点由 `Actor.UpdateArmorTextMesh`（`Actor.cs:3466-3487`）约束；多职业 premium ribbon 的材质 tint 由
+`Actor.SetMaterialPremium`（`Actor.cs:6577-6599`）按单色或 dual-class 分支写入。离线链已将这些逻辑
+实现为共享帧计划，frame 11/14 无需新栅格器或 shader 代码。探针阶段的缺口是新 frameId 未登记、没有对应
+`FRAME_RULES` / 原生卡型声明，导致 `slotForFixture` 不能选中这三个 prefab，并且 L2 没有三张新图的
+对应 fixture 数据身份；T11 的实现与验证记录见 §15.2。
+
+### 15.2 T11 实现、L2 与普通多职业英雄基准边界
+
+#### 多职业英雄候选与 NORMAL / SIGNATURE 区别
+
+本机 v37.0.254477 的 `dbf.unity3d` 全表（CARD 36,390 行、CARD_TAG 264,281 行）按
+`CARDTYPE=HERO(3)`、`MULTIPLE_CLASSES(476)>0`、`COLLECTIBLE(321)=1` 查询，共有四张可收藏多职业英雄：
+
+| Card ID | 中文名 | `m_signatureFrameId` | 仓内基准状态 |
+|---|---|---:|---|
+| SC_400 | 吉姆·雷诺 | 11 | 用户提供普通画基准 `reference/SC_400.png`；NORMAL fixture，头像素材已提取 |
+| SC_004 | 刀锋女王凯瑞甘 | 11 | canonical fixture 和 `reference/SC_004.png` 都是 NORMAL，保留原样 |
+| SC_754 | 阿塔尼斯 | 11 | 用户新增 `reference/SC_754.png`，签名原画已提取 |
+| CATA_190h | 灭世者死亡之翼 | 14 | 用户更新 `reference/CATA_190h.png` 为 SIGNATURE；现为 SIGNATURE fixture，不使用品质后缀别名 |
+
+`m_signatureFrameId` 是卡牌可用异画框的 DBF 映射，不代表 canonical fixture 当前 premium 是 SIGNATURE。
+此前将“当前 fixture/reference 集合里现成的候选”说成“唯一选择”是错误的范围概括；SC_400 是额外的
+DBF 候选。用户现已提供它的普通画基准，因此普通多职业英雄基准改用 SC_400，与 CATA_190h 的
+SIGNATURE 基准分开承担用途。
+
+#### 取景和死亡之翼肖像遮挡
+
+三个新槽都没有启用的 `FrameMesh`；游戏 `ExporterController.FrameCamera`（`../exporter/bepinex/plugin/`
+`ExporterController.cs:11517-11526`）调用 `TryGetActorFrameBounds`，以主体网格 bounds center 设置相机。
+探针 `assets/frames/{hand-hero-sig11,hand-location-sig13,hand-hero-sig14}/frame_recon.json` 的
+`RootObject/Mesh` 世界 bounds center Z 分别为 **0.05852、0.00506、0.07128**。frame 11/14 按其帧体
+自身中心取景；frame 13 的 `TIME_446` 是 Location：bounds center `(0.01008,0.00506)` 与节点
+`localPosition=(0.01008,0.00382)` 在 X/Z 的差均小于 `0.01`。这正触发 exporter
+`TryGetActorFrameBounds` 的 `locationRootAnchor`（`ExporterController.cs:11675-11689`），所以该签名
+地标也按 actor 根取景；对齐后 `TIME_446` 的 L2 从错误节点锚状态 **44.553** 回到 **26.668**。
+
+frame14 初次候选 L2 为 `mae_visible=67.939`，画窗呈空棕色。UnityPy 探针确认
+`assets/frames/hand-hero-sig14/frame_recon.json` 的活动 `RootObject/Mesh` 主材质为
+`Uber/UberCardBack`，序列化 `_Surface=0`、`_ZWrite=1`；独立 `RootObject/Portrait_Mesh` 有 87 个肖像三角形，
+签名肖像贴图 `assets/portraits/CATA_190h-signature.png` 存在。隔离试验中仅隐藏主体 Mesh，或在主体绘制后清空
+共享 zbuf，肖像即出现；故根因是离线帧桶先让不透明主体写深，再把独立肖像层放进同一 zbuf。
+
+游戏链中 `Actor.UpdatePortraitMaterials`（`Actor.cs:2960-2976`）按 SIGNATURE 取得 CardDef 肖像材质，
+`SetPortraitMaterial`（`:3051-3079`）写到 `m_portraitMesh` renderer；`RenderCommandLists.cs:209-245`
+按材质队列分成 opaque/transparent 命令，`RenderToTextureUtils.RenderCamera`（`:134-140`）分队列绘制。
+离线链 `render-card.ts` 则先将帧桶整体写入单一 zbuf，再调用 `renderPortraitLayer`。实现给 frame 14 的
+SIGNATURE portrait 层增加显式 `portrait_skip_depth_test`，只跳过主体深度拒绝并仍写肖像深度；其它帧继续使用
+原有 LEqual。修正后 frame14 `mae_visible=26.431`，portrait 与 frame14 画窗相合。
+
+#### 基准输入与完成情况
+
+用户后来将 frame14 的基准更新为 `reference/CATA_190h.png`；图中护甲为 12，与该卡 DBF 的
+`292=12` 一致。最初接入时误将截图护甲识读为 19，临时加了 `292=19` override；该数据错误已在
+§15.4 移除。
+
+重新渲染三张基准后的 L2：SC_754 **47.326**（初始 77.655）、TIME_446 **26.668**（初始 26.668）、
+CATA_190h **26.431**（初始 67.939）。该时点 CATA 的 SIGNATURE 图仍以临时独立变体名比较；用户更新基准后，
+canonical fixture 直接使用 CATA_190h ID，详见 §15.3。
+
+### 15.3 用户更新的多职业英雄基准 ID
+
+用户新增普通画 `reference/SC_400.png` 并将 frame14 SIGNATURE 基准更新为 `reference/CATA_190h.png`。
+`data/fixture.md` 现以 `SC_400/NORMAL` 验证普通多职业英雄框，以 `CATA_190h/SIGNATURE` 验证 frame14；
+`CATA_190h` fixture 保留 DBF armor tag `292=12`。fixture JSON、manifest、渲染输出与 L2 identity 均用原始
+Card ID，不再有单独的 `-signature` fixture/reference 名称。签名头像素材仍按 CardDef 的 premium 文件名
+`assets/portraits/CATA_190h-signature.png` 读取。
+
+基准身份更新后的首次比较值为 SC_400 **8.807**、SC_754 **47.326**、TIME_446 **26.668**、
+CATA_190h **26.431**。该轮尚未修复下文记录的描述行高/节点选择和护甲覆盖错误；最终值见 §15.4。
+首次比较中的 SC_400 与 CATA_190h 并排图曾显示描述换行差异，已按具体布局和 prefab 证据修复。
+web parity 为 **27/27** 逐位一致，asset-key 检查 50/50、typecheck 通过、lint 0 错误（116 条风格 warning）。
+
+### 15.4 基准核对与描述布局修正
+
+重新核对用户提供的 `reference/CATA_190h.png` 后确认底部护甲数字是 **12**，而不是 19。DBF 卡牌记录和
+fixture 提取的原始 tag `292` 均为 12；先前手工加入的重复 JSON 键 `292=19` 和 `data/fixture.md` override
+与图像及 DBF 都冲突。已删除 override，fixture 保留 `292=12`。
+
+frame14 的描述节点也有路径碰撞：`assets/frames/hand-hero-sig14/prefab_ubertext.json` 中先出现的
+`Card_Hand_Hero_Signature_Deathwing/Card_Hand_Ally_Signature_Evergreen/RootObject/PowersUberText`
+位于 inactive Evergreen 子 prefab，宽度为 1.95（nodes[4]）；活动的帧根节点
+`Card_Hand_Hero_Signature_Deathwing/RootObject/PowersUberText` 宽度为 1.70（nodes[15]）。
+`frame_recon.json` 的 `active_in_hierarchy` 与 manifest `frame_root/role_paths.desc` 指向后者。旧
+`loadNodeSettingsAlly` 用 `path.endsWith(suffix)` 选了 inactive 节点的设置，却配上活动节点的 world transform；
+改为按完整 manifest 路径匹配后，CATA_190h 描述行宽与游戏 prefab 一致，L2 从初次 26.431 降至 18.096。
+
+SC_754 与 CATA_190h 首轮对照中的多职业徽记方向/形状错误，根因是 `compileBanners` 曾无条件显示普通
+`Multiclass_Ribbon_mesh`。反编译 `Actor.UpdateMulticlassRibbon`（`../exporter/tmp/ilspy/Assembly-Csharp-247416/Actor.cs:6027-6034`）
+只对多职业父容器执行 `SetActive(classes.Count > 2)`，不切换子网格；UnityPy 的
+`assets/frames/hand-hero-sig11/frame_recon.json` 与 `hand-hero-sig14/frame_recon.json` 则分别记录
+`Multiclass_Ribbon_mesh.active_self=false`、`Multiclass_Ribbon_Signature_mesh.active_self=true`。离线提取把
+脱离父节点的 `active_in_hierarchy=false` 状态带入计划，因此需恢复容器后依据变体根的 `active_self` 选一个网格。
+签名子网格的序列化材质 `_Color=(1,0,0,1)` 也需要与普通绶带相同的 `_tint_rgb=[1,1,1]` 中和；否则正确网格会
+渲成红色。修正后新增回归检查覆盖 frame11/14 的网格选择和 tint。SC_754 L2 从 **42.014** 降至 **40.855**，
+CATA_190h 从 **18.096** 降至 **17.112**。
+
+SC_400 普通英雄框和 SC_004 现有普通英雄基准暴露了同一行高取整边界。普通
+`Card_Hand_Hero/RootObject/Mesh/Description_mesh/PowersUberText` 探针值为 width=1.70、height=0.87、
+lineSpacing=0.75。`UberText.ReduceText_CharSize`（`UberText.Runtime.full.cs:2400-2463`）以
+`GetTextMeshBounds` 进行 `ResizeToFit`；FranklinGothic@40 原生 line span 为 48.046875px，而离线整数
+`lineHeight` 为 48px。SC_400 在取整路径停在四行；使用原生浮点 bounds 后多走一个 0.95 收缩档，三行断点
+与 `reference/SC_400.png` 一致。SC_004 的 MAE 从 8.360 降至 4.340；SC_400 从 8.807 降至 4.013；
+AV_205 的输出逐位未变。现仅对签名帧和 `hand-hero` 使用原生浮点 bounds，不改变其他普通帧族。
+
+最终全量比较 50 张 fixture / 49 张 reference：SC_400 **4.013**、SC_004 **4.340**、SC_754 **40.855**、
+TIME_446 **26.668**、CATA_190h **15.032**。回归检查脚本
+`packages/renderer/scripts/check-active-text-node.ts` 验证 frame14 选中活动节点；
+`packages/renderer/scripts/check-t11-text-layout.ts` 锁定 SC_400 基准中的三行换行；
+`packages/renderer/scripts/check-t11-ribbon-variants.ts` 锁定 SC_754/CATA_190h 的签名网格与中和 tint；
+`packages/renderer/scripts/check-t11-cata-ribbon-depth.ts` 锁定 CATA_190h 上方圆点的前景遮挡关系。
+
+用户复核发现 CATA_190h 上方圆点仍被肖像遮住。`assets/frames/hand-hero-sig14/frame_recon.json` 显示
+签名绶带 worldY=0.0972267、肖像 worldY=0.0052267，而不透明底板 `RootObject/Mesh` 序列化为
+`_ZWrite=1`；反编译 `RenderCommandLists.cs:70-76,209-245` 和
+`RenderToTextureUtils.cs:111-138` 证明游戏按队列分别组织不透明/透明绘制。离线链先让底板写入共享深度缓冲，
+再单独画肖像；旧的全局 portrait depth bypass 因而让肖像越过签名绶带。现在只关闭底板的深度写入、保留底板颜色，
+并恢复肖像深度测试，使肖像透过底板而由前景绶带遮挡。修复前 CATA_190h p0 圆点 ROI 的亮区为 72/151、
+RGB MAE=87.373；修复后亮区 151/151 且逐像素无差异、RGB MAE=10.260，下方两点 MAE 仍为 0.39/0.51。
+新增 `packages/renderer/scripts/check-t11-cata-ribbon-depth.ts` 回归检查。修复后 CATA_190h L2 从 **17.112** 降至
+**15.032**。并排图左侧为 reference、右侧为当前渲染；用户于 2026-10-27 目视确认 CATA_190h 多职业徽记正确，T11 验收完成。

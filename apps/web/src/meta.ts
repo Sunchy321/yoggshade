@@ -79,18 +79,14 @@ export function schools(data: AssetSource): LabelOption[] {
 }
 
 export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] {
-  // 键清单：有目录语义的源（fsSource）直接列；否则回落 fixtures/manifest.json
-  // （Workers 的 mapSource 无 list——manifest 的 presets 恰好就是全集）
-  const files = data.list?.('fixtures') ?? null;
-  const names = files
-    ?? (JSON.parse(data.text('fixtures/manifest.json')) as
-        { presets: { cardId: string }[] }).presets.map(p => `${p.cardId}.json`);
+  // 只从 manifest.presets 枚举站点预设；Workers 的 mapSource 也以此清单为准。
+  const presetCards = (JSON.parse(data.text('fixtures/manifest.json')) as
+    { presets: { cardId: string }[] }).presets;
   const out: PresetInfo[] = [];
-  for (const f of names) {
-    if (!f.endsWith('.json') || f === 'manifest.json') continue;
+  for (const { cardId } of presetCards) {
     // 佣兵卡（LT23_*/LT24_*）此前因「回落随从帧 = 误导性错误框架」被摘除（ticket 20）；
     // 四个专属帧族落地后（.scratch/lettuce-frames），过滤移除、全部恢复收录。
-    const fx = JSON.parse(data.text(`fixtures/${f}`)) as FixtureCard;
+    const fx = JSON.parse(data.text(`fixtures/${cardId}.json`)) as FixtureCard;
     const t = (k: number): number => fx.tags[String(k)] ?? 0;
     const presetPremium = cardPremium(fx.preset?.premium);
     const signatureFrameId = fx.preset?.signatureFrameId;
@@ -104,17 +100,17 @@ export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] 
       && pack.has(`frames/${signatureSlot}/manifest.json`));
     const fields: CardFields = {
       // DIAMOND remains inspectable as a preset, but never enters the unsupported render path.
-      premium:  presetPremium === 'DIAMOND' ? 'NORMAL' : presetPremium,
-      cardType: t(202),
-      classTag: t(199),
-      rarity:   t(203),
-      cost:     t(48),
-      attack:   t(47),
-      health:   t(45),
-      armor:    t(292),
-      elite:    t(114) !== 0,
-      race:     t(200),
-      school:   t(1635),
+      premium:     presetPremium === 'DIAMOND' ? 'NORMAL' : presetPremium,
+      cardType:    t(202),
+      classTag:    t(199),
+      rarity:      t(203),
+      cost:        t(48),
+      attack:      t(47),
+      health:      t(45),
+      armor:       t(292),
+      elite:       t(114) !== 0,
+      race:        t(200),
+      school:      t(1635),
       mercenary:   t(1665) !== 0,
       mercRole:    t(1666),
       mercFaction: t(2720),

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-26T07:57:27.841739+00:00",
+ "generatedAt": "2026-10-26T12:53:17.741047+00:00",
  "source": {
   "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
   "gameVersion": "37.0.254477",
@@ -67,9 +67,9 @@
    "zone": "Hand"
   },
   {
-   "cardId": "CATA_190h",
-   "dbfId": 125467,
-   "label": "多职业英雄基线",
+   "cardId": "SC_400",
+   "dbfId": 112815,
+   "label": "多职业英雄普通框基线",
    "premium": "NORMAL",
    "template": "Normal",
    "zone": "Hand"
@@ -206,6 +206,30 @@
    "cardId": "TLC_EVENT_402",
    "dbfId": 120658,
    "label": "异画6基线",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "SC_754",
+   "dbfId": 113171,
+   "label": "英雄异画 frame 11",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "TIME_446",
+   "dbfId": 120999,
+   "label": "地标异画 frame 13",
+   "premium": "SIGNATURE",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "CATA_190h",
+   "dbfId": 125467,
+   "label": "死亡之翼异画 frame 14",
    "premium": "SIGNATURE",
    "template": "Normal",
    "zone": "Hand"

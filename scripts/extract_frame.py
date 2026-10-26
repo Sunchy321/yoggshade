@@ -99,14 +99,17 @@ PREMIUM_SLOT_TO_ACTOR_KEY = {
 }
 
 # 签名帧槽位 → SIGNATURE_FRAME frame id（spec 方案表
-# .scratch/signature-frames/spec.md；槽位命名 hand-{minion,spell,weapon}-sig{frameId}
-# 直接对表可反查，不用架构名避免 hero/location 加入后 Evergreen 重名——spec 实现决策 2）
+# .scratch/signature-frames/spec.md；槽位命名 hand-{minion,spell,weapon,hero,location}-sig{frameId}
+# 直接对表可反查；frameId 区分多个 Evergreen 架构并支持后续 hero/location 帧。）
 SIG_SLOT_TO_FRAME = {
     "hand-minion-sig1": 1,
     "hand-minion-sig2": 2,
     "hand-minion-sig9": 9,
     "hand-spell-sig10": 10,
     "hand-weapon-sig12": 12,
+    "hand-hero-sig11": 11,
+    "hand-location-sig13": 13,
+    "hand-hero-sig14": 14,
 }
 
 _SIG_HAND_REFS: dict[int, str] | None = None

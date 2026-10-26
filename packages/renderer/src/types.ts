@@ -18,12 +18,12 @@ export interface RGBAImage {
  *  （引擎语义——hero desc mesh 无 UV1，采样 = uv0×ST(5,5,−2.01,−0.54)，水印 5× 放大窗
  *  可见，参照 AV_205 实证）。 */
 export interface MeshEntry {
-  verts: number[][];
+  verts:    number[][];
   /** 原生顶点法线（只由需要 shader 世界法线的帧消费；其余 mesh 可缺省）。 */
   normals?: number[][];
-  uv0:   number[][];
-  uv1?:  number[][];
-  subs:  number[][][];
+  uv0:      number[][];
+  uv1?:     number[][];
+  subs:     number[][][];
 }
 
 /** frame_recon 材质（renderers[].materials[] 元素；null = 空槽）。 */
@@ -37,13 +37,13 @@ export interface FrameMaterial {
     scale?:   number[];
     offset?:  number[];
     texture?: {
-      name?: string, bundle?: string, file?: string,
+      name?: string; bundle?: string; file?: string;
       /** Unity TextureWrapMode enum: Repeat=0, Clamp=1, Mirror=2, MirrorOnce=3. */
-      wrap_u?: number | null, wrap_v?: number | null,
+      wrap_u?: number | null; wrap_v?: number | null;
       /** Unity FilterMode enum: Point=0, Bilinear=1, Trilinear=2. */
-      filter_mode?: number | null,
+      filter_mode?: number | null;
     } | null;
-    error?:   string;
+    error?: string;
   }>;
   colors?: Record<string, number[]>;
   floats?: Record<string, number>;
@@ -171,30 +171,32 @@ export interface PlanTextEntry {
 }
 
 export interface RenderPlan {
-  components:      PlanComponent[];
-  input?:          { dbf_id?: string, card_id?: string };
-  rarity_gem?:     RarityGemSpec;
-  gem?:            { enabled?: boolean, t?: number };
-  stat_gems?:      StatGem[];
-  texts?:          PlanTextEntry[];
+  components:                       PlanComponent[];
+  input?:                           { dbf_id?: string, card_id?: string };
+  rarity_gem?:                      RarityGemSpec;
+  gem?:                             { enabled?: boolean, t?: number };
+  stat_gems?:                       StatGem[];
+  texts?:                           PlanTextEntry[];
   /** 战棋模板 spell 视觉（SpellTable 实例；scripts/extract_spell.py 提取到 pack spells/{key}/）。
    *  gem 被替换时 stat_gems 置空（Actor.UpdateManaGemComponent 隐藏 m_manaObject，Actor.cs:5184-5201）。
    *  anchor='world-target'：预制序列化位姿≠本帧宝石位（各帧布局不同/FSM 搬运），渲染期把
    *  整个 overlay 平移到 world_target（plan 计算：一般= 本帧 Gem_Mana 世界位
    *  [UpdateManaGemComponent 原位替换语义]；酒馆法术 tech>0 = 商店 actor 作者化费用位）。 */
-  spell_overlays?: { key: string, tech_level?: number, anchor?: 'world-target', world_target?: number[] }[];
+  spell_overlays?:                  { key: string, tech_level?: number, anchor?: 'world-target', world_target?: number[] }[];
   /** 晚通道绘制的节点名（运行时激活的覆盖层，如饰品徽章子树）——主帧光栅后按序合成，
    *  每节点独立深度缓冲（激活序 = 合成序，Unity SetActive 语义）。 */
-  late_nodes?:     string[];
+  late_nodes?:                      string[];
   /** 取景锚（世界 xz，世界单位）：非 undefined 时渲染端全部世界→像素投影以此为画布中心。
    *  exporter FrameCamera 不对原点取景——TryGetActorFrameBounds（ExporterController.cs:11259、
    *  :11329+）以主体网格（RootObject[/NonQuestObjects]/Mesh）世界包围盒中心为相机中心，
    *  基准图（reference/）全按该口径导出；TS 原点取景因此与基准图差每帧型一个常数平移
    *  （量化与对账：explore/2026-10-06-l2-offset/findings.md）。plan 编译期按主体网格顶点
    *  包围盒算好写入；scope 外帧族缺省 undefined = 原点锚（行为不变）。 */
-  frame_center?:   [number, number];
+  frame_center?:                    [number, number];
   /** GOLDEN 预合成卡图已经是最终材质输出，肖像层跳过普通 Unlit_Portrait 二次着色。 */
   portrait_direct_material_output?: boolean;
+  /** 特定帧的主体网格覆盖肖像窗口；肖像来自独立 renderer 时按基准证据略过该帧深度遮挡。 */
+  portrait_skip_depth_test?:        boolean;
 }
 
 export interface HierarchyNode {

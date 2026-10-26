@@ -20,11 +20,21 @@ import type { RenderRequest } from './shared.js';
 
 /** GAME_TAG（`plan.ts` 的 TAG/TAG2 子集：站点可编辑的那些面）。 */
 const TAG = {
-  COST:         48, ATK:          47, HEALTH:       45, ARMOR:        292,
-  CLASS:        199, CARDTYPE:     202, RARITY:       203, ELITE:        114, CARDRACE:     200,
-  SPELL_SCHOOL: 1635,
-  LETTUCE_MERCENARY:  1665, LETTUCE_ROLE: 1666, LETTUCE_FACTION: 2720,
-  LETTUCE_SUMMONED_MINION: 1676, LETTUCE_IS_EQUPIMENT: 1855,
+  COST:                    48,
+  ATK:                     47,
+  HEALTH:                  45,
+  ARMOR:                   292,
+  CLASS:                   199,
+  CARDTYPE:                202,
+  RARITY:                  203,
+  ELITE:                   114,
+  CARDRACE:                200,
+  SPELL_SCHOOL:            1635,
+  LETTUCE_MERCENARY:       1665,
+  LETTUCE_ROLE:            1666,
+  LETTUCE_FACTION:         2720,
+  LETTUCE_SUMMONED_MINION: 1676,
+  LETTUCE_IS_EQUPIMENT:    1855,
 } as const;
 
 /** 学派（1635）由表单接管的卡型：法术族 + 佣兵技能（23 的 1635 是真学派，驱动描述板
@@ -118,6 +128,10 @@ export function prepareCard(
   let presetBaseText = '';
   let base: FixtureCard | undefined;
   if (req.presetId) {
+    const presetIds = new Set(((JSON.parse(dirs.data.text('fixtures/manifest.json')) as
+      { presets?: { cardId: string }[] }).presets ?? []).map(p => p.cardId));
+    // 预设 ID 必须来自 manifest，避免本地文件系统中其它 fixture 文件被直接当作站点预设。
+    if (!presetIds.has(req.presetId)) throw new CardRequestError(`预设不存在：${req.presetId}`);
     base = loadFixture(req.presetId, dirs.data);
     if (!base) throw new CardRequestError(`预设不存在：${req.presetId}`);
     fixture = structuredClone(base);

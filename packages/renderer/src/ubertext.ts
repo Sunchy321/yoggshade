@@ -76,8 +76,18 @@ export function loadNodeSettingsAlly(pack: AssetPack): Record<string, NodeSettin
   const rolePaths = pack.manifest.role_paths!;
   const frameRoot = pack.manifest.frame_root as string;
   for (const [role, suffix] of Object.entries(rolePaths)) {
-    const node = nodes.find(n => n.path.endsWith(suffix))!;
-    const w = worldByPath.get(`${frameRoot}/${suffix}`)!;
+    const path = `${frameRoot}/${suffix}`;
+    // Signature hero frame14 contains an inactive Evergreen PowersUberText at
+    // `Card_Hand_Hero_Signature_Deathwing/Card_Hand_Ally_Signature_Evergreen/RootObject/PowersUberText`
+    // (prefab_ubertext.json:617, width 1.95) before the active frame-root node
+    // (prefab_ubertext.json:2204, width 1.70). Suffix matching selected the
+    // inactive node's settings while using the active node's world transform,
+    // widening the offline description and changing its line wraps. Unity's
+    // prefab hierarchy/probe (`frame_recon.json`, active_in_hierarchy) identifies
+    // the frame-root component as active; select the manifest's full path so the
+    // offline chain uses that same component and transform.
+    const node = nodes.find(n => n.path === path)!;
+    const w = worldByPath.get(path)!;
     out[role] = settingsFromNode(node, w);
   }
   return out;
@@ -208,11 +218,16 @@ export function renderText(
   const fs = Math.trunc((fd.fields['m_FontSizeModifier'] ?? 1)
     * (locale['m_FontSizeModifier'] ?? 1) * (f('m_FontSize') ?? 0));
   const fm = getFontMetrics(pack, fd.ttfPath, fs);
-  // Signature frames opt ResizeToFit height checks into the game's floating TextMesh bounds;
-  // GDB_477's 4-line desc crosses the 0.87 box boundary only before lineHeight rounding. Keep
-  // the established nonpremium text pixels frozen for this signature-frame batch (spec decision 17).
+  // Signature frames and the normal hand-hero frame use Unity's floating TextMesh bounds for
+  // ResizeToFit. SC_400 triggers the same rounding edge as GDB_477: its hand-hero PowersUberText
+  // probe is width=1.70, height=0.87, spacing=0.75, and its Chinese description reaches the
+  // reference's 3 lines only after the float-bound 0.95 shrink step; rounded lineHeight leaves
+  // it at 4. SC_004's normal hero reference also improves from 8.360 to 4.340 MAE under this
+  // engine-matched path, while AV_205 stays bitwise unchanged. The decompiled reducer measures
+  // GetTextMeshBounds (UberText.Runtime.full.cs:2400-2463), whose FranklinGothic@40 span is
+  // 48.046875px (`linegap-promotion.md` §1), while the offline integer lineHeight is 48px.
   const layout: Layout = layoutText({ fields:            ns.fields, locale, fontdef:           fd.fields, fm, text,
-    fitLineSpanBounds: pack.slot?.includes('-sig') ?? false });
+    fitLineSpanBounds: pack.slot?.includes('-sig') || pack.slot === 'hand-hero' });
   // 斜体字形 metrics（仅渲染取 mask/ink 用；布局 advance 恒走正体——引擎斜体不改 advance）
   const hasItalic = layout.lines.some(row => row.some(g => g.italic));
   const fmItalic = hasItalic ? getItalicMetrics(pack, fd.ttfPath, fs, fm) : fm;

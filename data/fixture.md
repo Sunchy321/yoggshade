@@ -25,7 +25,7 @@ SetTag，见 docs/findings/lettuce-frame-teardown-2026-10-10.md §10）。DBF �
 | YOG_502 | 锻造样例 | NORMAL | Normal | Hand | 锻造机制样例，用于验证锻造相关文本与卡面版式。 |
 | LOOT_392 | 武器基线 | NORMAL | Normal | Hand | 武器框体基线，用于检查攻击、耐久与稀有度渲染。 |
 | AV_205 | 英雄基线 | NORMAL | Normal | Hand | 英雄样例，用于验证英雄手牌框体、护甲和头像区域渲染。 |
-| CATA_190h | 多职业英雄基线 | NORMAL | Normal | Hand | 多职业英雄样例，用于验证多职业英雄手牌框体渲染。 |
+| SC_400 | 多职业英雄普通框基线 | NORMAL | Normal | Hand | 多职业英雄普通画样例（吉姆·雷诺），用于验证普通多职业英雄手牌框体渲染。 |
 | TTN_090 | 地标基线 | NORMAL | Normal | Hand | 地标样例，用于验证地标手牌框体与耐久区域渲染。 |
 | DMF_709 | 单种族随从 | NORMAL | Normal | Hand | 单种族随从样例，用于验证单行种族栏布局。 |
 | CFM_637 | 双种族随从 | NORMAL | Normal | Hand | 双种族随从样例，用于验证多种族文本布局与换行。 |
@@ -43,6 +43,9 @@ SetTag，见 docs/findings/lettuce-frame-teardown-2026-10-10.md §10）。DBF �
 | TLC_433 | 异画4基线 | SIGNATURE | Normal | Hand | 异画样例 4，用于验证异画导出。 |
 | SC_004 | 虫族阵营样例 | NORMAL | Normal | Hand | 虫族阵营横幅样例（刀锋女王凯瑞甘），用于验证 ZERG 图标象限与星际绶带底板贴图。 |
 | TLC_EVENT_402 | 异画6基线 | SIGNATURE | Normal | Hand | 异画样例 6，用于验证异画导出。 |
+| SC_754 | 英雄异画 frame 11 | SIGNATURE | Normal | Hand | 英雄异画 frame 11（Hero Signature Evergreen）基准，用于验证原生英雄签名帧。 |
+| TIME_446 | 地标异画 frame 13 | SIGNATURE | Normal | Hand | 地标异画 frame 13（Signature Location）基准，用于验证原生地标签名帧。 |
+| CATA_190h | 死亡之翼异画 frame 14 | SIGNATURE | Normal | Hand | 多职业英雄异画基准，用于验证原生英雄签名帧；保留 DBF 护甲标签 12，与用户提供的基准图一致。 |
 | BG33_828 | 战棋等级随从 | NORMAL | Battlegrounds | Hand | 六星酒馆战棋随从，用于验证酒馆等级图标和战棋手牌样式。 |
 | BG30_802 | 酒馆法术基线 | NORMAL | Battlegrounds | Hand | 酒馆法术样例，用于验证 BaconSpell 手牌样式和法术框体。 |
 | BG27_Anomaly_580 | 畸变基线 | NORMAL | Battlegrounds | Hand | 战棋畸变样例，用于验证畸变导出。 |

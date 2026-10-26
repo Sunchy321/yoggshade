@@ -1,0 +1,58 @@
+{
+ "cardId": "TIME_446",
+ "dbfId": 120999,
+ "preset": {
+  "label": "地标异画 frame 13",
+  "premium": "SIGNATURE",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "地标异画 frame 13（Signature Location）基准，用于验证原生地标签名帧。",
+  "signatureFrameId": 13
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "The Eternal Hold",
+  "deDE": "Die Ewige Feste",
+  "esES": "Bastión Eterno",
+  "esMX": "Prisión Eterna",
+  "frFR": "Fort Éternel",
+  "itIT": "Bastione Eterno",
+  "jaJP": "永劫の支配",
+  "koKR": "영원의 요새",
+  "plPL": "Wieczne Więzienie",
+  "ptBR": "O Cárcere Eterno",
+  "ruRU": "Вечная крепость",
+  "thTH": "เรือนจำนิรันดร์",
+  "zhCN": "永时坚垒",
+  "zhTW": "永恆牢獄"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Discover</b> any Demon that\ncosts (5) or more. If your\ndeck has no minions,\nyour next one costs (1).",
+  "deDE": "<b>Entdeckt</b> einen Dämon, der (5) oder mehr kostet. Wenn Euer Deck keine Diener enthält, kostet_Euer_nächster_(1).",
+  "esES": "[x]<b>Descubre</b> cualquier demonio\nque cueste (5) cristales o más.\nSi tu mazo no contiene esbirros,\ntu próximo esbirro cuesta\n(1) cristal.",
+  "esMX": "<b>Devela</b> un Demonio de costo (5) o más. Si tu mazo no tiene esbirros, tu siguiente esbirro_cuesta (1).",
+  "frFR": "<b>Découvre</b> un Démon\ncoûtant (5)_|4(cristal,cristaux) ou plus.\nSi votre deck ne contient pas de serviteur, votre prochain serviteur coûte (1)_|4(cristal,cristaux).",
+  "itIT": "<b>Rinvieni</b> un Demone che\ncosta (5) o più. Se il tuo mazzo non ha servitori,\nil prossimo costa (1).",
+  "jaJP": "[x]あらゆるクラスの\nコスト（5）以上の悪魔を1体\n<b>発見</b>する。自分のデッキに\nミニオンがいない場合\n自分が次に使用するミニオンの\nコストが（1）になる。",
+  "koKR": "비용이 (5) 이상인 무작위 악마를 <b>발견</b>합니다. 내 덱에 하수인이 없으면, 다음 하수인의 비용이 (1)이 됩니다.",
+  "plPL": "<b>Odkryj</b> dowolnego Demona o_koszcie_(5) lub_większym. Jeśli_w_twojej_talii_nie_ma_stronników, twój_następny_stronnik_kosztuje_(1).",
+  "ptBR": "<b>Descubra</b> um Demônio que custa (5) ou mais. Se não houver lacaios no seu deck, seu próximo custa (1).",
+  "ruRU": "[x]Вы <b>раскапываете</b> демона\nза (5) или больше. Если\nв вашей колоде нет существ,\nследующее существо стоит (1).",
+  "thTH": "<b>ค้นพบ</b>_ปีศาจค่าร่าย_(5)_หรือ[b]สูงกว่าแบบใดก็ได้หนึ่งใบ_ถ้า[b]เด็คคุณไม่มีมินเนี่ยน_มินเนี่ยนใบ[b]ถัดไปของคุณมีค่าร่ายเป็น_(1)",
+  "zhCN": "<b>发现</b>一张法力值消耗大于或等于（5）点的任意恶魔牌。如果你的牌库中没有随从牌，你的下一张随从牌法力值消耗为（1）点。",
+  "zhTW": "<b>發現</b>消耗(5)以上的任意惡魔。若你牌堆中沒有手下，你下一個手下的消耗為(1)"
+ },
+ "tags": {
+  "199": 14,
+  "48": 6,
+  "45": 3,
+  "114": 1,
+  "203": 5,
+  "202": 39,
+  "415": 1,
+  "1342": 1,
+  "321": 1,
+  "2589": 1
+ }
+}

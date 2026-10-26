@@ -44,7 +44,11 @@ const SLOT_REPS = [
   'WW_373', // hand-minion-sig2
   'GDB_477', // hand-minion-sig9
   'TLC_433', // hand-spell-sig10
+  'SC_754', // hand-hero-sig11
   'TLC_EVENT_402', // hand-weapon-sig12
+  'TIME_446', // hand-location-sig13
+  'SC_400', // hand-hero; ordinary multiclass hero
+  'CATA_190h', // hand-hero-sig14; multiclass hero SIGNATURE
 ];
 
 function fixtureOf(cardId: string): FixtureCard {
@@ -75,11 +79,11 @@ for (const cardId of SLOT_REPS) {
 // 空白 DIY 卡没有 `-golden` 预合成图：已上传原画仍应通过普通肖像材质配金框输出。
 const diyPortrait = encodePngBytes(1, 1, Uint8Array.from([180, 120, 40, 255]));
 const diyRequest: RenderRequest = {
-  premium: 'GOLDEN', cardType: 4, classTag: 12, rarity: 1,
-  cost: 1, attack: 1, health: 1, armor: 0, elite: false, race: 0, school: 0,
-  mercenary: false, mercRole: 0, mercFaction: 0, lettuceForm: 0,
-  name: '自定义金卡', text: '',
-  portrait: `data:image/png;base64,${Buffer.from(diyPortrait).toString('base64')}`,
+  premium:     'GOLDEN', cardType:    4, classTag:    12, rarity:      1,
+  cost:        1, attack:      1, health:      1, armor:       0, elite:       false, race:        0, school:      0,
+  mercenary:   false, mercRole:    0, mercFaction: 0, lettuceForm: 0,
+  name:        '自定义金卡', text:        '',
+  portrait:    `data:image/png;base64,${Buffer.from(diyPortrait).toString('base64')}`,
 };
 const diyPrepared = prepareCard(diyRequest, DIRS);
 const diyRendered = await renderCard(diyPrepared, DIRS);
@@ -109,16 +113,10 @@ try {
 } catch (error) {
   mismatchedSignatureRejected = error instanceof CardRequestError;
 }
-let unmigratedSignatureRejected = false;
-try {
-  prepareCard({ ...requestOf('JAIL_887'), premium: 'SIGNATURE' }, DIRS);
-} catch (error) {
-  unmigratedSignatureRejected = error instanceof CardRequestError;
-}
 const signaturePassed = diySignatureRejected && supportedSignaturePreset?.signatureAvailable
-  && eligibleSignaturePresetsAccepted && mismatchedSignatureRejected && unmigratedSignatureRejected;
+  && eligibleSignaturePresetsAccepted && mismatchedSignatureRejected;
 if (!signaturePassed) failures++;
-console.log(`${signaturePassed ? '异画预设限制通过' : '异画预设限制失败'}  可用预设 ${availableSignaturePresets.length} 张均接受；空白卡、未移植帧和错卡型均拒绝`);
+console.log(`${signaturePassed ? '异画预设限制通过' : '异画预设限制失败'}  可用预设 ${availableSignaturePresets.length} 张均接受；空白卡和错卡型均拒绝`);
 
 // DIAMOND 预设只作为普通品质底稿载入，显式提交 DIAMOND 则由 adapter 拒绝。
 const diamondPreset = loadPresets(DIRS.data, DIRS.pack).find(p => p.cardId === 'TTN_850');

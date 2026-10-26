@@ -284,7 +284,7 @@ export interface LayoutInputs {
   fontdef:            Record<string, number>;
   fm:                 FontMetricsLike;
   text:               string;
-  /** Use the native floating TextMesh bounds for the signature-frame fit step. */
+  /** Use Unity's native floating TextMesh bounds for ResizeToFit height checks. */
   fitLineSpanBounds?: boolean;
 }
 
@@ -384,8 +384,15 @@ export function layoutText(inp: LayoutInputs): Layout {
     // (linegap-promotion.md §1). For GDB_477's four-line PowersUberText (height=.87, spacing=.75),
     // the first 0.95 step is 0.86925 with rounded metrics but 0.87010 with Unity's float bounds;
     // that missed threshold leaves the body text exactly one 5% step too wide. Keep wrap and glyph
-    // placement semantics intact. Signature-frame packs opt into the native float bounds here;
-    // the current batch freezes nonpremium fixture pixels (see signature-frame spec decision 17).
+    // placement semantics intact. Signature frames opt in because GDB_477 crosses the 0.87
+    // height boundary at the first shrink step. The normal hand-hero frame also opts in: SC_400's
+    // 4-line first wrap becomes the 3 lines in reference/SC_400.png after Unity's extra float-bound
+    // 0.95 step; SC_004's normal hero reference also improves, while AV_205 remains pixel-identical.
+    // The measured node is
+    // assets/frames/hand-hero/prefab_ubertext.json, Card_Hand_Hero/RootObject/Mesh/Description_mesh/
+    // PowersUberText (width=1.70, height=0.87, lineSpacing=0.75); Unity's FranklinGothic@40 span is
+    // 48.046875px, but the offline metric rounds to 48px (`linegap-promotion.md` §1), causing the
+    // reducer at UberText.Runtime.full.cs:2400-2463 to stop one shrink step early offline.
     // The decompiled loop is UberText.ReduceText_CharSize (entry subtracts intra-line height,
     // subsequent iterations compare raw GetTextMeshBounds); this mirrors the two measurements
     // without applying the entry correction twice.

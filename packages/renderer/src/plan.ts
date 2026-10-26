@@ -457,7 +457,10 @@ export const SIGNATURE_FRAME_TO_SLOT: Record<number, string> = {
   2:  'hand-minion-sig2',
   9:  'hand-minion-sig9',
   10: 'hand-spell-sig10',
+  11: 'hand-hero-sig11',
   12: 'hand-weapon-sig12',
+  13: 'hand-location-sig13',
+  14: 'hand-hero-sig14',
 };
 
 /** ActorNames.s_premiumActorAssets 中已抽取的金卡手牌帧；普通帧族到金框帧一一映射。
@@ -503,11 +506,16 @@ export function slotForFixture(
   if (fixture.preset.premium !== 'SIGNATURE') return fallback;
   const fid = fixture.preset.signatureFrameId;
   const sig = fid !== undefined ? SIGNATURE_FRAME_TO_SLOT[fid] : undefined;
-  if (sig && FRAME_RULES[sig] && (!hasFrame || hasFrame(`frames/${sig}/manifest.json`))) {
+  const cardType = fixture.tags[TAG.CARDTYPE] ?? 4;
+  const sigBase = sig?.replace(/-sig\d+$/, '');
+  const nativeTypes = sig ? (SLOT_NATIVE_CARD_TYPES[sig] ?? SLOT_NATIVE_CARD_TYPES[sigBase ?? '']) : undefined;
+  const nativeMatch = nativeTypes?.includes(cardType) ?? false;
+  if (sig && nativeMatch && FRAME_RULES[sig]
+    && (!hasFrame || hasFrame(`frames/${sig}/manifest.json`))) {
     return sig;
   }
   console.warn(`[signature] ${fixture.cardId} premium SIGNATURE 无可用签名帧`
-    + `（signatureFrameId=${fid ?? '缺失'}${sig ? `，槽位 ${sig} 尚未实现` : ''}）→ 回落普通帧 ${fallback}`);
+    + `（signatureFrameId=${fid ?? '缺失'}${sig ? `，槽位=${sig} 原生卡型匹配=${nativeMatch}` : ''}）→ 回落普通帧 ${fallback}`);
   return fallback;
 }
 
@@ -540,6 +548,12 @@ export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
   'hand-minion-sig2':            [4],
   'hand-minion-sig9':            [4, 47],
   'hand-minion-sig1':            [4],
+  // 2026-10-26 T11：DBF SIGNATURE_FRAME 的 11/13/14 prefab 分别绑定 Hero/Location/Hero；
+  // ActorNames.GetSignatureActor（ActorNames.cs:885-923）按 frame id 直选，不能让错误 card type
+  // 沿用签名槽。类型值来自 UnityPy 提取的 SC_754/TIME_446/CATA_190h CARD records。
+  'hand-hero-sig11':             [3],
+  'hand-location-sig13':         [39],
+  'hand-hero-sig14':             [3],
 };
 
 /** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）+ 战棋模板相关（GAME_TAG.cs 实测行号）：
@@ -856,6 +870,34 @@ const FRAME_RULES: Record<string, FrameRules> = {
     elite:  ['Unique_Weapon_Dragon'], rarity: ['RarityGem_Frame_Mesh'],
     attack: ['Wep_Swords'], health: ['Wep_SheildBroken'],
     roles:  ['cost', 'name', 'desc', 'attack', 'health'],
+  },
+  // 2026-10-26 T11：frame 11/14 的活动主 prefab 是签名英雄帧，frame 13 是签名地标帧；
+  // 这些新增规则补齐缺失的 signatureFrameId→frame-plan 路径，避免离线选择器回退普通框。
+  // ActorNames.GetSignatureActor（ActorNames.cs:885-923）证明游戏按 DBF frame id 选择 prefab；
+  // UnityPy `assets/frames/hand-hero-sig11|sig14/prefab_report.json` 绑定 Gem_Attack 与
+  // Armor_Whole_mesh，`hand-location-sig13/prefab_report.json` 绑定 Wep_SheildBroken；三个
+  // `frame_recon.json` 均含 RarityGem_Frame_Mesh 及四个稀有度子网格。Actor.cs:4934-5022
+  // 明确运行时切换四个 rarity 子物体；共用签名光栅已覆盖 Uber/UberCardBack 材质，故只登记节点规则。
+  'hand-hero-sig11': {
+    elite: [], rarity: ['RarityGem_Frame_Mesh'],
+    attack: ['Gem_Attack'], armor: ['Armor_Whole_mesh'],
+    forcedHidden: ['RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
+      'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh'],
+    roles: ['cost', 'name', 'desc', 'attack', 'armor'],
+  },
+  'hand-location-sig13': {
+    elite: [], rarity: ['RarityGem_Frame_Mesh'],
+    health: ['Wep_SheildBroken'],
+    forcedHidden: ['RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
+      'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh', 'RacePlate_Mesh'],
+    roles: ['cost', 'name', 'desc', 'health'],
+  },
+  'hand-hero-sig14': {
+    elite: [], rarity: ['RarityGem_Frame_Mesh'],
+    attack: ['Gem_Attack'], armor: ['Armor_Whole_mesh'],
+    forcedHidden: ['RarityGem_Common_Mesh', 'RarityGem_Rare_Mesh',
+      'RarityGem_Epic_Mesh', 'RarityGem_Legendary_Mesh'],
+    roles: ['cost', 'name', 'desc', 'attack', 'armor'],
   },
 };
 
@@ -1718,7 +1760,26 @@ export function compileFramePlan(
   compileRuneBanner(components, tags);
 
   // ---- 手牌横幅：可交易/锻造/准备 + 阵营 + 多职业绶带（须在标记后：激活态才判 tint/材质覆写）----
-  compileBanners(components, tags, tables);
+  compileBanners(components, tags, tables, base.frameRecon.hierarchy);
+
+  // 2026-10-26 — frame14 Deathwing's top multiclass orb overlaps the independent signature portrait.
+  // `portrait_skip_depth_test` let the portrait redraw over that foreground orb (CATA_190h p0 crop
+  // x=244..263/y=625..639: MAE 87.373, top-orb bright pixels 72 vs reference 151). UnityPy probe
+  // `assets/frames/hand-hero-sig14/frame_recon.json` gives the backing RootObject/Mesh UberCardBack
+  // `_ZWrite=1`, signature ribbon worldY=0.0972267, and Portrait_Mesh worldY=0.0052267. The game
+  // gathers both renderers and orders by Renderer.sortingOrder/material.renderQueue
+  // (`RenderCommandLists.cs:70-76,209-245`; opaque then transparent in `RenderToTextureUtils.cs:111-138`).
+  // Offline draws the whole opaque backing mesh into shared zbuf before its separate portrait pass;
+  // the old frame-wide depth bypass fixed the portrait window but incorrectly bypassed the closer ribbon too.
+  // Keep backing-mesh color, omit only its depth write, and restore portrait depth testing: art passes
+  // through the backing plane while the closer signature ribbon remains in front. The p0 ROI bright
+  // mask now matches the reference exactly (151/151 pixels; 0 mismatches), while RGB MAE drops from
+  // 87.373 to 10.260 and the lower two badge orbs remain unchanged (MAE 0.39 / 0.51).
+  if (sigActive && slot === 'hand-hero-sig14') {
+    const body = components.find(c => c.path === `${base.frameRecon.frame_root}/RootObject/Mesh`);
+    if (!body) throw new Error(`${fixture.cardId}: frame14 backing mesh component missing`);
+    for (const materialSlot of body.material_slots ?? []) materialSlot.write_depth = false;
+  }
 
   // ---- 稀有度宝石材质序列化值（图集文件/滚动速度/缩放/强度）----
   // gems.ts renderRarityGemWrap 的常量（GenFX_RarityGems 图集、_XSpeed 5/_YSpeed 0.2、
@@ -1743,6 +1804,7 @@ export function compileFramePlan(
     input:        { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
     frame_center: frameCenter(base, keyByPath, slot, fixture.cardId, fixture.preset.premium, cardType),
     portrait_direct_material_output: goldenPortraitAvailable,
+    portrait_skip_depth_test: false,
     rarity_gem:   {
       // 签名帧抑制既有稀有度宝石公式（普通帧的宝石位/图集不适用：Evergreen 宝石在框环
       // 大宝石位、四变体网格 + 云纹滚动 + 底影 = 04/05 票范围；变体网格 forcedHidden，
@@ -1837,16 +1899,18 @@ const MESH_ANCHORED_SLOTS = new Set([
   // 本表头注释既载）；sig9 无 FrameMesh → Mesh 回落支（RootObject/Mesh 三子网格
   // 整体 AABB，与 exporter GetMeshRenderer 口径一致）。
   'hand-minion-sig9',
+  // T11 新签名帧按自身 enabled RootObject/Mesh 锚定。UnityPy 世界 AABB 中心 z：
+  // frame11=+0.05852、frame13=+0.00506、frame14=+0.07128；findings §15.2。
+  'hand-hero-sig11', 'hand-location-sig13', 'hand-hero-sig14',
 ]);
 
-/** 根锚定特例（= location 帧全部基准）。exporter 对 normal 地标的 Mesh 世界包围盒中心被
- *  节点摆放解释时重锚回 actor 根（locationRootAnchor，ExporterController.cs:11560-11579，
- *  4d45b89 2026-10-05 22:32）。SC_403 基准导出即带此修复；TTN_090 基准首导于修复前
- *  （10-04，节点锚），但 1c20554（2026-10-06 06:45）全量重导时工作区已带修复 → 现行
- *  基准同为根锚（新旧基准差 = 背景板节点偏移 (+0.031,+0.060)·192，PNG 对 PNG 实证，
- *  explore/2026-10-07-edge-align/findings.md §3）。此后按现行 exporter 重导的 location
- *  基准恒为根锚，新增 location fixture 默认入此表。 */
-const ROOT_ANCHORED_CARDS = new Set(['SC_403', 'TTN_090']);
+/** 根锚定特例。exporter 对 location 的 Mesh 世界包围盒中心若由节点摆位解释
+ *  （bounds.center≈meshRenderer.transform.localPosition），会按游戏 actor 根重锚，
+ *  见 ExporterController.cs:11675-11689。SC_403、TTN_090 已由旧基准验证；T11 的
+ *  TIME_446 探针 `assets/frames/hand-location-sig13/frame_recon.json` 给出 RootObject/Mesh
+ *  world bounds center=(0.01008,0.00506)，localPosition=(0.01008,0.00382)，差值小于
+ *  exporter 的 0.01 阈值，故签名地标也必须根锚。 */
+const ROOT_ANCHORED_CARDS = new Set(['SC_403', 'TTN_090', 'TIME_446']);
 
 /** exporter 取景中心 = 主体网格世界包围盒中心（TryGetActorFrameBounds，
  *  ExporterController.cs:11483-11549）：先找**层级激活且 renderer 启用**的 FrameMesh
@@ -2160,7 +2224,7 @@ function compileRuneBanner(components: PlanComponent[], tags: Record<string, num
 //   阵营容器 HasHearthstoneFaction（VALID_FACTIONS 优先序 Actor.cs:205-213：GRIMY_GOONS 482 >
 //   KABAL 484 > JADE_LOTUS 483 > ZERG 3457 > TERRAN 3458 > PROTOSS 3469）→ SetFactionType
 //   (premium, GetFactionColorTypeForTag)（CardColorSwitcher.cs:199-212 → FactionColorType 1..6）。
-// - Actor.UpdateMulticlassRibbon（6068-6075）：GetClasses().Count > 2 才 SetActive；
+// - Actor.UpdateMulticlassRibbon（Actor.cs:6027-6034）：GetClasses().Count > 2 才 SetActive；
 //   GetClasses = MULTIPLE_CLASSES=476 位掩码逐位展开（bit1→TAG_CLASS 1，EntityBase.cs:1087-1110），
 //   为 0 时取 CLASS（=1 类）。双职业（2 类）只换框体材质（CardColorSwitcher *_DUALCLASS，
 //   走既有类色图集链），不显绶带。
@@ -2179,13 +2243,11 @@ function compileRuneBanner(components: PlanComponent[], tags: Record<string, num
 //   贴图、星际=Faction_Banner_Starcraft，row.banner）。
 // - 绶带普通版阴影 ST（scale 0.53/0.48、offset −0.53/−0.048）采样越过 [0,1] 边界：引擎
 //   _MainTex wrap=repeat，raster 缺省 clamp → 该槽标 wrap_repeat 逐像素 fract。
-// 残差登记：① CATA_190h 的 L2 用 Deathwing 签名帧（金色透视绶带变体=序列化激活的
-//   Multiclass_Ribbon_Signature_mesh，仅存在于该 premium 帧），本链回落普通帧只能显普通棕绶带
-//   ——premium 帧族未移植（five-cardtypes §6）的家族缺口，非本管线误差；② SC_004（ZERG+
-//   4 类）L2 用 Evergreen 签名英雄帧，同族不可对齐（普通帧按统一反编译逻辑渲染绶带）；
-//   ③ Glow_Green/Blue 拖拽高亮（Custom/Selection/Highlight，renderer 序列化 enabled=false）
-//   默认态不渲染，未移植；④ 英雄通用帧无 deck-action 容器字段（Actor 序列化即无）——英雄
-//   不可能显示可交易/锻造横幅，与引擎一致。
+// 残差登记：① SC_004（ZERG+4 类）L2 的 faction icon/banner 使用 normal 静态象限，游戏
+//   signature material 为 FX 滚动材质，见上方 faction 注释；② Glow_Green/Blue 拖拽高亮
+//   （Custom/Selection/Highlight，renderer 序列化 enabled=false）默认态不渲染，未移植；
+//   ③ 英雄通用帧无 deck-action 容器字段（Actor 序列化即无）——英雄不可能显示可交易/锻造横幅，
+//   与引擎一致。
 
 const BANNER_TAG = {
   TRADEABLE:        1720, FORGE:            2785, PREPARE:          4354,
@@ -2210,10 +2272,14 @@ const DECK_CONTAINERS: [number, string[]][] = [
 /** 拖拽高亮（默认不渲染，见块注残差③）。 */
 const BANNER_GLOW_NODES = new Set(['Glow_Green', 'Glow_Blue']);
 
-/** 主 quad（基色不乘 _Color，见块注）的节点名 → _tint_rgb 白中和。 */
+/** 主 quad（基色不乘 _Color，见块注）的节点名 → _tint_rgb 白中和。
+ * Signature ribbon uses the sibling node `Multiclass_Ribbon_Signature_mesh` with the same
+ * Hero/Unlit/Unlit_Texture material serialized as `_Color=(1,0,0,1)`; frame_recon probes for
+ * signature frames 11/14 confirm this material. It needs the same neutral override as normal or
+ * the correct signature mesh renders red instead of the reference's brown/cream emblem. */
 const BANNER_TINT_NEUTRAL_NODES = new Set([
   'Tradeable_Banner_mesh', 'Forgeable_Banner_mesh', 'Prepareable_Banner_mesh',
-  'Faction_Banner', 'Multiclass_Ribbon_mesh',
+  'Faction_Banner', 'Multiclass_Ribbon_mesh', 'Multiclass_Ribbon_Signature_mesh',
 ]);
 
 /** EntityBase.GetClasses（EntityBase.cs:1087-1110）：位掩码逐位计数；为 0 取 CLASS（≠INVALID → 1 类）。 */
@@ -2249,6 +2315,7 @@ function compileBanners(
   components: PlanComponent[],
   tags: Record<string, number>,
   tables: StaticTables,
+  hierarchy: AssetPack['frameRecon']['hierarchy'],
 ): void {
   // deck-action else-if 链（Actor.cs:6431-6445）：tradeable > forge > prepare，至多一个。
   let deckShown = false;
@@ -2299,13 +2366,24 @@ function compileBanners(
     }
   }
 
-  // 多职业绶带（UpdateMulticlassRibbon：classes.Count > 2；normal/signature 网格变体按
-  // 序列化自激活取 normal——signature 变体只在 premium 专用帧上激活，见块注残差①）
+  // 多职业绶带（UpdateMulticlassRibbon：classes.Count > 2）。游戏只激活 MulticlassRibbon
+  // 容器（Actor.cs:6027-6034），容器内 normal/signature 子网格由 prefab 的 activeSelf 选变体。
+  // frame11/14 的 probe（assets/frames/hand-hero-sig{11,14}/frame_recon.json）显示普通
+  // Multiclass_Ribbon_mesh.active_self=false、Multiclass_Ribbon_Signature_mesh.active_self=true；
+  // 旧离线逻辑无视这组状态，强制显示普通网格，导致两张异画基准的多职业徽记倾斜/形状错误。
+  // 隔离的 prefab 子树在提取后 active_in_hierarchy 全为 false，故这里重建父容器激活，并按
+  // 变体根节点 active_self 恢复 Unity 实际会显示的一个网格。
   if (bannerClassCount(tags) > 2) {
     for (const c of components) {
       if (!c.path.includes('/Multiclass_Ribbon/') && !c.path.includes('/MulticlassRibbon/')) continue;
       if (BANNER_GLOW_NODES.has(c.node ?? '')) continue;
-      c.visible = !(c.node ?? '').includes('Signature');
+      const variant = c.path.includes('/Multiclass_Ribbon_Signature_mesh')
+        ? '/Multiclass_Ribbon_Signature_mesh'
+        : c.path.includes('/Multiclass_Ribbon_mesh') ? '/Multiclass_Ribbon_mesh' : null;
+      if (!variant) continue;
+      const variantRoot = c.path.slice(0, c.path.indexOf(variant) + variant.length);
+      const activeSelf = findNode(hierarchy, variantRoot) as { active_self?: boolean } | null;
+      c.visible = activeSelf?.active_self ?? !variant.includes('Signature');
     }
     // 绶带阴影 repeat wrap（材质 ST 越界；见块注）。序列化 GO 名带尾随空格
     // （"Multiclass_Ribbon_Shadow_mesh "，帧预制原样）——精确等值会 miss，
