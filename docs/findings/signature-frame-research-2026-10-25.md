@@ -479,3 +479,46 @@ fixture MAE 调参关闭效果。
 全量 43 张当前 zero-phase 输出与工单 05 的候选 PNG 解码 RGBA 对比 **43/43 逐像素相同**；
 对 42 张 reference fixture 的 L2 与工单 05 基线相比 **无分区回退**。检查点、相位扫描、摘要和
 最终 L2 产物保存在 `explore/2026-10-26-signature-uber-layers-phase/output/`。
+
+## 13. Signature_25 玻璃层与绘制顺序（RLK_706，2026-10-26）
+
+工单 `.scratch/signature-frames/issues/07`。此前 frame 1 虽有
+`SIGNATURE_FRAME_TO_SLOT`，但缺少 `SLOT_NATIVE_CARD_TYPES` / `FRAME_RULES` 登记，离线选择器会
+回退普通随从帧；通用帧 raster 对 `Transluscent_Mesh` 只采 `_MainTex`，随后肖像阶段强画原画，既漏掉
+Glass Mask 透明度也覆盖名称框两端。`assets/frames/hand-minion-sig1/frame_recon.json` 的
+`RootObject/Mesh/Transluscent_Mesh` 有 323 tris、`m_ValidKeywords=[]`、Signature_25 Atlas + Glass
+Mask；同一层级还记录 `DescriptionBox_Mesh`、`RacePlate_Mesh` 以及三枚 `_Mesh` 后缀统计宝石。
+其中 `DescriptionBox_Mesh` 的原始 MeshFilter.m_Mesh=0 且 MeshRenderer disabled；
+`Actor.cs::UpdateDescriptionMesh`（:5013-5038）只启停该 Renderer/GameObject，没有给随从帧设置替换网格。
+故可见描述底板由主 `Mesh` 的 Signature_25 图集几何承载，空 DescriptionBox 占位不单独出图。
+
+主 pass 证据来自游戏 Shader `Hero/Unlit/Unlit_Transparent2uvScrollMaskScroll` 的 no-keyword Metal
+变体：`explore/2026-10-26-signature25-glass-ordering/output/shader/Hero_Unlit_Unlit_Transparent2uvScrollMaskScroll_VS_nokw.metal:116-132`
+构造 UV0/UV1 插值流；对应 `Hero_Unlit_Unlit_Transparent2uvScrollMaskScroll_FS_nokw.metal:67-75`
+读取 MaskTex 的 Z/Y/X 通道求 alpha，并以 MainTex RGB 作为颜色。
+材质的 `m_ValidKeywords=[]` 选择 no-keyword 变体。RTT pass 选择由
+`../exporter/tmp/ilspy/Assembly-Csharp/RenderCommandLists.cs::AppendRenderCommands`（:49-54、
+187-204）限定为 `SRPDefaultUnlit` / `UniversalForward` / `LightweightForward`，故只执行 pass 0；
+shader bundle `essential_base_global-shader-0.unity3d` 中该 pass 状态是 SrcAlpha/OneMinusSrcAlpha、
+ZTest LEqual、ZWrite Off。后两个 GlowPrePass / Glow 未被 command collector 选中，故本实现不把
+`_Fresnel*`、`_Glow*`、`_Add*` 材质属性误当作 pass 0 公式。`Transluscent_Mesh` 原始 mesh 没有 UV1
+顶点通道且 COLOR 通道维度为 0；`scripts/extract_frame.py:289-293` 的既有离线包格式将 uv1 回退为
+uv0。纹理 bundle
+`initial_base_global-8411aad9-texture-5.unity3d` 中 Signature_25 Atlas（1024²）与 Glass Mask（256²）
+均为 Bilinear + Repeat。
+
+实现登记 frame 1 原生随从 / 组件规则，将带 `_Mesh` 后缀的攻血费网格导入既有宝石阶段且不在帧阶段
+重复绘制；`Transluscent_Mesh` 在肖像之后、文字之前延后，并以共享帧/肖像 z-buffer 执行 LEqual、
+保持深度不写。对应游戏和离线差异由 RTT 的 `RenderCommandLists.cs::SortRenderCommands`（:70-76）
+按 sortingOrder 排序，以及离线链把肖像作为强制独立合成阶段所致。
+
+全量 43 fixture 重渲至 `explore/2026-10-26-signature25-glass-ordering/output/rendered/`；L2 对
+42 张已有 reference 的 fixture 与 `out/l2/summary.json` 比较无逐卡/逐区回退。RLK_706
+`mae_visible` **91.865 → 50.765**，`mae_nontext` **87.119 → 44.294**。另四张 SIGNATURE 无变化：
+WW_373 41.695、GDB_477 17.623、TLC_433 46.056、TLC_EVENT_402 49.902。43 张 manifest 中
+`BG24_Reward_107` 缺少 `reference/` 基准图，因此未纳入这轮 L2。逐位比较候选和工单前
+`out/fixtures/` 的解码 RGBA：只有 RLK_706 改变（335,626 像素，bbox `[0,35,511,709]`）；其余
+42 张完全相同，含 38 张非 SIGNATURE 输出。并排与热图为
+`explore/2026-10-26-signature25-glass-ordering/output/l2/RLK_706_side.png` / `RLK_706_heat.png`。
+`bun run typecheck`、改动 renderer 文件 ESLint 与 `git diff --check` 通过。实现/量化完成；用户视觉
+验收仍待完成，工单保持 open。

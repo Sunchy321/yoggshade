@@ -4,6 +4,7 @@ import { sampleBilinearClamp } from './image.js';
 
 const scratch = new Float64Array(4);
 const scratchW = new Float64Array(4);
+const scratchMain = new Float64Array(4);
 
 /** desc 卡集水印第二纹理参数（Unlit_2Texture2uv；plan.WatermarkSpec + 材质序列化合成，
  *  见 render.ts rasterBucketZbuf 的 wm 装配）。UV1 几何随 triUv1 传参。 */
@@ -30,6 +31,16 @@ export interface DiffuseAlphaMaskScrollerLayer {
   scale:     [number, number];
   speed:     [number, number];
   time:      number;
+}
+
+/** Selected Signature_25 Hero/Unlit/Unlit_Transparent2uvScrollMaskScroll forward pass. */
+export interface Signature25GlassLayer {
+  main:      RGBAImage;
+  mask:      RGBAImage;
+  mainSt:    [number, number, number, number];
+  color:     number[];
+  intensity: number;
+  uniforms:  Record<string, number>;
 }
 
 const scratchCloud = new Float64Array(4);
@@ -98,6 +109,8 @@ export function rasterZbuf(
   skipDepthTest = false, // 跳过深度测试（见 types.PlanSlot.skip_depth_test）
   diffuseAlphaMaskScroller?: DiffuseAlphaMaskScrollerLayer,
   triCloudUv?: number[][],
+  signature25Glass?: Signature25GlassLayer,
+  writeDepth = true,
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -148,6 +161,60 @@ export function rasterZbuf(
       const vv = wrapRepeat ? v - Math.floor(v) : v;
       sampleBilinearClamp(tex, uu * tw - 0.5, (1.0 - vv) * th - 0.5, scratch);
       const ci = pi * 4;
+      if (signature25Glass) {
+        // RLK_706 previously sampled only MainTex@UV0 with generic texture alpha, losing the
+        // glass mask and the name-banner end caps. Replay the selected shader pass from
+        // Hero_Unlit_Unlit_Transparent2uvScrollMaskScroll_{VS,FS}_nokw.metal: VS lines 116-132
+        // builds the UV0/UV1 streams; FS lines 67-75 computes mask alpha and MainTex RGB.
+        // RenderCommandLists.cs::AppendRenderCommands (49-54, 187-204) selects SRPDefaultUnlit;
+        // the actual pass 0 in essential_base_global-shader-0.unity3d is SrcAlpha/OneMinusSrcAlpha,
+        // ZTest LEqual, ZWrite Off (GlowPrePass/Glow are not part of this RTT). Offline pixels are
+        // rasterized as straight RGBA, so apply the pass's factors to all four framebuffer channels.
+        // Asset probe `assets/frames/hand-minion-sig1/frame_recon.json`, Transluscent_Mesh records
+        // `_Intensity=1.1`, `_Color=(1,1,1,1)`, `_LightingBlend=0`, the other uniforms, and both
+        // textures; texture settings are Bilinear + Repeat. Its source mesh has no COLOR stream.
+        const p = signature25Glass.uniforms;
+        const val = (name: string, fallback: number): number => p[name] ?? fallback;
+        const t = 0; // approved signature-frames spec freezes VGlobals._Time.x at zero
+        const baseU = u, baseV = v; // triUv is UV0 transformed by _MainTex_ST
+        const uv1U = l0 * wu0 + l1 * wu1 + l2 * wu2;
+        const uv1V = l0 * wv0 + l1 * wv1 + l2 * wv2;
+        const [stX, stY, stU, stV] = signature25Glass.mainSt;
+        const gU = uv1U * stX + stU + t * val('_ScrollGMaskX', 0);
+        const gV = uv1V * stY + stV + t * val('_ScrollGMaskY', 0);
+        const modU = baseU * val('_ScaleModX', 1) + t * val('_ScrollModX', 0) + val('_Seed', 0);
+        const modV = baseV * val('_ScaleModY', 1) + t * val('_ScrollModY', 0) + val('_Seed', 0);
+        const maskU = (baseU + val('_UVOffsetModMaskU', 0)) * val('_ScaleMaskX', 1)
+          + t * val('_ScrollMaskX', 0) + val('_Seed', 0);
+        const maskV = (baseV + val('_UVOffsetModMaskV', 0)) * val('_ScaleMaskY', 1)
+          + t * val('_ScrollMaskY', 0) + val('_Seed', 0);
+        const mainU = baseU * val('_ScaleMainX', 1) + t * val('_ScrollMainX', 0)
+          + val('_UVOffsetMainU', 0);
+        const mainV = baseV * val('_ScaleMainX', 1) + t * val('_ScrollMainY', 0)
+          + val('_UVOffsetMainV', 0);
+        sampleBilinearRepeat(signature25Glass.mask, maskU, maskV, scratchW);
+        const maskZ = scratchW[2];
+        sampleBilinearRepeat(signature25Glass.mask, gU, gV, scratchCloud);
+        const maskY = scratchCloud[1];
+        sampleBilinearRepeat(signature25Glass.mask, modU, modV, scratchMain);
+        const maskX = scratchMain[0];
+        sampleBilinearRepeat(signature25Glass.main, mainU, mainV, scratch);
+        const maskAlpha = maskZ * val('_MaskModIntensity', 1) * maskY
+          * maskX * val('_ModIntensity', 1);
+        const sourceAlpha = Math.min(Math.max(
+          maskAlpha * signature25Glass.intensity * (signature25Glass.color[3] ?? 1), 0), 1);
+        const inv = 1 - sourceAlpha;
+        canvas[ci] = Math.min(Math.max(scratch[0] * signature25Glass.intensity
+          * signature25Glass.color[0]! * sourceAlpha + canvas[ci]! * inv, 0), 1);
+        canvas[ci + 1] = Math.min(Math.max(scratch[1] * signature25Glass.intensity
+          * signature25Glass.color[1]! * sourceAlpha + canvas[ci + 1]! * inv, 0), 1);
+        canvas[ci + 2] = Math.min(Math.max(scratch[2] * signature25Glass.intensity
+          * signature25Glass.color[2]! * sourceAlpha + canvas[ci + 2]! * inv, 0), 1);
+        canvas[ci + 3] = Math.min(Math.max(sourceAlpha * sourceAlpha + canvas[ci + 3]! * inv, 0), 1);
+        // Shader pass ZWrite Off: layer contributes color after the portrait but cannot occlude
+        // later transparent layers; retain the shared frame/portrait z-buffer unchanged.
+        continue;
+      }
       if (diffuseAlphaMaskScroller) {
         // GDB_477's selected rarity child uses this exact game shader. Its pass state is
         // Blend One/Zero + ZWrite On (shader_meta.json: pass 0), and the DXBC PS writes
@@ -173,7 +240,7 @@ export function rasterZbuf(
         canvas[ci + 2] = Math.min(Math.max((cloudGain * diffuseAlphaMaskScroller.tint[2] + scratch[2])
           * diffuseAlphaMaskScroller.fade[2] * diffuseAlphaMaskScroller.tintColor[2], 0), 1);
         canvas[ci + 3] = 1;
-        zbuf[pi] = z;
+        if (writeDepth) zbuf[pi] = z;
         continue;
       }
       if (colorAsAlpha) {
@@ -195,7 +262,7 @@ export function rasterZbuf(
         canvas[ci + 1] = (sg * sa + canvas[ci + 1] * dstA * (1 - sa)) / safe;
         canvas[ci + 2] = (sb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
         canvas[ci + 3] = outA;
-        zbuf[pi] = z;
+        if (writeDepth) zbuf[pi] = z;
         continue;
       }
       if (multiply) {
@@ -317,7 +384,7 @@ export function rasterZbuf(
         canvas[ci + 2] = (srcB * wtb * sa + canvas[ci + 2] * dstA * (1 - sa)) / safe;
       }
       canvas[ci + 3] = outA;
-      zbuf[pi] = z;
+      if (writeDepth) zbuf[pi] = z;
     }
   }
 }

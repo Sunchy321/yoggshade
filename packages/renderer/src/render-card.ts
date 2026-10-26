@@ -184,9 +184,16 @@ export async function renderPackToRgba8(
     const coversVisibleWeaponStats = passNodes.some(node => node.name === 'TextGradient')
       && plan.components.some(component => component.visible
         && (component.node === 'Wep_Swords' || component.node === 'Wep_SheildBroken'));
-    const nodeZbuf = multiplyOnly && coversVisibleWeaponStats
-      ? zbuf // multiply = depth test against opaque queue, no depth write
+    const transparentNoWrite = passNodes.some(node => node.comp.material_slots?.some(slot =>
+      slot.write_depth === false && !slot.skip_depth_test));
+    const nodeZbuf = (multiplyOnly && coversVisibleWeaponStats) || transparentNoWrite
+      ? zbuf // depth test against the already drawn frame/portrait; these passes do not write depth
       : new Float64Array(W * H).fill(-Infinity); // 其它晚通道仍按激活序、互不 z-test
+    // Issue 07 fixes RLK_706's glass layer covering name-banner end caps incorrectly: pass 0 must
+    // run after PortraitFrame with LEqual depth testing, while retaining ZWrite Off. The old offline
+    // late-node path always supplied an empty z-buffer, unlike the game RTT's selected SRPDefaultUnlit
+    // pass (RenderCommandLists.cs:49-54, 187-204; shader pass 0 state: LEqual/ZWrite Off). The
+    // frame probe is `assets/frames/hand-minion-sig1/frame_recon.json`, Transluscent_Mesh.
     rasterBucketZbuf(passNodes, pack, textures, canvas, nodeZbuf);
   }
 

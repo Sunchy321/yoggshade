@@ -508,6 +508,7 @@ export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
   // 漏登记会让 Signature_26 的无值攻/血文本与游戏现场语义不一致。
   'hand-minion-sig2':            [4],
   'hand-minion-sig9':            [4, 47],
+  'hand-minion-sig1':            [4],
 };
 
 /** GAME_TAG（sc.py:102 同源）+ ARMOR（GAME_TAG.cs:214）+ 战棋模板相关（GAME_TAG.cs 实测行号）：
@@ -717,6 +718,24 @@ const FRAME_RULES: Record<string, FrameRules> = {
     ],
     roles: ['cost', 'name', 'desc', 'race', 'attack', 'health'],
   },
+  // 2026-10-26 工单 07：RLK_706 的 Signature_25 Glass pass 之前被通用帧光栅按 MainTex
+  // 套 UV0/全纹理 alpha 近似，且被肖像层盖住，缺少 mask 透明度并遮掉名称框两端；映射此帧
+  // 原生随从组件，并把 Transluscent_Mesh 延后到肖像之后、文字之前。游戏 RTT 的
+  // RenderCommandLists.cs::SortRenderCommands（:70-76）按 sortingOrder 排序；离线链将肖像
+  // 作为独立合成阶段；RenderCommandLists.cs::AppendRenderCommands（:49-54,:187-204）选择
+  // SRPDefaultUnlit 并排除 Glow passes。探针 assets/frames/hand-minion-sig1/frame_recon.json
+  // 记录 RacePlate_Mesh、Gem_*_Mesh 和 RootObject/Mesh/Transluscent_Mesh（323 tris，Atlas + Glass Mask）。
+  // DescriptionBox_Mesh 的 MeshFilter.m_Mesh 序列化为空且 MeshRenderer disabled；Actor.cs
+  // UpdateDescriptionMesh（:5013-5038）只开关 Renderer/GameObject。可见描述底板来自主 Mesh 的
+  // Signature_25 图集几何，不应为这个空节点合成额外网格。
+  'hand-minion-sig1': {
+    elite:  [],
+    rarity: ['RarityGem_Mesh'],
+    attack: ['Gem_Attack_Mesh'],
+    health: ['Gem_Health_Mesh'],
+    race:   ['RacePlate_Mesh'],
+    roles:  ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+  },
   // 2026-10-26 工单 05：WW_373 的 SIGNATURE frame 2 过去因无 FRAME_RULES 回落普通随从帧，
   // 使签名图集、框环和宝石双层都未进入渲染。登记原生随从组件并由通用签名分支按稀有度
   // 激活四选一子网格。离线链要求 FRAME_RULES 与资产同时存在才选签名帧；游戏侧
@@ -738,7 +757,7 @@ const FRAME_RULES: Record<string, FrameRules> = {
       'RarityGem_Epic_Mesh',
       'RarityGem_Legendary_Mesh',
     ],
-    roles:        ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+    roles: ['cost', 'name', 'desc', 'race', 'attack', 'health'],
   },
   // 2026-10-26 工单 04：TLC_433 / TLC_EVENT_402 的 SIGNATURE 专属帧过去缺 FRAME_RULES，
   // slotForFixture 因而回落普通 spell/weapon 帧（L2 mae_visible 分别 109.384 / 83.008）。
@@ -1139,6 +1158,14 @@ export function compileFramePlan(
       node:           name, path:           node.path, visible, raster:         true,
       material_slots: slots.map(s => ({ slot: s.slot, empty: !s.name })),
     };
+    if (sigActive && slot === 'hand-minion-sig1'
+      && ['Gem_Attack_Mesh', 'Gem_Health_Mesh', 'Gem_Mana_Mesh'].includes(name)) {
+      // Signature_25 stat meshes use the already-portable DiffuseAlphaMaskScroller shader;
+      // render them in the gems stage once, not in both the frame bucket and gems stage.
+      // Exact hierarchy/material paths are in frame_recon.json under AttackObject, HealthObject,
+      // and CostObject.
+      comp.raster = false;
+    }
     if (slot === 'hand-spell' && name === 'Description_mesh' && schoolText
       && base.meshes['extra/m_spellDescriptionMeshSchool']) {
       comp.mesh = 'extra/m_spellDescriptionMeshSchool'; // 学派板网格替换（Actor.cs:6240-6252）
@@ -1171,9 +1198,15 @@ export function compileFramePlan(
   for (const comp of components) {
     if (!comp.visible) continue;
     const node = findNode(base.frameRecon.hierarchy, comp.path);
-    for (const slot of comp.material_slots ?? []) {
-      const fl = node?.renderers?.[0]?.materials?.[slot.slot]?.floats;
-      if (fl?.['_SrcBlend'] === 1 && fl?.['_DstBlend'] === 10) slot.premultiplied = true;
+    for (const materialSlot of comp.material_slots ?? []) {
+      const fl = node?.renderers?.[0]?.materials?.[materialSlot.slot]?.floats;
+      if (fl?.['_SrcBlend'] === 1 && fl?.['_DstBlend'] === 10) materialSlot.premultiplied = true;
+      if (sigActive && slot === 'hand-minion-sig1' && comp.node === 'Transluscent_Mesh') {
+        // The selected SRPDefaultUnlit shader pass uses SrcAlpha/OneMinusSrcAlpha,
+        // ZTest LEqual, ZWrite Off (essential_base_global-shader-0.unity3d; pass selection in
+        // RenderCommandLists.cs:49-54, 187-204). Keep depth testing enabled and preserve z-buffer.
+        materialSlot.write_depth = false;
+      }
     }
   }
 
@@ -1300,20 +1333,21 @@ export function compileFramePlan(
   const statGems: RenderPlan['stat_gems'] = [];
   for (const [path, key] of keyByPath) {
     const name = path.split('/').pop()!;
-    if (!['Gem_Attack', 'Gem_Health', 'Gem_Mana'].includes(name)) continue;
+    const gemName = sigActive && slot === 'hand-minion-sig1' ? name.replace(/_Mesh$/, '') : name;
+    if (!['Gem_Attack', 'Gem_Health', 'Gem_Mana'].includes(gemName)) continue;
     // 序列化失活子树里的同名节点不采（战棋畸变帧 Gem_Mana 失活=无费用显示；
     // 佣兵技能 spell 变体攻血宝石同口径——出厂失活且运行时 entity 路径从不翻正，
     // 见 hand-lettuce-ability FRAME_RULES 注释与 teardown findings §9 修正）；
     // 战棋模板下 mana gem 被 coin/tier spell 替换（UpdateManaGemComponent 隐藏 m_manaObject）。
     if (!(active.get(path) ?? true)) continue;
-    if (gemReplaced && name === 'Gem_Mana') continue;
+    if (gemReplaced && gemName === 'Gem_Mana') continue;
     const comp = byName.get(name);
-    if (name !== 'Gem_Mana' && !comp) continue;
+    if (gemName !== 'Gem_Mana' && !comp) continue;
     const node = findNode(base.frameRecon.hierarchy, path);
     const mat = node?.renderers?.[0]?.materials?.[0];
     if (!mat) continue;
     statGems.push({
-      node:          name, path, npz_key:       key,
+      node:          gemName, path, npz_key:       key,
       main_tex_file: mat.tex?.['_MainTex']?.texture?.file ?? '',
       tint_rgb:      (mat.colors?.['_tint'] ?? [1, 1, 1, 1]).slice(0, 3),
       intensity:     mat.floats?.['_Intensity'] ?? 1.0,
@@ -1443,6 +1477,18 @@ export function compileFramePlan(
     for (const c of components) {
       if (c.path.includes('/RootObject/Watermark/')) c.visible = true;
     }
+  }
+
+  // ---- Signature_25 玻璃层晚通道（PortraitFrame → Transluscent → text）----
+  // 工单 07 针对 RLK_706 名称框两端被肖像盖住、Glass Mask 未执行的症状：在离线肖像合成后
+  // 重画 Transluscent_Mesh。游戏 RTT 的 RenderCommandLists.cs::SortRenderCommands（:70-76）
+  // 按 sortingOrder 排序，而离线链将肖像作为独立阶段；帧节点/材质由
+  // assets/frames/hand-minion-sig1/frame_recon.json 的 Transluscent_Mesh 记录，RTT 选 pass
+  // 由 RenderCommandLists.cs::AppendRenderCommands（:49-54,:187-204）证明。晚通道保留
+  // LEqual 深度测试并由 Shader pass 0 的 ZWrite Off 保持 z-buffer 不变。
+  if (sigActive && slot === 'hand-minion-sig1'
+    && components.some(c => c.node === 'Transluscent_Mesh' && c.visible)) {
+    lateNodes.push('Transluscent_Mesh');
   }
 
   // ---- 文字压画层晚通道（签名帧特有；spec 实现决策 10 的层序面）----

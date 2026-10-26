@@ -1,6 +1,7 @@
 /** P0 渲染主流程：build_render_list_ally + raster_bucket_zbuf + 肖像公式层（dz_render 对译）。 */
 import { projectX, projectY, SIZE } from './camera.js';
-import { rasterZbuf, type DiffuseAlphaMaskScrollerLayer, type WatermarkLayer } from './raster.js';
+import { rasterZbuf, type DiffuseAlphaMaskScrollerLayer, type Signature25GlassLayer,
+  type WatermarkLayer } from './raster.js';
 import { renderPortraitSubmesh } from './portrait.js';
 import { walkWithKey, TextureStore } from './assets.js';
 import { renderStatGems, renderRarityGemWrap, type OverlayGemSource } from './gems.js';
@@ -63,11 +64,14 @@ interface BucketTri {
   premultiplied:             boolean;
   /** 跳过深度测试（见 types.PlanSlot.skip_depth_test） */
   skipDepthTest:             boolean;
+  /** 是否写入深度缓冲（ZWrite Off 保留深度测试，只关闭写入）。 */
+  writeDepth:                boolean;
   /** desc 卡集水印（仅 Description_mesh + 材质 _SecondTex 槽；见装配处注释） */
   wm?:                       WatermarkLayer;
   triUv1?:                   number[][];
   triCloudUv?:               number[][];
   diffuseAlphaMaskScroller?: DiffuseAlphaMaskScrollerLayer;
+  signature25Glass?:         Signature25GlassLayer;
   uber?:                     { material: FrameMaterial, textures: UberCardBackTextures };
 }
 
@@ -221,6 +225,24 @@ export function rasterBucketZbuf(
         };
         uv1Arr = mesh.uv1;
       }
+      // RLK_706's selected VS emits TEXCOORD0 and TEXCOORD1 UV streams. The source Transluscent_Mesh
+      // has no UV1 vertex channel; scripts/extract_frame.py:289-293 preserves the established fallback
+      // by packaging uv1=uv0. `frame_recon.json` identifies the Signature_25 Atlas/Glass Mask pair and
+      // uniforms; the Unity texture probe reports Bilinear + Repeat for both. Main UV0 is transformed
+      // by the existing MainTex ST path above; the second stream uses the packaged UV1 fallback.
+      const signature25Glass = pack.slot === 'hand-minion-sig1'
+        && mat.shader === 'Hero/Unlit/Unlit_Transparent2uvScrollMaskScroll'
+        ? {
+          main:   textures.get(texKey),
+          mask:   textures.get(mat.tex?.['_MaskTex']?.texture?.file ?? ''),
+          mainSt: [stS?.[0] ?? 1, stS?.[1] ?? 1,
+            offSrc?.[0] ?? 0, offSrc?.[1] ?? 0] as [number, number, number, number],
+          color:     mat.colors?.['_Color'] ?? [1, 1, 1, 1],
+          intensity: mat.floats?.['_Intensity'] ?? 1,
+          uniforms:  mat.floats ?? {},
+        }
+        : undefined;
+      if (signature25Glass) uv1Arr = mesh.uv1 ?? mesh.uv0;
       for (const t of tris) {
         const a = t[0], b = t[1], c = t[2];
         trisOut.push({
@@ -237,9 +259,11 @@ export function rasterBucketZbuf(
           colorAsAlpha:  slotPlan?.blend === 'colorAsAlpha' ? slotPlan.color_as_alpha : undefined,
           premultiplied: slotPlan?.premultiplied ?? false,
           skipDepthTest: slotPlan?.skip_depth_test ?? false,
+          writeDepth:    slotPlan?.write_depth ?? true,
           wm, triUv1:        uv1Arr ? [uv1Arr[a], uv1Arr[b], uv1Arr[c]] : undefined,
           triCloudUv:    diffuseAlphaMaskScroller ? [uv0[a], uv0[b], uv0[c]] : undefined,
           diffuseAlphaMaskScroller,
+          signature25Glass,
           uber,
         });
       }
@@ -255,7 +279,7 @@ export function rasterBucketZbuf(
       rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
         textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
         e.wm, e.triUv1, e.colorAsAlpha, e.premultiplied, e.skipDepthTest,
-        e.diffuseAlphaMaskScroller, e.triCloudUv);
+        e.diffuseAlphaMaskScroller, e.triCloudUv, e.signature25Glass, e.writeDepth);
     }
   }
   return trisOut.length;
@@ -443,6 +467,7 @@ export function renderSpellOverlays(
             wrap:          false,
             premultiplied: false,
             skipDepthTest: false,
+            writeDepth:    true,
           });
         }
       }

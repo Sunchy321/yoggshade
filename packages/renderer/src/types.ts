@@ -74,11 +74,10 @@ export interface PlanSlot {
    *  alpha 无关；修「像框超出底框段亮度分界线」，2026-10-11）。
    *  plan 按材质序列化 `_SrcBlend/_DstBlend` 自动判定（全仓仅佣兵帧三代材质命中）。 */
   premultiplied?:   boolean;
-  /** 该槽跳过逐像素深度测试（引擎 Transparent 材质 ZWrite Off，zbuf 只含不透明写入的
-   *  几何；本链帧光栅对透明材质也写深度（简化），个别层序敏感槽需显式跳过）。
-   *  当前无使用方（佣兵旗影 OvalShadow 已回退为不渲染——引擎本就从不激活该节点，
-   *  见 findings §12.15）。 */
+  /** 该槽跳过逐像素深度测试；仅用于引擎/离线链已证实不应被遮挡的特例。 */
   skip_depth_test?: boolean;
+  /** 模拟 GPU depth write；缺省 true。ZWrite Off 与 skip_depth_test 是独立状态。 */
+  write_depth?:     boolean;
 }
 
 /** desc 卡集水印运行时写点（Actor.UpdateWatermark，Actor.cs:5075-5135 对译）；
