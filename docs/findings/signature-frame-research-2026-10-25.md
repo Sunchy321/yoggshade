@@ -404,3 +404,33 @@ multiply 分支不写深度，因此前景图标能挡住渐变，渐变仍覆�
 `/private/tmp/signature-frame-04-fix-final/{fixtures,l2/}`，攻/耐久放大对照为
 `/private/tmp/signature-frame-04-fix-final/l2/TLC_EVENT_402_stats_zoom.png`。类型检查、该文件 ESLint、
 `git diff --check` 均通过；用户已完成视觉验收。
+
+## 11. Signature_26 帧与双层稀有度宝石（WW_373，2026-10-26）
+
+工单 `.scratch/signature-frames/issues/05`。修复前 `slotForFixture` 因 `FRAME_RULES` 缺少
+`hand-minion-sig2`，将 `signatureFrameId=2` 的 WW_373 回落到普通 `hand-minion`；L2 为
+`mae_visible=102.015`、`mae_nontext=97.166`、`z_rarity_gem=114.095`。游戏路径由
+`ActorNames.GetSignatureActor`（`ActorNames.cs:885-923`）按 `CARD.m_signatureFrameId` 直接选
+`SignatureHand[2]`；离线链额外要求该槽位具备 `FRAME_RULES` 才会选择签名帧。
+
+`plan.ts` 登记 frame 2 的原生随从类型、稀有度框、攻血宝石与文本角色，并由签名帧既有选择器
+激活对应稀有度子网格。UnityPy 探针 `assets/frames/hand-minion-sig2/frame_recon.json` 中，
+`RootObject/Mesh/RarityGem_Frame_Mesh` 含 Common/Rare/Epic/Legendary 四个子网格；
+WW_373 的 Legendary 子网格有两个材质：云纹主体 `Signature_Evergreen_Rarity_Gem_Mat`
+（`Hero/Diffuse/DiffuseAlphaMaskScroller`，`_Intensity=.7`、scale `(6,6)`、速度 `(5,.3)`）和
+底影 `Signature_Evergreen_Shadow_Mat`（`Hero/Multiply/Multiply_AlphaFade`）。前者采用 shader
+pass 0 的 Blend One/Zero、ZWrite=1、alpha=1 语义，公式证据见 `../Angelia/lab/2026-10-07-dxbc-rarity-alignment/NOTES.md` §2
+及其 `evidence/shader_meta.json`；离线链若按通用 alpha-over 绘制会让橙色宝石透出底色。已有
+`render.ts` 签名槽位 shader 路径与 `raster.ts` 对应公式承接这两个材质，无需扩大 shader 实现范围。
+
+全量 43 张 fixture 渲染输出到 `explore/2026-10-26-signature26-frame-gem/output/`。WW_373 的
+`mae_visible` **102.015 → 41.695**，`mae_nontext` **97.166 → 35.946**，`z_rarity_gem`
+**114.095 → 71.241**。42 张 reference 的 L2 对照以 `out/l2/summary.json` 为基线，门控报告
+无分区回退。解码 RGBA 后比较全部 43 张候选与既有 `out/fixtures/` 渲染，唯一变化为 WW_373
+（289,345 个像素、744,569 个通道值变化）；其余 42 张逐像素相同。`bun run typecheck`、
+`bunx eslint packages/renderer/src/plan.ts --quiet` 与 `git diff --check` 通过。WW_373 并排图和热图：
+`explore/2026-10-26-signature26-frame-gem/output/l2/WW_373_side.png`、
+`explore/2026-10-26-signature26-frame-gem/output/l2/WW_373_heat.png`。
+
+用户目视反馈：画面相对一致；这不代表当前残差可接受，后续可能需要单独立项修正。上面的 L2
+数字用于记录本次变化，不构成残差验收阈值。

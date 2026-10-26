@@ -503,6 +503,10 @@ export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
   'hand-bg-anomaly':             [43],
   'hand-bg-trinket':             [44],
   // 签名帧原生卡型：frame 9 = 随从（异画 fixture GDB_477）；攻血文本走 GetTag-0 原生口径
+  // frame 2 / WW_373 同为原生随从帧；ActorNames.GetSignatureActor (ActorNames.cs:885-923)
+  // 按 CARD.m_signatureFrameId 选择它。离线 plan 用此表判定缺 tag 时是否写原生 "0"，
+  // 漏登记会让 Signature_26 的无值攻/血文本与游戏现场语义不一致。
+  'hand-minion-sig2':            [4],
   'hand-minion-sig9':            [4, 47],
 };
 
@@ -712,6 +716,29 @@ const FRAME_RULES: Record<string, FrameRules> = {
       'RarityGem_Legendary_Mesh',
     ],
     roles: ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+  },
+  // 2026-10-26 工单 05：WW_373 的 SIGNATURE frame 2 过去因无 FRAME_RULES 回落普通随从帧，
+  // 使签名图集、框环和宝石双层都未进入渲染。登记原生随从组件并由通用签名分支按稀有度
+  // 激活四选一子网格。离线链要求 FRAME_RULES 与资产同时存在才选签名帧；游戏侧
+  // ActorNames.GetSignatureActor (ActorNames.cs:885-923) 按 m_signatureFrameId 直接选帧，
+  // Actor.cs:4939-4959 / 4992-5022 再切换对应稀有度子网格。探针证据：
+  // `assets/frames/hand-minion-sig2/frame_recon.json` 的
+  // RootObject/Mesh/RarityGem_Frame_Mesh 含四个 rarity mesh；Legendary 网格含
+  // DiffuseAlphaMaskScroller 主体 + Multiply_AlphaFade 底影两个材质子网格。前者 pass 0 的
+  // Blend One/Zero + ZWrite=1、alpha=1 公式据 shader_meta.json 与 2026-10-07 rarity alignment
+  // NOTES §2；离线通用 alpha-over 会使橙色宝石透掉，故继续走已实现的签名专属双层光栅路径。
+  'hand-minion-sig2': {
+    elite:        [],
+    rarity:       ['RarityGem_Frame_Mesh'],
+    attack:       ['Gem_Attack'],
+    health:       ['Gem_Health'],
+    forcedHidden: [
+      'RarityGem_Common_Mesh',
+      'RarityGem_Rare_Mesh',
+      'RarityGem_Epic_Mesh',
+      'RarityGem_Legendary_Mesh',
+    ],
+    roles:        ['cost', 'name', 'desc', 'race', 'attack', 'health'],
   },
   // 2026-10-26 工单 04：TLC_433 / TLC_EVENT_402 的 SIGNATURE 专属帧过去缺 FRAME_RULES，
   // slotForFixture 因而回落普通 spell/weapon 帧（L2 mae_visible 分别 109.384 / 83.008）。
