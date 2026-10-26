@@ -163,11 +163,30 @@ export async function renderPackToRgba8(
     }
   }
 
-  // 晚通道：运行时激活的覆盖层（如饰品徽章子树）按激活序合成，每节点独立深度缓冲
+  // 晚通道：运行时激活的覆盖层（如饰品徽章子树）按激活序合成；深度缓冲由材质/前景件决定
   for (const name of plan.late_nodes ?? []) {
     const passNodes = buildRenderList(
       pack.frameRecon.hierarchy, plan, lateNames, new Set([name]));
-    const nodeZbuf = new Float64Array(W * H).fill(-Infinity); // 激活序合成：不与兄弟互 z
+    // 2026-10-26 rendering fix — Evergreen 武器卡的攻/耐久图标与画窗相交时，签名文字渐变
+    // 曾在交叠处把图标压暗。TextGradient 是 Hero/Multiply/Multiply 透明层；给它空 zbuf 会绕过
+    // 先画的不透明 Wep_Swords/Wep_SheildBroken 深度测试。仅当同一计划同时含可见武器统计网格时，
+    // 共享帧+肖像深度；multiply 像素分支不写 zbuf，因此图标前景只遮渐变、不改变后续深度。
+    // 游戏证据：Angelia `scripts/render/engine/raster.py::raster_bucket_zbuf_unified` 将
+    // multiply/非 ZWrite 材质延期；`draw_transparent_deferred` 在肖像之后仍传入同一个 zbuf，
+    // multiply 使用 `zwrite=False`；Angelia `lab/2026-10-04-badge-trio/findings/badge-trio.md` §2
+    // 记录 Unlit_Texture 为 Blend One/Zero + ZWrite On，`docs/notes/bacon-frame-furniture.md`
+    // 记 Hero/Multiply PS。探针 `assets/frames/hand-weapon-sig12/frame_recon.json` 中
+    // TextGradient worldY=0.0292267，Wep_Swords/Wep_SheildBroken 是 Unlit_Texture，世界深度范围
+    // 约 [0.0139,0.1425]/[0.0612,0.1574]。离线差异来自晚通道原先一律新建空 zbuf。隔离 P0 与
+    // 基准的攻区/耐久区局部 MAE 42.640→40.271 / 59.023→58.263；全量 42 卡 L2 无分区回退。
+    const multiplyOnly = passNodes.length > 0
+      && passNodes.every(node => node.comp.material_slots?.some(slot => slot.blend === 'multiply'));
+    const coversVisibleWeaponStats = passNodes.some(node => node.name === 'TextGradient')
+      && plan.components.some(component => component.visible
+        && (component.node === 'Wep_Swords' || component.node === 'Wep_SheildBroken'));
+    const nodeZbuf = multiplyOnly && coversVisibleWeaponStats
+      ? zbuf // multiply = depth test against opaque queue, no depth write
+      : new Float64Array(W * H).fill(-Infinity); // 其它晚通道仍按激活序、互不 z-test
     rasterBucketZbuf(passNodes, pack, textures, canvas, nodeZbuf);
   }
 

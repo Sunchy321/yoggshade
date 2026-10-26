@@ -338,3 +338,69 @@ GDB_477 的「野兽」候选墨迹比 reference 高约 4 px。签名帧探针
 GDB_477 的 `z_race` 从 **15.074** 降至 **13.053**，`mae_visible` 从 **17.776** 降至
 **17.623**。修正后的并排图为 `/private/tmp/signature-frames-final-current-l2/GDB_477_side.png`；
 `bun run typecheck` 与 `git diff --check` 通过。
+
+## 10. Evergreen 法术/武器帧与文字层（2026-10-26）
+
+工单 `.scratch/signature-frames/issues/04`。此前 `FRAME_RULES` 只有 frame 9，frame 10/12 虽有
+抽取资产与 `SIGNATURE_FRAME_TO_SLOT` 映射，但 `slotForFixture` 要求规则和资产同时可用，故
+TLC_433 / TLC_EVENT_402 告警后分别回落普通法术/武器帧。回落前 L2 为 **109.384 / 83.008**。
+这与游戏的帧选择不符：`ActorNames.GetSignatureActor`（`ActorNames.cs:885-923`）按
+`CARD.m_signatureFrameId` 查 `SignatureHand[frameId]`；`CardTextureLoader.LoadSignature`
+（`CardTextureLoader.cs:235-259`）加载签名材质和原画。
+
+`plan.ts` 现为 `hand-spell-sig10` 绑定 `RarityGem_Frame_Mesh` 与 cost/name/desc/race 文字角色，
+并把 race 角色按 spell 的学派分支取值（`Actor.cs:6143, 6160-6166`）；`hand-weapon-sig12`
+绑定签名稀有度框、`Wep_Swords` 攻击图标、`Wep_SheildBroken` 耐久图标及对应文字角色。
+具体 prefab 证据在 `assets/frames/hand-spell-sig10/frame_recon.json` 和
+`assets/frames/hand-weapon-sig12/frame_recon.json`：前者的主框使用
+`Signature_Evergreen_Atlas`，后者使用 `Signature_Weapon_Atlas`；两者均序列化
+`TextGradient[SignatureCardGradientOverlay, Hero/Multiply/Multiply]` 和
+`NameBanner_Mesh/Divider[SignatureCardDivider, Hero/Unlit/Unlit_TransparentColor]`，两层共用
+`card_signature_text_gradient`。其透明排序根因及离线队列差异见 §8.2：肖像层强画全出血原画，
+若渐变仍在主帧光栅中就会被覆盖；签名 `late_nodes` 在肖像之后单独合成两节点，复刻游戏透明队列顺序。
+
+### 10.1 全量 L2 与像素回归
+
+用当前代码重渲 manifest 的 43 张 fixture，针对 42 张 reference 基准运行 L2，并与本票前保存的
+全量结果逐项比较：无任何卡片/分区指标回退。目标卡结果：
+
+| fixture | `mae_visible`（前 → 后） | 其他结果 |
+|---|---:|---|
+| TLC_433 | 109.384 → **46.056** | `mae_nontext` 107.657 → 44.590；`z_banner` 131.230 → 47.437；`z_desc` 106.475 → 51.576 |
+| TLC_EVENT_402 | 83.008 → **49.913** | 武器框、剑座、耐久宝石位与文字层进入签名帧链 |
+| GDB_477 | 17.623 → **17.623** | 全部指标逐项相同 |
+
+43 个渲染 PNG 解码为 RGBA 后比较，只有 TLC_433 与 TLC_EVENT_402 的像素 buffer 变化，其余
+41 张逐像素相同。`bun run typecheck` 通过；`plan.ts` 单文件 ESLint 通过。全仓 ESLint 仍有
+12 个既有错误（build-worker、resize 与 textbuilder dist），本票没有新增 lint 错误。目标并排图、
+L2 summary 与像素对照保存在 `/private/tmp/signature-frame-04-after/`（不覆盖旧实验输出）。
+
+本票通过工具门控；最终视觉验收仍需用户查看并排图。后续残差仍包括异画 rarity gem 双层和
+UberCardBack Layer1/2/3 特效，分别归 issue 05/06。
+
+### 10.2 武器攻/耐久图标交叠处被文字渐变压暗（2026-10-26）
+
+用户在 TLC_EVENT_402 目检发现：攻/耐久图标与签名原画相交处出现暗遮罩，残差集中在亮度。
+隔离确认它不是攻/耐久宝石或数字字形：`render-card.ts::renderPackToRgba8` 的 p0 已含签名
+`late_nodes`，而 p0→p1 仅费用宝石变化，攻/耐久图标像素不变。
+
+根因是晚通道深度隔离过宽。`TextGradient`（`Hero/Multiply/Multiply`）被延到肖像之后是正确的，
+但每个晚节点都用空 `nodeZbuf`，使乘法层不再对之前绘制的不透明武器统计网格做 ZTest。原始探针
+`assets/frames/hand-weapon-sig12/frame_recon.json` 显示：`TextGradient` 世界 Y=0.0292267；
+`Wep_Swords` 与 `Wep_SheildBroken` 的材质为 `Hero/Unlit/Unlit_Texture`，世界深度范围约
+0.0139–0.1425 与 0.0612–0.1574。`../Angelia/lab/2026-10-04-badge-trio/findings/badge-trio.md` §2
+记录该 shader 的 pass 为 Blend One/Zero、ZWrite On；`../Angelia/docs/notes/bacon-frame-furniture.md`
+记 `Hero/Multiply/Multiply` 的乘法 PS。行为链
+`../Angelia/scripts/render/engine/raster.py::raster_bucket_zbuf_unified` 把 multiply 延至透明队列，
+`draw_transparent_deferred` 在肖像之后仍传入相同 zbuf、以 `zwrite=False` 补画。也就是说透明层仍
+需测试前序不透明深度；离线原实现因空 zbuf 漏掉了这一步。
+
+修正只在晚通道 multiply 层与可见 `Wep_Swords`/`Wep_SheildBroken` 同时存在时复用帧+肖像 zbuf。
+multiply 分支不写深度，因此前景图标能挡住渐变，渐变仍覆盖其后的原画；其它签名帧与晚通道不改。
+同卡 p0 隔离区域 max-RGB MAE：攻区 42.640→40.271，耐久区 59.023→58.263。全量重渲 43 张 fixture，
+与修复前文件逐像素比较仅 `TLC_EVENT_402` 改变（3,621 个 RGBA 像素，bbox `[87,384,419,614]`）；
+42 张 reference 的 L2 门无任何分区回退，`TLC_EVENT_402 mae_visible` 49.913→49.902。用户已目视确认
+攻/耐久与插画交叠处不再有可见异常。完整结果与并排图：
+`/private/tmp/signature-frame-04-fix-final/{fixtures,l2/}`，攻/耐久放大对照为
+`/private/tmp/signature-frame-04-fix-final/l2/TLC_EVENT_402_stats_zoom.png`。类型检查、该文件 ESLint、
+`git diff --check` 均通过；用户已完成视觉验收。

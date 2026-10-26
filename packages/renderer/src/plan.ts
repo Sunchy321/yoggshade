@@ -713,6 +713,24 @@ const FRAME_RULES: Record<string, FrameRules> = {
     ],
     roles: ['cost', 'name', 'desc', 'race', 'attack', 'health'],
   },
+  // 2026-10-26 工单 04：TLC_433 / TLC_EVENT_402 的 SIGNATURE 专属帧过去缺 FRAME_RULES，
+  // slotForFixture 因而回落普通 spell/weapon 帧（L2 mae_visible 分别 109.384 / 83.008）。
+  // 按 prefab 的实际网格绑定各自卡型节点，允许 10/12 帧进入既有签名帧绘制、宝石和文字管线。
+  // 游戏证据：ActorNames.GetSignatureActor（ActorNames.cs:885-923）以 CARD.m_signatureFrameId
+  // 选择 SignatureHand[10/12]；CardTextureLoader.LoadSignature（CardTextureLoader.cs:235-259）
+  // 装载签名材质/原画。探针 `assets/frames/hand-spell-sig10/frame_recon.json` 与
+  // `assets/frames/hand-weapon-sig12/frame_recon.json` 分别记录 Evergreen / Weapon Atlas、
+  // `RarityGem_Frame_Mesh`、TextGradient/Divider，以及武器 Wep_Swords/Wep_SheildBroken 节点；
+  // 结构与 shader 归因见 `docs/findings/signature-frame-research-2026-10-25.md` §2.2/§8.2。
+  'hand-spell-sig10': {
+    elite:  [], rarity: ['RarityGem_Frame_Mesh'],
+    roles:  ['cost', 'name', 'desc', 'race'],
+  },
+  'hand-weapon-sig12': {
+    elite:  ['Unique_Weapon_Dragon'], rarity: ['RarityGem_Frame_Mesh'],
+    attack: ['Wep_Swords'], health: ['Wep_SheildBroken'],
+    roles:  ['cost', 'name', 'desc', 'attack', 'health'],
+  },
 };
 
 /** 战棋种族定位（BACON_SUBSET_*，GAME_TAG.cs:974-985）→ TAG_RACE（EntityBase.cs:25-90
@@ -1431,7 +1449,11 @@ export function compileFramePlan(
     case 'race':
       // 法术与佣兵技能（施法/召唤两变体）的 race 槽 = 学派文本（UpdateRace flag2||flag5
       // 同支，GetRaceText → 学派名；Actor.cs:6143/6160-6166）
-      return slot === 'hand-spell' || slot.startsWith('hand-lettuce-ability') ? schoolText : raceText;
+      // 签名法术 frame 10 使用独立 RacePlate_UberText（抽取 role_paths），但仍是同一游戏
+      // UpdateRace 学派分支；将新槽纳入此判断，避免用 minion raceText 替代 schoolText。
+      if (slot === 'hand-spell' || slot === 'hand-spell-sig10'
+        || slot.startsWith('hand-lettuce-ability')) return schoolText;
+      return raceText;
     case 'level':
       // 佣兵本体等级数字（MercenaryActorLevelObject.SetLevelText，:79-83 =
       // GetMercenaryLevelFromExperience(LETTUCE_MERCENARY_EXPERIENCE).ToString()）。
