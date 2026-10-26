@@ -7,7 +7,7 @@ import { defineConfig } from 'eslint/config';
 
 export default defineConfig([
   {
-    ignores: ['node_modules/', 'dist/', 'out/', 'assets/', 'data/', 'explore/'],
+    ignores: ['node_modules/', '**/dist/', 'out/', 'assets/', 'data/', 'explore/'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

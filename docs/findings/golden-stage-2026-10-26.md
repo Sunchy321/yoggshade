@@ -50,3 +50,28 @@ The user explicitly confirmed that `JAIL_321`, `JAIL_450`, and `JAIL_887` refere
 - `git diff --check` passed. The T09 ticket is done after the final visual confirmation.
 - Follow-up visual correction: user reports the JAIL_450 decorative flowers should be GOLDEN. The supplied `reference/JAIL_450.png` has dark flowers, so the exact requested appearance raises its visible L2 MAE from the earlier DK-frame-only render 11.253 to 13.661; this is accepted to match the user's explicit visual target. The final candidate is `explore/2026-10-26-golden-stage-b/output/dk-weapon-flower-fix/JAIL_450.png`; it is pixel-identical to the UV-mapped probe A/B.
 - 2026-10-26 final visual acceptance: the user confirmed all five GOLDEN images are correct, including JAIL_450's gold flowers and DK frame. The T09 ticket is complete; 13.661 L2 against the supplied dark-flower reference is a known, accepted difference.
+
+## T10 web unlock closeout
+
+T10 unlocks GOLDEN and SIGNATURE in the web editor while DIAMOND remains disabled and rejected by the adapter. GOLDEN is valid for a blank DIY card when the user supplies an opaque square portrait; if no `-golden` portrait exists, the renderer uses that supplied image with the GOLDEN frame. SIGNATURE is preset-only per the user's T10 decision: the selected original-card preset must carry a `signatureFrameId` that maps to an implemented frame slot, whose manifest exists in the asset pack, and whose native card type matches the selected card type. Blank DIY, unmigrated frame IDs 11/13/14, and mismatched card types cannot request SIGNATURE. Changing a selected preset's card type away from its signature frame returns quality to NORMAL.
+
+`meta.ts` derives availability from `SIGNATURE_FRAME_TO_SLOT`, the renderer's native-card-type table and the actual frame manifest. The current fixture pack exposes SIGNATURE on 14 existing presets: CFM_621, CFM_637, CFM_685, CFM_902, GDB_142, GDB_477, JAIL_321, JAIL_407, JAIL_450, RLK_706, TIME_EVENT_999, TLC_433, TLC_EVENT_402, and WW_373. Presets with unported IDs remain selectable as ordinary presets, but do not enable the SIGNATURE option. The adapter repeats the same rule server-side so handcrafted requests cannot bypass the form.
+
+| Scope / fixture | L2 before | T10 closeout | Note |
+|---|---:|---:|---|
+| SIGNATURE: TLC_433 | 109.384 | 46.056 | Stage A final; research findings §14 |
+| SIGNATURE: WW_373 | 102.015 | 41.695 | Stage A final; research findings §14 |
+| SIGNATURE: GDB_477 | 92.167 | 17.623 | Stage A final; research findings §14 |
+| SIGNATURE: RLK_706 | 91.865 | 50.765 | Stage A final; research findings §14 |
+| SIGNATURE: TLC_EVENT_402 | 83.008 | 49.902 | Stage A final; research findings §14 |
+| GOLDEN: TIME_EVENT_999 | 10.657 | 10.657 | No T10 render change |
+| GOLDEN: JAIL_321 | 13.856 | 13.856 | No T10 render change |
+| GOLDEN: JAIL_450 | 11.253 | 13.661 | Accepted gold-flower correction; see note above |
+| GOLDEN: WW_0700 | 6.595 | 6.595 | No T10 render change |
+| GOLDEN: JAIL_887 | 59.513 | 59.513 | No T10 render change |
+
+The T10 46-reference summary is saved at `explore/2026-10-26-signature-web-unlock/output/l2/summary.json`. Against T09's saved full summary (`explore/2026-10-26-golden-stage-b/output/final-l2-gate-constrained/summary.json`), 45 rows are exactly equal; JAIL_450 is the single expected row changed by the already accepted gold-flower correction. T10 changes web form/metadata/adapter behavior and does not change renderer output.
+
+Verification: `bun run typecheck`, `bun run lint` (0 errors; 103 warnings), `bun apps/web/scripts/build-worker.ts`, `bun apps/web/scripts/check-parity.ts` (23 representative presets pixel-identical; all 14 eligible presets accepted; GOLDEN DIY succeeds; blank, unmigrated-frame, and mismatched-card-type SIGNATURE requests rejected; DIAMOND rejected), `bun apps/web/scripts/check-asset-keys.ts` (47/47 fixtures), and `git diff --check` pass. ESLint now skips nested generated `dist/` directories; the five source errors in `apps/web/scripts/build-worker.ts` and `packages/renderer/src/resize.ts` were fixed. The sandbox also rejected opening the dev server socket (`listen EPERM`), so the web UI was production-built and the adapter path was checked, but no fresh browser screenshot was captured.
+
+Earlier stage-A/B L2 numbers in the ticket comments are historical and refer to the previous sample choices and pre-elite fix; they are not acceptance results for the current set.

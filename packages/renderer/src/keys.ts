@@ -83,8 +83,27 @@ export function collectRenderAssetKeys(
         const file = mat?.tex?.[slotName]?.texture?.file;
         if (file) packKeys.add(texKey(file));
       }
+      // Signature_25 glass pass reads its serialized _MaskTex alongside the generic MainTex.
+      // render.ts:256-267 binds this exact slot into Signature25GlassLayer; omitting it works
+      // with fsSource but leaves the browser's mapSource without the mask key.
+      if (mat?.shader === 'Hero/Unlit/Unlit_Transparent2uvScrollMaskScroll') {
+        const file = mat.tex?.['_MaskTex']?.texture?.file;
+        if (file) packKeys.add(texKey(file));
+      }
+      // Signature rarity gems read _ScrollingTex for their cloud layer (render.ts:196-205).
+      // The regular atlas is collected via _MainTex / plan.rarity_gem; this is a separate input.
+      if (mat?.shader === 'Hero/Diffuse/DiffuseAlphaMaskScroller') {
+        const file = mat.tex?.['_ScrollingTex']?.texture?.file;
+        if (file) packKeys.add(texKey(file));
+      }
       if (mat?.shader === 'Uber/UberCardBack') {
         for (const slotName of ['_MaskTex', '_Layer1_Tex', '_Layer2_Tex', '_Layer3_Tex']) {
+          const file = mat.tex?.[slotName]?.texture?.file;
+          if (file) packKeys.add(texKey(file));
+        }
+      }
+      if (mat?.shader === 'Custom/Card/UnlitTextureReflection') {
+        for (const slotName of ['_SpecTex', '_ReflTex']) {
           const file = mat.tex?.[slotName]?.texture?.file;
           if (file) packKeys.add(texKey(file));
         }

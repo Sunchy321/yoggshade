@@ -4,12 +4,14 @@
  * （`plan.ts` 的 FixtureCard：tags + preset + name/textInHand + textBuilderType）。
  * 站点侧字段名对齐协议 renderModel，映射集中在这里，一处可审。
  *
- * 三处站点口径（都源自已有裁决，勿在此另立）：
- *  1. premium 恒 NORMAL —— premium 帧族未移植（地图 Out of scope）；
+ * 站点口径（都源自已有裁决，勿在此另立）：
+ *  1. GOLDEN / SIGNATURE 沿用表单品质，DIAMOND 因 RTT 3D 未移植而拒绝；
  *  2. 战棋卡型 → `preset.template = 'Battlegrounds'`（plan.ts:626 消费，决定铸币/tier 图标视觉）；
  *  3. 用户文本走 `textBuilderType = 0`（DEFAULT builder：空白解码 + 富文本转换，不做机制重建），
  *     避免沿用预设卡的 builder 把自定义文本按原卡机制改写。 */
-import type { FixtureCard } from '@yoggshade/renderer/plan';
+import {
+  SIGNATURE_FRAME_TO_SLOT, SLOT_NATIVE_CARD_TYPES, type FixtureCard,
+} from '@yoggshade/renderer/plan';
 import { decodePngBytes, peekPngSize } from '@yoggshade/renderer/image';
 import { KeyMissingError, type AssetSource } from '@yoggshade/renderer/source';
 import type { RGBAImage } from '@yoggshade/renderer/types';
@@ -109,6 +111,9 @@ export function prepareCard(
   req: RenderRequest,
   dirs: { pack: AssetSource, data: AssetSource },
 ): { fixture: FixtureCard, portrait?: RGBAImage } {
+  if (req.premium === 'DIAMOND') {
+    throw new CardRequestError('钻石卡暂不支持：它需要尚未移植的 3D 渲染流程');
+  }
   let fixture: FixtureCard;
   let presetBaseText = '';
   let base: FixtureCard | undefined;
@@ -119,6 +124,18 @@ export function prepareCard(
     presetBaseText = base.textInHand?.zhCN ?? '';
   } else {
     fixture = structuredClone(EMPTY_BASE);
+  }
+
+  if (req.premium === 'SIGNATURE') {
+    const frameId = base?.preset.signatureFrameId;
+    const signatureSlot = frameId === undefined ? undefined : SIGNATURE_FRAME_TO_SLOT[frameId];
+    const signatureBaseSlot = signatureSlot?.replace(/-sig\d+$/, '');
+    const supported = Boolean(req.presetId && signatureSlot && signatureBaseSlot
+      && SLOT_NATIVE_CARD_TYPES[signatureBaseSlot]?.includes(req.cardType)
+      && dirs.pack.has(`frames/${signatureSlot}/manifest.json`));
+    if (!supported) {
+      throw new CardRequestError('异画仅适用于带已移植异画框的原始卡预设，且卡型需与卡框匹配');
+    }
   }
 
   const tags = fixture.tags;
@@ -164,7 +181,7 @@ export function prepareCard(
     : 'Normal';
   fixture.preset = {
     ...fixture.preset,
-    premium:  'NORMAL',
+    premium:  req.premium,
     zone:     'Hand',
     template: BG_CARD_TYPES.has(req.cardType) ? 'Battlegrounds' : presetTemplate,
   };

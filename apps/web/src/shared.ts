@@ -14,8 +14,11 @@ export interface LabelOption {
   label: string;
 }
 
+export type CardPremium = 'NORMAL' | 'GOLDEN' | 'SIGNATURE' | 'DIAMOND';
+
 /** 表单可编辑字段（= 预设卡的当前值，供「加载预设再改」） */
 export interface CardFields {
+  premium:  CardPremium;
   cardType: number;
   classTag: number;
   rarity:   number;
@@ -42,6 +45,12 @@ export interface PresetInfo {
   label:       string;
   name:        string;
   text:        string;
+  /** 原始 fixture 的品质，只用于预设列表标识；DIAMOND 预设载入时按普通品质编辑。 */
+  premium:     CardPremium;
+  /** 原始卡的 SIGNATURE_FRAME id；未移植的帧仍可看作普通预设，但不可选异画。 */
+  signatureFrameId?: number;
+  /** 该预设的签名帧已移植、且与当前原生卡型匹配时为 true。 */
+  signatureAvailable: boolean;
   /** 预设是否自带原画（界面据此提示"不传原画就用它"） */
   hasPortrait: boolean;
   fields:      CardFields;

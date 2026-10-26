@@ -8,8 +8,10 @@
  * 本文件是**首版最小集**：完整的 14 语言标签表（含系列名）由 ticket 11 落成
  * `scripts/extract_label_tables.py` + 仓内数据文件后替换这里的硬编码标签。 */
 import type { AssetSource } from '@yoggshade/renderer/source';
-import { CARD_TYPE_TO_SLOT, type FixtureCard } from '@yoggshade/renderer/plan';
-import type { CardFields, CardTypeOption, LabelOption, MetaResponse, PresetInfo } from './shared.js';
+import {
+  CARD_TYPE_TO_SLOT, SIGNATURE_FRAME_TO_SLOT, SLOT_NATIVE_CARD_TYPES, type FixtureCard,
+} from '@yoggshade/renderer/plan';
+import type { CardFields, CardPremium, CardTypeOption, LabelOption, MetaResponse, PresetInfo } from './shared.js';
 
 /** 可渲染卡型（帧槽已移植的 8 槽 + 同槽不同纹理族的奖励/酒馆法术 + 佣兵技能）。
  *  佣兵全族可由表单表达：佣兵技能（23，含召唤/装备形态）走卡型下拉 + 形态字段；
@@ -31,6 +33,12 @@ const CARD_TYPE_LABELS: [number, string][] = [
 
 /** 战棋模板卡型（plan.ts:626 `preset.template === 'Battlegrounds'` 消费 → 铸币/tier 图标视觉） */
 export const BG_CARD_TYPES = new Set([40, 42, 43, 44]);
+
+function cardPremium(value: string | undefined): CardPremium {
+  return value === 'GOLDEN' || value === 'SIGNATURE' || value === 'DIAMOND'
+    ? value
+    : 'NORMAL';
+}
 
 /** TAG_CLASS（zhCN 名取自游戏 `s_classNames`，含中立；DREAM/WHIZBANG/INVALID 不进表单）。 */
 const CLASS_LABELS: [number, string][] = [
@@ -84,7 +92,19 @@ export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] 
     // 四个专属帧族落地后（.scratch/lettuce-frames），过滤移除、全部恢复收录。
     const fx = JSON.parse(data.text(`fixtures/${f}`)) as FixtureCard;
     const t = (k: number): number => fx.tags[String(k)] ?? 0;
+    const presetPremium = cardPremium(fx.preset?.premium);
+    const signatureFrameId = fx.preset?.signatureFrameId;
+    const signatureSlot = signatureFrameId === undefined
+      ? undefined
+      : SIGNATURE_FRAME_TO_SLOT[signatureFrameId];
+    const signatureBaseSlot = signatureSlot?.replace(/-sig\d+$/, '');
+    const cardType = t(202);
+    const signatureAvailable = Boolean(signatureSlot && signatureBaseSlot
+      && SLOT_NATIVE_CARD_TYPES[signatureBaseSlot]?.includes(cardType)
+      && pack.has(`frames/${signatureSlot}/manifest.json`));
     const fields: CardFields = {
+      // DIAMOND remains inspectable as a preset, but never enters the unsupported render path.
+      premium:  presetPremium === 'DIAMOND' ? 'NORMAL' : presetPremium,
       cardType: t(202),
       classTag: t(199),
       rarity:   t(203),
@@ -105,6 +125,9 @@ export function loadPresets(data: AssetSource, pack: AssetSource): PresetInfo[] 
       label:       fx.preset?.label ?? fx.cardId,
       name:        fx.name?.zhCN ?? '',
       text:        fx.textInHand?.zhCN ?? '',
+      premium:     presetPremium,
+      signatureFrameId,
+      signatureAvailable,
       hasPortrait: pack.has(`portraits/${fx.cardId}.png`),
       fields,
     });

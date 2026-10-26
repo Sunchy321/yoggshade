@@ -168,10 +168,16 @@ export function resampleImageSub(
   // 输出 range：窗口 [xmin,xmin+ksize) 与 box 相交的 o（窗口随 o 单调 → 连续区间）
   let ox0 = -1, ox1 = 0, oy0 = -1, oy1 = 0;
   for (let o = 0; o < dw; o++) {
-    if (cx[o].xmin + cx[o].ksize > box.x0 && cx[o].xmin < box.x1) { if (ox0 < 0) ox0 = o; ox1 = o + 1; }
+    if (cx[o].xmin + cx[o].ksize > box.x0 && cx[o].xmin < box.x1) {
+      if (ox0 < 0) ox0 = o;
+      ox1 = o + 1;
+    }
   }
   for (let o = 0; o < dh; o++) {
-    if (cy[o].xmin + cy[o].ksize > box.y0 && cy[o].xmin < box.y1) { if (oy0 < 0) oy0 = o; oy1 = o + 1; }
+    if (cy[o].xmin + cy[o].ksize > box.y0 && cy[o].xmin < box.y1) {
+      if (oy0 < 0) oy0 = o;
+      oy1 = o + 1;
+    }
   }
   const out = new Float64Array(dh * dw * 4);
   if (ox0 < 0 || oy0 < 0) return out;

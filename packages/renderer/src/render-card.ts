@@ -246,6 +246,8 @@ export async function renderCard(input: RenderInput, dirs: RenderDirs): Promise<
 
   const textures = new TextureStore(dirs.pack);
   if (input.portrait) {
+    // 用户上传的 DIY 原画没有经过 UberGoldenCard 预合成；即使帧槽是 GOLDEN，仍走普通肖像材质。
+    pack.plan.portrait_direct_material_output = false;
     setPortraitOverride(
       pack, pack.plan, input.portraitKey ?? `portraits/${input.fixture.cardId}.png`,
       input.portrait, textures,

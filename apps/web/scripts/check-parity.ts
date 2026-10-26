@@ -10,7 +10,8 @@ import { join, resolve } from 'node:path';
 import { renderCard } from '@yoggshade/renderer/render-card';
 import { fsSource } from '@yoggshade/renderer/source-fs';
 import type { FixtureCard } from '@yoggshade/renderer/plan';
-import { prepareCard } from '../src/adapter.js';
+import { encodePngBytes } from '@yoggshade/renderer/image';
+import { CardRequestError, prepareCard } from '../src/adapter.js';
 import { loadPresets } from '../src/meta.js';
 import type { RenderRequest } from '../src/shared.js';
 
@@ -34,6 +35,16 @@ const SLOT_REPS = [
   'LT24_021T1_01c', // hand-lettuce-ability-minion（攻血真值 5/20）
   'LT23_036E2_04', // hand-lettuce-equipment（名字 {0} builder 链）
   'LT23_816H', // hand-mercenary（角色图集/阵营旗/等级）
+  'TIME_EVENT_999', // hand-spell-golden
+  'JAIL_321', // hand-minion-golden
+  'JAIL_450', // hand-weapon-golden
+  'WW_0700', // hand-hero-golden
+  'JAIL_887', // hand-location-golden
+  'RLK_706', // hand-minion-sig1
+  'WW_373', // hand-minion-sig2
+  'GDB_477', // hand-minion-sig9
+  'TLC_433', // hand-spell-sig10
+  'TLC_EVENT_402', // hand-weapon-sig12
 ];
 
 function fixtureOf(cardId: string): FixtureCard {
@@ -60,6 +71,68 @@ for (const cardId of SLOT_REPS) {
     + ` 锚点 ${anchor.ms}ms / 站点 ${viaSite.ms}ms`,
   );
 }
+
+// 空白 DIY 卡没有 `-golden` 预合成图：已上传原画仍应通过普通肖像材质配金框输出。
+const diyPortrait = encodePngBytes(1, 1, Uint8Array.from([180, 120, 40, 255]));
+const diyRequest: RenderRequest = {
+  premium: 'GOLDEN', cardType: 4, classTag: 12, rarity: 1,
+  cost: 1, attack: 1, health: 1, armor: 0, elite: false, race: 0, school: 0,
+  mercenary: false, mercRole: 0, mercFaction: 0, lettuceForm: 0,
+  name: '自定义金卡', text: '',
+  portrait: `data:image/png;base64,${Buffer.from(diyPortrait).toString('base64')}`,
+};
+const diyPrepared = prepareCard(diyRequest, DIRS);
+const diyRendered = await renderCard(diyPrepared, DIRS);
+const diyPassed = diyPrepared.fixture.preset.premium === 'GOLDEN'
+  && diyRendered.slot === 'hand-minion-golden';
+if (!diyPassed) failures++;
+console.log(`${diyPassed ? '金卡 DIY 可渲' : '金卡 DIY 失败'}  无专属卡图使用上传原画 + ${diyRendered.slot}`);
+
+// SIGNATURE 只允许选择带已移植帧的原始预设；空白 DIY、未移植帧与错卡型请求均由 adapter 拒绝。
+let diySignatureRejected = false;
+try {
+  prepareCard({ ...diyRequest, premium: 'SIGNATURE' }, DIRS);
+} catch (error) {
+  diySignatureRejected = error instanceof CardRequestError;
+}
+const supportedSignaturePreset = loadPresets(DIRS.data, DIRS.pack)
+  .find(p => p.cardId === 'GDB_477');
+const availableSignaturePresets = loadPresets(DIRS.data, DIRS.pack)
+  .filter(p => p.signatureAvailable);
+const eligibleSignaturePresetsAccepted = availableSignaturePresets.every(p => {
+  const prepared = prepareCard({ ...requestOf(p.cardId), premium: 'SIGNATURE' }, DIRS);
+  return prepared.fixture.preset.premium === 'SIGNATURE';
+});
+let mismatchedSignatureRejected = false;
+try {
+  prepareCard({ ...requestOf('GDB_477'), cardType: 5 }, DIRS);
+} catch (error) {
+  mismatchedSignatureRejected = error instanceof CardRequestError;
+}
+let unmigratedSignatureRejected = false;
+try {
+  prepareCard({ ...requestOf('JAIL_887'), premium: 'SIGNATURE' }, DIRS);
+} catch (error) {
+  unmigratedSignatureRejected = error instanceof CardRequestError;
+}
+const signaturePassed = diySignatureRejected && supportedSignaturePreset?.signatureAvailable
+  && eligibleSignaturePresetsAccepted && mismatchedSignatureRejected && unmigratedSignatureRejected;
+if (!signaturePassed) failures++;
+console.log(`${signaturePassed ? '异画预设限制通过' : '异画预设限制失败'}  可用预设 ${availableSignaturePresets.length} 张均接受；空白卡、未移植帧和错卡型均拒绝`);
+
+// DIAMOND 预设只作为普通品质底稿载入，显式提交 DIAMOND 则由 adapter 拒绝。
+const diamondPreset = loadPresets(DIRS.data, DIRS.pack).find(p => p.cardId === 'TTN_850');
+let diamondRequestRejected = false;
+try {
+  prepareCard({ ...diyRequest, premium: 'DIAMOND' }, DIRS);
+} catch (error) {
+  diamondRequestRejected = error instanceof CardRequestError;
+}
+const diamondPassed = diamondPreset?.premium === 'DIAMOND'
+  && diamondPreset.fields.premium === 'NORMAL'
+  && diamondRequestRejected;
+if (!diamondPassed) failures++;
+console.log(`${diamondPassed ? '钻石保持锁定' : '钻石锁定校验失败'}  预设以普通品质加载，显式请求被拒绝`);
 
 console.log(failures === 0
   ? `\n全部 ${SLOT_REPS.length} 张逐位一致。`

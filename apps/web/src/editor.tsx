@@ -22,7 +22,15 @@ const EMPTY_FIELDS: CardFields = {
   mercRole:    0,
   mercFaction: 0,
   lettuceForm: 0,
+  premium:     'NORMAL',
 };
+
+const PREMIUM_LABELS = {
+  NORMAL: undefined,
+  GOLDEN: '金卡',
+  SIGNATURE: '异画',
+  DIAMOND: '钻石（普通框）',
+} as const;
 
 /** 各卡型的字段可见性（游戏语义：英雄显护甲、武器地标显耐久、畸变无费用、法术显学派…）。
  *  佣兵技能（23）：显费用/攻血/学派——攻血是卡面真实显示（含 GetTag-0 补零的引擎怪癖，
@@ -80,6 +88,7 @@ function friendlyError(msg: string): string {
   if (msg.includes('边长') || msg.includes('不得超过')) return '图片太大了，换一张小一些的（边长 1024 以内）。';
   if (msg.includes('解码') || msg.includes('PNG') || msg.includes('dataURL')) return '这个文件不是能用的图片，换一张吧。';
   if (msg.includes('预设不存在')) return '这张原始卡不见了，重新选一张。';
+  if (msg.includes('异画仅适用于')) return '异画目前只能用于带有已移植异画框的原始卡预设。';
   return '生成失败了，请稍后再试。';
 }
 
@@ -208,7 +217,7 @@ export function Editor() {
     })();
   }, []);
 
-  /** 预设下拉的选项文案：卡名 +「稀有度 · 职业 · 卡型」——光看卡名/内部标签
+  /** 预设下拉的选项文案：卡名 +「稀有度 · 职业 · 卡型 · 品质」——光看卡名/内部标签
    *  分不清这张样板是什么（如「无界空宇」是随从、「默认烟测卡」是测试叫法）。
    *  佣兵本体（随从 + 佣兵勾选）卡型位改显「佣兵」——否则与普通随从无法区分。 */
   const presetTitle = useCallback((p: PresetInfo): string => {
@@ -217,7 +226,9 @@ export function Editor() {
       : meta?.cardTypes.find(t => t.tag === p.fields.cardType)?.label;
     const cls = meta?.classes.find(c => c.tag === p.fields.classTag)?.label;
     const rarity = meta?.rarities.find(r => r.tag === p.fields.rarity)?.label;
-    const bits = [rarity, cls, type].filter(Boolean);
+    const premium = PREMIUM_LABELS[p.premium];
+    const signature = p.signatureAvailable ? '异画可用' : undefined;
+    const bits = [rarity, cls, type, premium, signature].filter(Boolean);
     const base = p.name || p.label;
     return bits.length ? `${base}（${bits.join(' · ')}）` : base;
   }, [meta]);
@@ -226,6 +237,7 @@ export function Editor() {
     setPresetId(id);
     setError('');
     if (!id) {
+      setFields(f => f.premium === 'SIGNATURE' ? { ...f, premium: 'NORMAL' } : f);
       pendingDesc.current = '';
       setText('');
       setEditorKey(k => k + 1);
@@ -250,6 +262,11 @@ export function Editor() {
     setFields(f => ({
       ...f,
       cardType:    t,
+      premium: f.premium === 'SIGNATURE'
+        && !meta?.presets.some(p => p.cardId === presetId
+          && p.signatureAvailable && p.fields.cardType === t)
+        ? 'NORMAL'
+        : f.premium,
       school:      SPELL_TYPES.has(t) ? f.school : 0,
       // 佣兵字段跟卡型走（同 school 口径）：切走再切回不保留——避免把本体/形态残留
       // 到别的卡型上（1665>0 会把任意卡型抢先分流到 hand-mercenary）
@@ -258,7 +275,7 @@ export function Editor() {
       mercFaction: t === 4 ? f.mercFaction : 0,
       lettuceForm: t === 23 ? f.lettuceForm : 0,
     }));
-  }, []);
+  }, [meta, presetId]);
 
   const onFile = useCallback(async (file: File | undefined) => {
     if (!file) return;
@@ -279,6 +296,8 @@ export function Editor() {
   }, []);
 
   const t = fields.cardType;
+  const signatureAvailable = Boolean(meta?.presets.some(p => p.cardId === presetId
+    && p.signatureAvailable && p.fields.cardType === t));
   const downloadName = `${name.trim() || '我的卡牌'}.png`;
 
   if (metaError) {
@@ -320,6 +339,14 @@ export function Editor() {
                   ))}
                 </select>
               </Field>
+              <Field label="卡面品质">
+                <select value={fields.premium} onChange={e => set('premium', e.target.value as CardFields['premium'])}>
+                  <option value="NORMAL">普通</option>
+                  <option value="GOLDEN">金卡</option>
+                  <option value="SIGNATURE" disabled={!signatureAvailable}>异画</option>
+                  <option value="DIAMOND" disabled>钻石（暂不支持）</option>
+                </select>
+              </Field>
               <Field label="职业">
                 <select value={fields.classTag} onChange={e => set('classTag', Number(e.target.value))}>
                   {(meta?.classes ?? []).map(x => (
@@ -337,6 +364,9 @@ export function Editor() {
                 </Field>
               )}
             </div>
+            <p className="field-note">
+              金卡可用于自定义卡；异画仅适用于带有已移植异画框的原始卡预设。缺少专属原画时沿用普通原画。钻石卡需要 3D 渲染，暂不支持。
+            </p>
           </Section>
 
           <Section title="数值">

@@ -10,7 +10,7 @@
  * FreeType wasm 经资产源取 pack/fonts/freetype.wasm 注入 wasmBinary。 */
 import { renderCard } from '@yoggshade/renderer/render-card';
 import { KeyMissingError, type AssetSource } from '@yoggshade/renderer/source';
-import { slotForCardType, type FixtureCard } from '@yoggshade/renderer/plan';
+import { slotForFixture, type FixtureCard } from '@yoggshade/renderer/plan';
 import { collectRenderAssetKeys } from '@yoggshade/renderer/keys';
 import { prepareCard } from './adapter.js';
 import { loadMeta } from './meta.js';
@@ -138,7 +138,7 @@ async function primeForRender(fixture: FixtureCard): Promise<void> {
     dirs.pack.put('fonts/freetype.wasm', bin);
   }
 
-  const slot = slotForCardType(fixture.tags);
+  const slot = slotForFixture(fixture, key => dirs.pack.has(key));
   await dirs.pack.prime(['fontdefs.json', ...FRAME_JSONS.map(f => `frames/${slot}/${f}`)]);
 
   // 固定点：第二轮补 overlay JSON 就绪后才能枚举的纹理（首轮大多已收敛，二次
