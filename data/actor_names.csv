@@ -1,5 +1,10 @@
 quality,actor_slot,asset_name,guid,decomp_line
 normal,HAND_MINION,Card_Hand_Ally.prefab,d00eb0f79080e0749993fe4619e9143d,ActorNames.cs:44-49
+golden,HAND_MINION,Card_Hand_Ally_Premium.prefab,b0f0a4abee3293540830967b829f2bec,ActorNames.cs:176-180
+golden,HAND_SPELL,Card_Hand_Ability_Premium.prefab,5105f461bc4a48e4c8bf452b93cfd772,ActorNames.cs:182-184
+golden,HAND_WEAPON,Card_Hand_Weapon_Premium.prefab,c7736007f7a350942bbe40e466ac357c,ActorNames.cs:186-188
+golden,HAND_HERO,Card_Hand_Hero_Premium.prefab,aca669662daf766449cd351fe4691f8f,ActorNames.cs:190-192
+golden,HAND_LOCATION,Card_Hand_Location_Premium.prefab,7de3ab2e9ed39f84fae0b6376494577b,ActorNames.cs:198-200
 normal,HAND_SPELL,Card_Hand_Ability.prefab,3c3f5189f0d0b3745a1c1ca21d41efe0,ActorNames.cs:50-53
 normal,HAND_WEAPON,Card_Hand_Weapon.prefab,30888a1fdca5c6c43abcc5d9dca55783,ActorNames.cs:54-57
 normal,HAND_HERO,Card_Hand_Hero.prefab,a977c49edb5fb5d4c8dee4d2344d1395,ActorNames.cs:58-61

@@ -1,11 +1,11 @@
 {
- "generatedAt": "2026-10-10T12:44:07.215837+00:00",
+ "generatedAt": "2026-10-26T07:57:27.841739+00:00",
  "source": {
   "file": "/Applications/Hearthstone/Data/OSX/dbf.unity3d",
-  "gameVersion": "36.6.253216",
+  "gameVersion": "37.0.254477",
   "tables": {
-   "CARD": 36022,
-   "CARD_TAG": 260954
+   "CARD": 36390,
+   "CARD_TAG": 264281
   }
  },
  "adr": "docs/adr/0001-fixture-frozen-benchmark-data.md",
@@ -118,6 +118,38 @@
    "cardId": "TIME_EVENT_999",
    "dbfId": 121675,
    "label": "金卡测试",
+   "premium": "GOLDEN",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "JAIL_321",
+   "dbfId": 126253,
+   "label": "金卡随从基线",
+   "premium": "GOLDEN",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "JAIL_450",
+   "dbfId": 126502,
+   "label": "金卡武器基线",
+   "premium": "GOLDEN",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "WW_0700",
+   "dbfId": 103471,
+   "label": "金卡英雄基线",
+   "premium": "GOLDEN",
+   "template": "Normal",
+   "zone": "Hand"
+  },
+  {
+   "cardId": "JAIL_887",
+   "dbfId": 126497,
+   "label": "金卡地标基线",
    "premium": "GOLDEN",
    "template": "Normal",
    "zone": "Hand"
@@ -527,5 +559,5 @@
   }
  ],
  "fixtureMd": "data/fixture.md",
- "gameVersion": "36.6.253216"
+ "gameVersion": "37.0.254477"
 }

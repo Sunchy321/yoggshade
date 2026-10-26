@@ -52,7 +52,16 @@ BANNER_FIELDS = [
     "m_hearthstoneFactionBannerContainer",
 ]
 
-SLOTS = ["hand-minion", "hand-spell", "hand-weapon", "hand-location", "hand-hero"]
+# GOLDEN frame prefabs also serialize the deck-action containers but leave their nested
+# prefab children empty. Actor.UpdateCardColor activates/instantiates those children for
+# tags such as PREPARE (Actor.cs:6431-6445); omitting premium slots here therefore drops
+# visible GOLDEN-card flags even though plan.compileBanners receives the tag. Include the
+# five premium frames so the offline pack has the same nested prefab geometry/materials.
+SLOTS = [
+    "hand-minion", "hand-spell", "hand-weapon", "hand-location", "hand-hero",
+    "hand-minion-golden", "hand-spell-golden", "hand-weapon-golden",
+    "hand-location-golden", "hand-hero-golden",
+]
 
 SWITCHER_BUNDLE = HS_DATA / "essential_base_global-prefab-0.unity3d"
 
@@ -361,13 +370,15 @@ def iter_nodes(node: dict):
 
 
 def actor_ref(slot: str) -> tuple[str, str]:
+    base_slot = slot.removesuffix("-golden")
     key = {"hand-minion": "HAND_MINION", "hand-spell": "HAND_SPELL", "hand-weapon": "HAND_WEAPON",
-           "hand-location": "HAND_LOCATION", "hand-hero": "HAND_HERO"}[slot]
+           "hand-location": "HAND_LOCATION", "hand-hero": "HAND_HERO"}[base_slot]
+    quality = "golden" if slot.endswith("-golden") else "normal"
     with open(REPO / "data" / "actor_names.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            if r["quality"] == "normal" and r["actor_slot"] == key:
+            if r["quality"] == quality and r["actor_slot"] == key:
                 return r["asset_name"], r["guid"]
-    raise KeyError(f"actor_names.csv 无 normal/{key}")
+    raise KeyError(f"actor_names.csv 无 {quality}/{key}")
 
 
 def main() -> int:

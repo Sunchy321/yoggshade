@@ -49,6 +49,7 @@ export function renderPortraitSubmesh(
   secondRgba: RGBAImage,
   secondTint: number[], // [r,g,b,a]
   blendIntensity: number,
+  directMaterialOutput = false,
 ): void {
   const tR = secondTint[0] * blendIntensity;
   const tG = secondTint[1] * blendIntensity;
@@ -110,6 +111,17 @@ export function renderPortraitSubmesh(
         const bB = mainS[2] * fB;
         // min((blend, 1), ((blend+0.15)*1, 1.15*1)) —— vcolor 恒 1
         const ci = pi * 4;
+        if (directMaterialOutput) {
+          // GOLDEN Actor.SetPortraitMaterial replaces the frame's initial portrait shader with
+          // UberGoldenCard. Its frozen material composite is already final; applying the initial
+          // Unlit_Portrait second-texture and +0.15 lift here would double-shade that image.
+          canvas[ci] = mainS[0];
+          canvas[ci + 1] = mainS[1];
+          canvas[ci + 2] = mainS[2];
+          canvas[ci + 3] = mainS[3];
+          zbuf[pi] = zpix;
+          continue;
+        }
         canvas[ci] = Math.min(bR, (bR + 0.15));
         canvas[ci + 1] = Math.min(bG, (bG + 0.15));
         canvas[ci + 2] = Math.min(bB, (bB + 0.15));

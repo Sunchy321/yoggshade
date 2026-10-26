@@ -1,11 +1,12 @@
 /** P0 渲染主流程：build_render_list_ally + raster_bucket_zbuf + 肖像公式层（dz_render 对译）。 */
 import { projectX, projectY, SIZE } from './camera.js';
 import { rasterZbuf, type DiffuseAlphaMaskScrollerLayer, type Signature25GlassLayer,
-  type WatermarkLayer } from './raster.js';
+  type TextureReflectionLayer, type WatermarkLayer } from './raster.js';
 import { renderPortraitSubmesh } from './portrait.js';
 import { walkWithKey, TextureStore } from './assets.js';
 import { renderStatGems, renderRarityGemWrap, type OverlayGemSource } from './gems.js';
 import { rasterUberCardBack, type UberCardBackTextures } from './uber-card-back.js';
+import { isGoldenSlot } from './plan.js';
 import type { AssetPack, FrameMaterial, HierarchyNode, PlanComponent, RenderPlan, SpellOverlayPack } from './types.js';
 
 interface FrameNode {
@@ -72,6 +73,8 @@ interface BucketTri {
   triCloudUv?:               number[][];
   diffuseAlphaMaskScroller?: DiffuseAlphaMaskScrollerLayer;
   signature25Glass?:         Signature25GlassLayer;
+  textureReflection?:        TextureReflectionLayer;
+  triReflectionUv?:          number[][];
   uber?:                     { material: FrameMaterial, textures: UberCardBackTextures };
 }
 
@@ -100,6 +103,15 @@ export function rasterBucketZbuf(
     const verts = mesh.verts;
     const uv0 = mesh.uv0;
     const n = verts.length;
+    const hasReflectionMaterial = typeof pack.slot === 'string' && isGoldenSlot(pack.slot)
+      && mats.some(mat => mat?.shader === 'Custom/Card/UnlitTextureReflection');
+    const worldX = hasReflectionMaterial ? new Float64Array(n) : undefined;
+    const worldZ = hasReflectionMaterial ? new Float64Array(n) : undefined;
+    const normalWorldX = hasReflectionMaterial ? new Float64Array(n) : undefined;
+    const normalWorldZ = hasReflectionMaterial ? new Float64Array(n) : undefined;
+    if (hasReflectionMaterial && (!mesh.normals || mesh.normals.length !== n)) {
+      throw new Error(`金卡反射材质缺顶点法线: ${pack.slot}/${key}`);
+    }
     const px = new Float64Array(n);
     const py = new Float64Array(n);
     const depth = new Float64Array(n);
@@ -111,6 +123,13 @@ export function rasterBucketZbuf(
       px[i] = projectX(wx);
       py[i] = projectY(wz);
       depth[i] = wy;
+      if (hasReflectionMaterial) {
+        worldX![i] = wx;
+        worldZ![i] = wz;
+        const normal = mesh.normals![i]!;
+        normalWorldX![i] = R[0][0] * normal[0] + R[0][1] * normal[1] + R[0][2] * normal[2];
+        normalWorldZ![i] = R[2][0] * normal[0] + R[2][1] * normal[1] + R[2][2] * normal[2];
+      }
     }
     for (let si = 0; si < mesh.subs.length; si++) {
       const mi = Math.min(si, mats.length - 1);
@@ -247,8 +266,36 @@ export function rasterBucketZbuf(
         }
         : undefined;
       if (signature25Glass) uv1Arr = mesh.uv1 ?? mesh.uv0;
+      const textureReflection = typeof pack.slot === 'string' && isGoldenSlot(pack.slot)
+        && mat.shader === 'Custom/Card/UnlitTextureReflection'
+        ? (() => {
+          const specFile = mat.tex?.['_SpecTex']?.texture?.file;
+          const reflectionFile = mat.tex?.['_ReflTex']?.texture?.file;
+          if (!specFile || !reflectionFile) {
+            throw new Error(`金卡反射材质缺 SpecTex/ReflTex: ${pack.slot}/${key}/${mat.name ?? 'material'}`);
+          }
+          return {
+            spec: textures.get(specFile),
+            reflection: textures.get(reflectionFile),
+            intensity: mat.floats?.['_ReflectionIntensity'] ?? 1,
+          };
+        })()
+        : undefined;
       for (const t of tris) {
         const a = t[0], b = t[1], c = t[2];
+        const triReflectionUv = textureReflection
+          ? [a, b, c].map(i => {
+            // Custom_Card_UnlitTextureReflection_VS_nokw.metal:91-102 —
+            // reflUV = 2 * (0.07 * (world.xz - mainUV.x * 0.3 * worldNormal.xz)
+            //              + 2 * _Time.x * _ReflectionRotation).
+            const mainU = uvArr[i]![0]! + uvOffset[0];
+            // T09 phase comparison froze UnlitTextureReflection at the game's canonical _Time.x=0.
+            const tx = 0;
+            const ux = worldX![i]! - mainU * normalWorldX![i]! * 0.3;
+            const uz = worldZ![i]! - mainU * normalWorldZ![i]! * 0.3;
+            return [(ux * 0.07 + tx) * 2, (uz * 0.07 + tx) * 2];
+          })
+          : undefined;
         trisOut.push({
           depth:         (depth[a] + depth[b] + depth[c]) / 3,
           seq:           seq++,
@@ -268,6 +315,8 @@ export function rasterBucketZbuf(
           triCloudUv:    diffuseAlphaMaskScroller ? [uv0[a], uv0[b], uv0[c]] : undefined,
           diffuseAlphaMaskScroller,
           signature25Glass,
+          textureReflection,
+          triReflectionUv,
           uber,
         });
       }
@@ -283,7 +332,8 @@ export function rasterBucketZbuf(
       rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
         textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
         e.wm, e.triUv1, e.colorAsAlpha, e.premultiplied, e.skipDepthTest,
-        e.diffuseAlphaMaskScroller, e.triCloudUv, e.signature25Glass, e.writeDepth);
+        e.diffuseAlphaMaskScroller, e.triCloudUv, e.signature25Glass, e.writeDepth,
+        e.textureReflection, e.triReflectionUv);
     }
   }
   return trisOut.length;
@@ -343,6 +393,7 @@ export function renderPortraitLayer(
     mainRgba, secondRgba,
     st ? [st.r, st.g, st.b, st.a] : [0, 0, 0, 0],
     pack.materialProps?.m_Floats._BlendIntensity ?? 0,
+    pack.plan!.portrait_direct_material_output ?? false,
   );
 }
 

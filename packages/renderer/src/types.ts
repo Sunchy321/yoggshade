@@ -19,6 +19,8 @@ export interface RGBAImage {
  *  可见，参照 AV_205 实证）。 */
 export interface MeshEntry {
   verts: number[][];
+  /** 原生顶点法线（只由需要 shader 世界法线的帧消费；其余 mesh 可缺省）。 */
+  normals?: number[][];
   uv0:   number[][];
   uv1?:  number[][];
   subs:  number[][][];
@@ -34,7 +36,13 @@ export interface FrameMaterial {
   tex?: Record<string, {
     scale?:   number[];
     offset?:  number[];
-    texture?: { name?: string, bundle?: string, file?: string } | null;
+    texture?: {
+      name?: string, bundle?: string, file?: string,
+      /** Unity TextureWrapMode enum: Repeat=0, Clamp=1, Mirror=2, MirrorOnce=3. */
+      wrap_u?: number | null, wrap_v?: number | null,
+      /** Unity FilterMode enum: Point=0, Bilinear=1, Trilinear=2. */
+      filter_mode?: number | null,
+    } | null;
     error?:   string;
   }>;
   colors?: Record<string, number[]>;
@@ -185,6 +193,8 @@ export interface RenderPlan {
    *  （量化与对账：explore/2026-10-06-l2-offset/findings.md）。plan 编译期按主体网格顶点
    *  包围盒算好写入；scope 外帧族缺省 undefined = 原点锚（行为不变）。 */
   frame_center?:   [number, number];
+  /** GOLDEN 预合成卡图已经是最终材质输出，肖像层跳过普通 Unlit_Portrait 二次着色。 */
+  portrait_direct_material_output?: boolean;
 }
 
 export interface HierarchyNode {

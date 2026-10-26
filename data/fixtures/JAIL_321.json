@@ -1,0 +1,59 @@
+{
+ "cardId": "JAIL_321",
+ "dbfId": 126253,
+ "preset": {
+  "label": "金卡随从基线",
+  "premium": "GOLDEN",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "独立且可收集的 GOLDEN 随从基线，用于验证 premium 随从帧及金卡原画材质。",
+  "signatureFrameId": 9
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Tricksy Improviser",
+  "deDE": "Improvisationskünstler",
+  "esES": "Improvisador Triquiñuelas",
+  "esMX": "Improvisador engañoso",
+  "frFR": "Improvisateur rusé",
+  "itIT": "Improvvisatore Malandrino",
+  "jaJP": "悪賢い即興名人",
+  "koKR": "까다로운 변통가",
+  "plPL": "Szczwany improwizator",
+  "ptBR": "Improvisador Ardiloso",
+  "ruRU": "Хитроумный импровизатор",
+  "thTH": "นักด้นสดแสนกล",
+  "zhCN": "机灵的即兴舞者",
+  "zhTW": "狡猾應變者"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Prepare</b>\n<b>Battlecry:</b> If you've cast a\nspell this turn, cast two\n__random Mage <b>Secrets</b>.",
+  "deDE": "<b>Vorbereiten</b>. <b>Kampfschrei:</b> Wenn Ihr in diesem Zug einen Zauber gewirkt habt, wirkt Ihr 2 zufällige_<b>Magiergeheimnisse</b>.",
+  "esES": "<b>Preparar</b>, <b>Grito de batalla:</b> Si has lanzado un hechizo este turno, lanza dos <b>Secretos</b> de mago aleatorios.",
+  "esMX": "<b>Preparar</b>\n<b>Grito de batalla:</b> lanza dos <b>Secretos</b> de Mago aleatorios si has lanzado un hechizo en este turno.",
+  "frFR": "<b>Préparation</b>\n<b>Cri de guerre_:</b> si vous avez lancé un sort pendant ce tour, lance deux <b>Secrets</b> aléatoires de mage.",
+  "itIT": "<b>Predisposizione</b>. <b>Grido di Battaglia:</b> se hai lanciato una Magia in questo turno, lancia due <b>Segreti</b> del Mago casuali.",
+  "jaJP": "[x]<b>仕込み</b>、<b>雄叫び:</b>\nこのターンに自分が\n呪文を使っていたら\nランダムなメイジの<b>秘策</b>\n2つを使用する。",
+  "koKR": "<b>준비</b>, <b>전투의 함성:</b> 이번 턴에 내가 주문을 시전했다면, 무작위 마법사 <b>비밀</b>을 둘 시전합니다.",
+  "plPL": "<b>Gotowość</b>\n<b>Okrzyk bojowy:</b> Jeśli udało_ci_się rzucić w_tej_turze zaklęcie, zagraj_dwa_losowe <b>Sekrety</b>_maga.",
+  "ptBR": "<b>Preparar</b>. <b>Grito de Guerra:</b> Se você lançou um feitiço neste turno, lance dois <b>Segredos</b> aleatórios de Mago.",
+  "ruRU": "<b>Подготовка</b>. <b>Боевой клич:</b>\nесли вы применили\nзаклинание на этом ходу,\nприменяет два случайных\n<b>«Секрета»</b> мага.",
+  "thTH": "<b>เตรียมการ</b>_<b>คำรามสู้ศึก:</b>_ถ้า[b]คุณเคยร่ายเวทมนตร์ในเทิร์นนี้ สุ่มร่าย_<b>กับดัก</b>_เมจสองใบ",
+  "zhCN": "<b>预备</b>。<b>战吼：</b>如果你在本回合中施放过法术，随机施放两个法师<b>奥秘</b>。",
+  "zhTW": "<b>預備</b>\n<b>戰吼：</b>若你本回合有打出\n法術，施放兩個\n隨機法師<b>秘密</b>"
+ },
+ "tags": {
+  "199": 4,
+  "203": 4,
+  "202": 4,
+  "45": 4,
+  "48": 5,
+  "47": 4,
+  "321": 1,
+  "1743": 1,
+  "4354": 1,
+  "218": 1,
+  "2589": 1
+ }
+}

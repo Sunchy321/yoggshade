@@ -1,0 +1,61 @@
+{
+ "cardId": "JAIL_450",
+ "dbfId": 126502,
+ "preset": {
+  "label": "金卡武器基线",
+  "premium": "GOLDEN",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "独立 cardId 的 GOLDEN 武器基线，用于验证 premium 武器帧及金卡原画材质。",
+  "signatureFrameId": 12
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Corpse Cannon",
+  "deDE": "Leichenkanone",
+  "esES": "Cañón de cadáveres",
+  "esMX": "Cañón de cadáveres",
+  "frFR": "Canon à cadavres",
+  "itIT": "Cannone a Cadaveri",
+  "jaJP": "死体砲",
+  "koKR": "시체 대포",
+  "plPL": "Trupie działo",
+  "ptBR": "Canhão de Cadáveres",
+  "ruRU": "Трупная пушка",
+  "thTH": "ปืนใหญ่ยิงศพ",
+  "zhCN": "残骸大炮",
+  "zhTW": "屍體大砲"
+ },
+ "textInHand": {
+  "enUS": "After your hero\nattacks,& summon a\n1/1 Frail Ghoul.",
+  "deDE": "Nachdem Euer Held angegriffen hat:& Ruft einen Gebrechlichen Ghul_(1/1) herbei.",
+  "esES": "Después de que ataque tu héroe,& invoca un necrófago endeble 1/1.",
+  "esMX": "Después de que tu héroe ataca,& invoca un Necrófago frágil 1/1.",
+  "frFR": "Une fois que votre héros ou héroïne a attaqué,& invoque une goule fragile_1/1.",
+  "itIT": "Dopo che il tuo eroe ha attaccato,& evoca un Ghoul_Gracile_1/1.",
+  "jaJP": "[x]自分のヒーローが\n攻撃した後、\n&1/1の「墓ないグール」を\n1体召喚する。",
+  "koKR": "내 영웅이 공격한 후에& 1/1 취약한 구울을 소환합니다.",
+  "plPL": "Gdy twój_bohater_zaatakuje,& przyzwij_Lichego_ghula_1/1.",
+  "ptBR": "Depois que seu herói atacar,& evoque um Carniçal Frágil 1/1.",
+  "ruRU": "[x]После того как\nваш герой атакует,&\nпризывает хрупкого \nвурдалака 1/1.",
+  "thTH": "หลังจากฮีโร่ของคุณ[b]โจมตี&_เรียก[b]กูลอ่อนแอ_1/1",
+  "zhCN": "在你的英雄攻击后，&召唤一个1/1的脆弱的食尸鬼。",
+  "zhTW": "在你的英雄攻擊後，&召喚一個1/1脆弱食屍鬼"
+ },
+ "tags": {
+  "199": 1,
+  "202": 7,
+  "47": 1,
+  "45": 3,
+  "48": 2,
+  "203": 1,
+  "321": 1,
+  "2198": 2,
+  "32": 1,
+  "2589": 1,
+  "4546": 1,
+  "4533": 1,
+  "4932": 1
+ }
+}

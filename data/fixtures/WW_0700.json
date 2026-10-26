@@ -1,0 +1,58 @@
+{
+ "cardId": "WW_0700",
+ "dbfId": 103471,
+ "preset": {
+  "label": "金卡英雄基线",
+  "premium": "GOLDEN",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "独立的可收集 8 费中立传说英雄孤胆游侠雷诺，用于验证 premium 英雄帧及金卡原画材质。"
+ },
+ "textBuilderType": 0,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Reno, Lone Ranger",
+  "deDE": "Reno, einsamer Cowboy",
+  "esES": "Reno llanero solitario",
+  "esMX": "Reno, Llanero Solitario",
+  "frFR": "Reno, ranger solitaire",
+  "itIT": "Reno, Ranger Solitario",
+  "jaJP": "ローンレンジャー・レノ",
+  "koKR": "고독한 방랑자 리노",
+  "plPL": "Reno, Samotny Tropiciel",
+  "ptBR": "Reno, o Patrulheiro Solitário",
+  "ruRU": "Одинокий рейнджер Рено",
+  "thTH": "รีโน่ เรนเจอร์เดียวดาย",
+  "zhCN": "孤胆游侠雷诺",
+  "zhTW": "獨行俠里諾"
+ },
+ "textInHand": {
+  "enUS": "[x]<b>Battlecry:</b> If your deck\nstarted with no duplicates,\nremove all enemy minions\nfrom the game.",
+  "deDE": "<b>Kampfschrei:</b> Entfernt alle feindlichen Diener aus dem Spiel, wenn Euer anfängliches Deck_keine_Karte_mehrfach enthalten hat.",
+  "esES": "<b>Grito de batalla:</b> Si tu mazo ha_empezado sin cartas repetidas, elimina todos los_esbirros enemigos de la partida.",
+  "esMX": "<b>Grito de batalla:</b> si tu mazo inició sin cartas repetidas, elimina a todos los esbirros_enemigos de_la_partida.",
+  "frFR": "<b>Cri de guerre_:</b> si votre deck de départ ne contenait pas de cartes en double, retire tous les_serviteurs adverses de la partie.",
+  "itIT": "<b>Grido di Battaglia:</b> se il tuo mazzo iniziale conteneva una sola copia per carta, rimuove i servitori nemici dal gioco.",
+  "jaJP": "[x]<b>雄叫び:</b>\n対戦開始時の自分のデッキに\n重複するカードがない場合\n敵のミニオン全てを\nこの対戦から除去する。",
+  "koKR": "[x]<b>전투의 함성:</b>\n게임이 시작됐을 때\n내 덱에 똑같은 카드가 없으면,\n게임에서 적 하수인을\n모두 제거합니다.",
+  "plPL": "<b>Okrzyk bojowy:</b> Jeśli na_początku gry w_twojej talii nie_było duplikatów, usuń wszystkich wrogich stronników z_gry.",
+  "ptBR": "<b>Grito de Guerra:</b>\nSe seu deck começou sem cards repetidos, remova todos os lacaios inimigos do jogo.",
+  "ruRU": "<b>Боевой клич:</b> если в начале матча в вашей колоде\nне было одинаковых карт, убирает существ противника из игры.",
+  "thTH": "<b>คำรามสู้ศึก:</b>_ถ้าเด็คคุณ[b]เริ่มต้นโดยไม่มีการ์ดซ้ำกัน นำมินเนี่ยนศัตรูทั้งหมด[b]ออกจากเกม",
+  "zhCN": "<b>战吼：</b>如果你的套牌里没有相同的牌，将所有敌方随从移出对战。",
+  "zhTW": "<b>戰吼：</b>如果你的牌堆開始時沒有重複的卡牌，從賽局中移除全部敵方手下"
+ },
+ "tags": {
+  "199": 12,
+  "203": 5,
+  "202": 3,
+  "48": 8,
+  "45": 30,
+  "114": 1,
+  "292": 5,
+  "380": 103472,
+  "218": 1,
+  "321": 1,
+  "3382": 1
+ }
+}

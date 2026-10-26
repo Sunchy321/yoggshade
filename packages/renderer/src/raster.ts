@@ -43,6 +43,14 @@ export interface Signature25GlassLayer {
   uniforms:  Record<string, number>;
 }
 
+/** Custom/Card/UnlitTextureReflection pass (golden premium frame). The VS-produced reflection UV
+ *  is interpolated per triangle; the FS samples SpecTex and ReflTex with repeat/bilinear samplers. */
+export interface TextureReflectionLayer {
+  spec: RGBAImage;
+  reflection: RGBAImage;
+  intensity: number;
+}
+
 const scratchCloud = new Float64Array(4);
 
 /** Unity sampler Repeat with bilinear texel-center coordinates. */
@@ -111,6 +119,8 @@ export function rasterZbuf(
   triCloudUv?: number[][],
   signature25Glass?: Signature25GlassLayer,
   writeDepth = true,
+  textureReflection?: TextureReflectionLayer,
+  triReflectionUv?: number[][],
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -154,13 +164,35 @@ export function rasterZbuf(
 
       const u = l0 * u0 + l1 * u1 + l2 * u2 + uvOffset[0];
       const v = l0 * v0 + l1 * v1 + l2 * v2 + uvOffset[1];
+      const ci = pi * 4;
       // wrap=repeat（Unity _MainTex 默认）：ST 后逐像素取分数部分。多职业绶带阴影的材质
       // ST（scale 0.53/0.48, offset −0.53/−0.048）使采样越过 0 边界，clamp 会拉出边缘条纹；
       // 引擎 repeat 语义 = fract。逐顶点预 fract 不可行（三角形跨缝插值会横穿整张图）。
+      if (textureReflection && triReflectionUv) {
+        // Golden premium shader pass 0 is Blend One/Zero, ZWrite On, ZTest LEqual (UnityPy
+        // probe: Angelia lab/2026-10-23-gold-frame-phase/NOTES.md §1). Its decompiled Metal FS
+        // samples SpecTex@UV0 and ReflTex@VS reflection UV, then writes
+        // sat(MainTex + 0.5 * SpecTex * ReflTex * _ReflectionIntensity) * COLOR0. The VS
+        // COLOR0 is exactly white for this prefab's serialized _LightingBlend=0. Sources:
+        // explore/2026-10-26-golden-stage-b/output/shader/Custom_Card_UnlitTextureReflection_
+        // {VS,FS}_nokw.metal:91-102 / 46-52; frame_recon material settings record Repeat+Bilinear.
+        sampleBilinearRepeat(tex, u, v, scratch);
+        const ru = l0 * triReflectionUv[0]![0]! + l1 * triReflectionUv[1]![0]!
+          + l2 * triReflectionUv[2]![0]!;
+        const rv = l0 * triReflectionUv[0]![1]! + l1 * triReflectionUv[1]![1]!
+          + l2 * triReflectionUv[2]![1]!;
+        sampleBilinearRepeat(textureReflection.spec, u, v, scratchW);
+        sampleBilinearRepeat(textureReflection.reflection, ru, rv, scratchCloud);
+        for (let c = 0; c < 4; c++) {
+          canvas[ci + c] = Math.min(Math.max(scratch[c]!
+            + 0.5 * scratchW[c]! * scratchCloud[c]! * textureReflection.intensity, 0), 1);
+        }
+        if (writeDepth) zbuf[pi] = z;
+        continue;
+      }
       const uu = wrapRepeat ? u - Math.floor(u) : u;
       const vv = wrapRepeat ? v - Math.floor(v) : v;
       sampleBilinearClamp(tex, uu * tw - 0.5, (1.0 - vv) * th - 0.5, scratch);
-      const ci = pi * 4;
       if (signature25Glass) {
         // RLK_706 previously sampled only MainTex@UV0 with generic texture alpha, losing the
         // glass mask and the name-banner end caps. Replay the selected shader pass from

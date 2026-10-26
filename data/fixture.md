@@ -32,6 +32,10 @@ SetTag，见 docs/findings/lettuce-frame-teardown-2026-10-10.md §10）。DBF �
 | AV_205p | 英雄技能基线 | NORMAL | Normal | Hand | 英雄技能样例，用于验证英雄技能导出。 |
 | ETC_210 | 多符文基线 | NORMAL | Normal | Hand | 多符文死亡骑士样例，用于验证多符文导出。 |
 | TIME_EVENT_999 | 金卡测试 | GOLDEN | Normal | Hand | 金卡样例，用于验证金卡导出。 |
+| JAIL_321 | 金卡随从基线 | GOLDEN | Normal | Hand | 独立且可收集的 GOLDEN 随从基线，用于验证 premium 随从帧及金卡原画材质。 |
+| JAIL_450 | 金卡武器基线 | GOLDEN | Normal | Hand | 独立 cardId 的 GOLDEN 武器基线，用于验证 premium 武器帧及金卡原画材质。 |
+| WW_0700 | 金卡英雄基线 | GOLDEN | Normal | Hand | 独立的可收集 8 费中立传说英雄孤胆游侠雷诺，用于验证 premium 英雄帧及金卡原画材质。 |
+| JAIL_887 | 金卡地标基线 | GOLDEN | Normal | Hand | 独立 cardId 的 GOLDEN 地标基线，用于验证 premium 地标帧及金卡原画材质。 |
 | TTN_850 | 钻石基线 | DIAMOND | Normal | Hand | 钻石卡样例，用于验证钻石导出。 |
 | RLK_706 | 异画1基线 | SIGNATURE | Normal | Hand | 异画样例 1，用于验证异画导出。 |
 | WW_373 | 异画2基线 | SIGNATURE | Normal | Hand | 异画样例 2，用于验证异画导出。 |

@@ -460,6 +460,21 @@ export const SIGNATURE_FRAME_TO_SLOT: Record<number, string> = {
   12: 'hand-weapon-sig12',
 };
 
+/** ActorNames.s_premiumActorAssets 中已抽取的金卡手牌帧；普通帧族到金框帧一一映射。
+ *  根因：游戏按 CARDTYPE 选择 actor 后再套 GOLDEN actor 表（ActorNames.cs:483-496, 176-200）；
+ *  只登记随从会让法术 TIME_EVENT_999 回落到普通法术帧。 */
+export const GOLDEN_SLOT_BY_BASE_SLOT: Record<string, string> = {
+  'hand-minion':   'hand-minion-golden',
+  'hand-spell':    'hand-spell-golden',
+  'hand-weapon':   'hand-weapon-golden',
+  'hand-hero':     'hand-hero-golden',
+  'hand-location': 'hand-location-golden',
+};
+
+export function isGoldenSlot(slot: string): boolean {
+  return Object.values(GOLDEN_SLOT_BY_BASE_SLOT).includes(slot);
+}
+
 /** 是否签名帧槽位（SIG_SLOT_TO_FRAME 的 TS 侧镜像判定）。 */
 export function isSignatureSlot(slot: string): boolean {
   return Object.values(SIGNATURE_FRAME_TO_SLOT).includes(slot);
@@ -467,13 +482,24 @@ export function isSignatureSlot(slot: string): boolean {
 
 /** premium 帧族选择（renderCard/keys 与 slotForCardType 的 premium 感知包装）：
  *  premium=SIGNATURE 且 preset.signatureFrameId 命中「已实现（FRAME_RULES 有规则）∧
- *  资产包已抽」的签名槽 → 签名帧；否则回落普通帧并显式告警（未实现帧型不崩，
- *  spec T3 口径：回落要有显式日志）。GOLDEN/DIAMOND 不经此路（阶段 B / 另行决策）。 */
+ *  资产包已抽」的签名槽 → 签名帧；GOLDEN 按普通卡型映射到已抽取的同型 premium actor；
+ *  任一类别帧缺失则回落普通帧并显式告警。 */
 export function slotForFixture(
   fixture: FixtureCard,
   hasFrame?: (manifestKey: string) => boolean,
 ): string {
   const fallback = slotForCardType(fixture.tags);
+  if (fixture.preset.premium === 'GOLDEN') {
+    const cardType = fixture.tags[TAG.CARDTYPE] ?? 4;
+    const goldenSlot = GOLDEN_SLOT_BY_BASE_SLOT[fallback];
+    if (goldenSlot && FRAME_RULES[goldenSlot]
+      && (!hasFrame || hasFrame(`frames/${goldenSlot}/manifest.json`))) {
+      return goldenSlot;
+    }
+    console.warn(`[golden] ${fixture.cardId} premium GOLDEN 无可用金卡帧`
+      + `（cardType=${cardType}）→ 回落普通帧 ${fallback}`);
+    return fallback;
+  }
   if (fixture.preset.premium !== 'SIGNATURE') return fallback;
   const fid = fixture.preset.signatureFrameId;
   const sig = fid !== undefined ? SIGNATURE_FRAME_TO_SLOT[fid] : undefined;
@@ -495,10 +521,15 @@ export const SLOT_NATIVE_CARD_TYPES: Record<string, number[]> = {
   'hand-lettuce-equipment':      [23],
   'hand-mercenary':              [4],
   'hand-minion':                 [4, 47],
+  'hand-minion-golden':          [4, 47],
   'hand-spell':                  [5, 40, 42],
+  'hand-spell-golden':           [5, 40, 42],
   'hand-hero':                   [3],
+  'hand-hero-golden':            [3],
   'hand-weapon':                 [7],
+  'hand-weapon-golden':          [7],
   'hand-location':               [39],
+  'hand-location-golden':        [39],
   'hand-heropower':              [10],
   'hand-bg-anomaly':             [43],
   'hand-bg-trinket':             [44],
@@ -577,6 +608,20 @@ const FRAME_RULES: Record<string, FrameRules> = {
     race:      ['RacePlate_mesh'], multiRace: ['Multi_RacePlate_mesh'],
     roles:     ['cost', 'name', 'desc', 'race', 'attack', 'health'],
   },
+  // GOLDEN 的 premium ActorNames prefab 保留同一套随从节点规则；材质和网格来自独立金框槽。
+  // T09 JAIL_321 的白色弧形龙影来自这个 prefab 的默认 enabled 子节点
+  // Unique_Ally_Dragon_Shadow：Actor.UpdateEliteComponent 对 m_eliteObject 子树统一按
+  // ELITE 开关 renderer（Actor.cs:5141-5148），但本离线 plan 逐组件匹配节点名，之前只门控父节点。
+  // UnityPy 探针 assets/frames/hand-minion-golden/frame_recon.json 显示 m_eliteObject 指向
+  // Unique_Ally_Dragon，子节点 Shadow 使用 GenFX_Card_InHand_Premium_BannerAtlas；故非精英卡必须
+  // 同样隐藏该子节点，避免把金卡 atlas 的龙形采到画窗外框上。
+  'hand-minion-golden': {
+    elite: ['Unique_Ally_Dragon', 'Unique_Ally_Dragon_Shadow'],
+    rarity: ['RarityGemFrame', 'RarityGem'],
+    attack:    ['Gem_Attack'], health:    ['Gem_Health'],
+    race:      ['RacePlate_mesh'], multiRace: ['Multi_RacePlate_mesh'],
+    roles:     ['cost', 'name', 'desc', 'race', 'attack', 'health'],
+  },
   // 法术：elite=InHand_Ability_Unique_Dragon(+shadow)；稀有度=RarityFrame_mesh+RarityGem；
   // 无攻/血/种族；plate=学派文本（Description_mesh/RaceUberText，文本非空才显）
   'hand-spell': {
@@ -584,8 +629,26 @@ const FRAME_RULES: Record<string, FrameRules> = {
     rarity: ['RarityFrame_mesh', 'RarityGem'],
     roles:  ['cost', 'name', 'desc', 'race'],
   },
+  // T09 的 elite 龙饰回归：游戏 Actor.UpdateEliteComponent 以 Actor.IsElite 控制 m_eliteObject
+  // 的 renderer（Actor.cs:1349-1367, 5141-5148）；金卡法术/英雄 prefab 的序列化节点名与普通
+  // prefab 不同，若只匹配普通名，离线 plan 会把默认 active 的金龙误画到非 ELITE 卡上。
+  // 把实抽金卡节点名纳入同一 TAG_ELITE 门控，复刻引擎的运行期 renderer 开关。证据：
+  // assets/frames/hand-spell-golden/frame_recon.json 的 InHand_Ability_Unique_Dragon_Premium；
+  // assets/frames/hand-hero-golden/frame_recon.json 的 HeroCard_InHand_EliteDragon (1)。
+  // 金色法术 / 武器 / 英雄 / 地标帧的其余组件规则沿用对应普通帧。
+  'hand-spell-golden': {
+    elite: ['InHand_Ability_Unique_Dragon', 'InHand_Ability_Unique_Dragon_Premium',
+      'InHand_Ability_Unique_Dragon_shadow'],
+    rarity: ['RarityFrame_mesh', 'RarityGem'],
+    roles:  ['cost', 'name', 'desc', 'race'],
+  },
   // 武器：攻/耐久=图标网格（Wep_Swords/Wep_SheildBroken，非宝石）；名字平面 fallback（无载体）
   'hand-weapon': {
+    elite:  ['Unique_Weapon_Dragon'], rarity: ['RarityGemFrame', 'RarityGem'],
+    attack: ['Wep_Swords'], health: ['Wep_SheildBroken'],
+    roles:  ['cost', 'name', 'desc', 'attack', 'health'],
+  },
+  'hand-weapon-golden': {
     elite:  ['Unique_Weapon_Dragon'], rarity: ['RarityGemFrame', 'RarityGem'],
     attack: ['Wep_Swords'], health: ['Wep_SheildBroken'],
     roles:  ['cost', 'name', 'desc', 'attack', 'health'],
@@ -597,8 +660,20 @@ const FRAME_RULES: Record<string, FrameRules> = {
     attack: ['Gem_Attack'], armor:  ['Armor_Whole_mesh'],
     roles:  ['cost', 'name', 'desc', 'attack', 'armor'],
   },
+  'hand-hero-golden': {
+    elite:  ['HeroCard_InHand_EliteDragon', 'HeroCard_InHand_EliteDragon (1)'],
+    rarity: ['RarityGemFrame', 'RarityGem'],
+    attack: ['Gem_Attack'], armor:  ['Armor_Whole_mesh'],
+    roles:  ['cost', 'name', 'desc', 'attack', 'armor'],
+  },
   // 地标：耐久=Wep_SheildBroken；No_Gem_Mesh=!rarity；RacePlate 强制隐（无种族文本）
   'hand-location': {
+    elite:        ['Unique_Ally_Dragon'], rarity:       ['RarityGem'],
+    health:       ['Wep_SheildBroken'],
+    noGem:        'No_Gem_Mesh', forcedHidden: ['RacePlate_mesh'],
+    roles:        ['cost', 'name', 'desc', 'health'],
+  },
+  'hand-location-golden': {
     elite:        ['Unique_Ally_Dragon'], rarity:       ['RarityGem'],
     health:       ['Wep_SheildBroken'],
     noGem:        'No_Gem_Mesh', forcedHidden: ['RacePlate_mesh'],
@@ -910,18 +985,30 @@ export function compileFramePlan(
   // CardTextureLoader.LoadSignature（CardTextureLoader.cs:235-259）把 CardDef.
   // GetSignaturePortraitRef 的专属原画装进实例化肖像材质；包内约定
   // portraits/{cardId}-signature.png（extract_fixture_assets，异画 fixture 5 张已全在包）。
-  // -GOLDEN 后缀随阶段 B 接线（金卡帧未落地，这里不区分 GOLDEN）。
-  // 签名帧激活判定（四写点统一门）：槽位是签名帧 ∧ premium=SIGNATURE。槽位单看不够——
+  // -GOLDEN 由 UberGoldenCard+UberShaderAnimation 在提取期冻结为 PNG，再由 GOLDEN 帧消费。
+  // 签名/金卡判定都要求 premium 与对应帧槽同时命中，槽位单看不够——
   // input.slot 可强制签名槽渲染 NORMAL 卡（CLI 调试），裸 sigSlot 门会让肖像后缀/晚通道/
-  // rarity 抑制与类色注入四者口径分裂（2026-10-25 评审指认，阶段 B GOLDEN 前收紧）。
+  // rarity 抑制与类色注入口径分裂（2026-10-25 评审指认，T09 同样按 premium 收紧）。
   const sigActive = isSignatureSlot(slot) && fixture.preset.premium === 'SIGNATURE';
-  const portraitFile = sigActive && base.src.has(`portraits/${fixture.cardId}-signature.png`)
-    ? `portraits/${fixture.cardId}-signature.png`
-    : base.src.has(`portraits/${fixture.cardId}.png`)
-      ? `portraits/${fixture.cardId}.png`
-      : base.src.has(`textures/portrait_${fixture.cardId}.png`)
-        ? `textures/portrait_${fixture.cardId}.png`
-        : null;
+  const goldenActive = isGoldenSlot(slot) && fixture.preset.premium === 'GOLDEN'
+    && (SLOT_NATIVE_CARD_TYPES[slot]?.includes(tags[TAG.CARDTYPE] ?? 4) ?? false);
+  const goldenPortraitFile = `portraits/${fixture.cardId}-golden.png`;
+  // DIY 卡没有游戏提供的 -golden 合成图时，保留普通原画并只套金框。基准金卡仍消费
+  // UberGoldenCard+UberShaderAnimation 冻结出的专属 PNG；只有该合成图已经是最终材质输出。
+  // 上传原画也走普通 Unlit_Portrait（render-card.ts 覆盖下方 direct-output 标记）。
+  // 证据：ActorNames.cs:483-496 选择 GOLDEN 帧族；CardTextureLoader.cs:235-259 的异画
+  // 专属图按独立后缀装载；T09 golden-stage findings 记录金卡图是提取期 UberGoldenCard 合成。
+  const goldenPortraitAvailable = goldenActive && base.src.has(goldenPortraitFile);
+  let portraitFile: string | null = null;
+  if (sigActive && base.src.has(`portraits/${fixture.cardId}-signature.png`)) {
+    portraitFile = `portraits/${fixture.cardId}-signature.png`;
+  } else if (goldenPortraitAvailable) {
+    portraitFile = goldenPortraitFile;
+  } else if (base.src.has(`portraits/${fixture.cardId}.png`)) {
+    portraitFile = `portraits/${fixture.cardId}.png`;
+  } else if (base.src.has(`textures/portrait_${fixture.cardId}.png`)) {
+    portraitFile = `textures/portrait_${fixture.cardId}.png`;
+  }
 
   const rarityName = RARITY_NAMES[tags[TAG.RARITY] ?? 0] ?? 'INVALID';
   const rarityVisible = rarityName in GEM_TEXTURE_OFFSET;
@@ -1232,23 +1319,48 @@ export function compileFramePlan(
   const portraitMeshComp = components.find(c => c.path === portraitMeshPath);
   const cardFrontMatName = report.nodes.find(n => n.path === cardMeshPath)
     ?.components.renderer?.material_slots?.find(s => s.slot === cardFrontIdx)?.name ?? null;
-  // GDB_477 signature-frame regression: Actor.UpdateCardColor calls SetMaterialNormal before
-  // SetMaterial only for mercenary cards (Actor.cs:6263-6427); ordinary SIGNATURE cards go
-  // through SetMaterial -> SetMaterialPremium (Actor.cs:6429-6444, 6577-6599), which writes
-  // class color only to m_premiumRibbon (slot 2). The prefab's slot 0 already owns
-  // Signature_Evergreen_Atlas (assets/frames/hand-minion-sig9/frame_recon.json,
-  // RootObject/Mesh / Genfx_Inhand_Signature_Evergreen_Atlas_Mat). Injecting the normal
-  // CardColorSwitcher atlas here replaced its carved frame with a flat class panel. Keep the
-  // signature atlas bound as serialized; this gate triggers for every resolved SIGNATURE slot.
-  if (atlasFile && !sigActive) {
-    if (cardMeshComp && cardFrontIdx > -1) setSlotTex(cardMeshComp, cardFrontIdx, atlasFile);
+  // Premium actors receive their class-colored ribbon through SetMaterialPremium's
+  // m_premiumRibbon write (Actor.cs:6577-6634); replacing the card front with the ordinary
+  // CardColorSwitcher atlas would discard the premium frame material. Keep the prefab's own
+  // serialized class panel for GOLDEN and SIGNATURE slots.
+  // T09 JAIL_450 GOLDEN 的死亡骑士肖像外框需保留 WEAPON 的单色 DK 特支，且两侧装饰花要金色：
+  // Actor.SetMaterialWithTexture（Actor.cs:6700-6708）在 WEAPON 且 ColorType=TYPE_DEATHKNIGHT、
+  // colors.Count==1 时将类色 atlas 写入 portraitMesh[m_portraitFrameMatIdx]。金卡帧把卡身放在
+  // 独立的 premium cardMesh 材质中，但 PortraitFrame_mesh 仍保留单独的框体子网格/材质槽；此前
+  // `!goldenActive` 总门控漏掉了这个写点，导致 JAIL_450 区域回落到通用金框（当前框区 MAE=31.614）。
+  // 只覆写金卡武器的肖像框槽，不改 premium cardMesh：UnityPy 探针
+  // assets/frames/hand-weapon-golden/prefab_report.json 的 m_portraitFrameMatIdx=0、
+  // m_portraitMatIdx=1；CardColorSwitcher.cs:78-79/226-272 的 weaponCardTextures[1] 即
+  // Card_Inhand_Weapon_DK（assets/textures/Card_Inhand_Weapon_DK_91041c28.png）。
+  const goldenDkWeaponFrame = goldenActive
+    && (tags[TAG.CARDTYPE] ?? 0) === 7
+    && className === 'DEATHKNIGHT'
+    && (tags[476] ?? 0) === 0; // MULTIPLE_CLASSES；引擎特支只接受单色（colors.Count == 1）
+  const goldenDkWeaponFrameAtlas = 'frames/hand-weapon-golden/textures/Card_Inhand_Weapon_DK_Golden.png';
+  if (goldenDkWeaponFrame && !base.src.has(goldenDkWeaponFrameAtlas)) {
+    throw new Error(`[golden] ${fixture.cardId} 缺少 DK 金卡武器框合成图 ${goldenDkWeaponFrameAtlas}`);
+  }
+  if (atlasFile && !sigActive && (!goldenActive || goldenDkWeaponFrame)) {
+    if (!goldenActive && cardMeshComp && cardFrontIdx > -1) {
+      setSlotTex(cardMeshComp, cardFrontIdx, atlasFile);
+    }
     // SPELL 分支恒写 portraitFrameMatIdx；其余帧按"同名材质实例共享"（引擎内同一 Material 资产）
     const isSpell = (tags[TAG.CARDTYPE] ?? 0) === 5 || (tags[TAG.CARDTYPE] ?? 0) === 42;
     if (portraitMeshComp && portraitFrameIdx > -1) {
       const pfName = report.nodes.find(n => n.path === portraitMeshPath)
         ?.components.renderer?.material_slots?.find(s => s.slot === portraitFrameIdx)?.name ?? null;
-      if (isSpell || (pfName && cardFrontMatName && pfName === cardFrontMatName)) {
-        setSlotTex(portraitMeshComp, portraitFrameIdx, atlasFile);
+      if (goldenDkWeaponFrame || isSpell || (pfName && cardFrontMatName && pfName === cardFrontMatName)) {
+        // On GOLDEN single-class DK weapons, this submesh atlas also paints both nameplate-side
+        // flowers. The base DK atlas makes those ornaments dark; replacing it wholesale with
+        // the GOLDEN atlas restores the flowers but loses the DK frame. `PortraitFrame_mesh`
+        // has one material slot, so use a deterministic texture composite: GOLDEN texels in the
+        // measured flower UV rectangles and DK texels elsewhere. `Actor.cs:6700-6708` writes one
+        // class texture into `m_portraitFrameMatIdx`; `CardColorSwitcher.cs:226-272` resolves the
+        // weapon class atlas. UnityPy `assets/frames/hand-weapon-golden/prefab_report.json`
+        // confirms this mesh uses slot 0 (`m_portraitFrameMatIdx=0`, portrait image slot 1).
+        // UV evidence and the reviewed A/B are in `explore/2026-10-26-golden-stage-b/`.
+        setSlotTex(portraitMeshComp, portraitFrameIdx,
+          goldenDkWeaponFrame ? goldenDkWeaponFrameAtlas : atlasFile);
       }
     }
     const noGemPath = refs['m_rarityNoGemMesh']?.node;
@@ -1272,7 +1384,7 @@ export function compileFramePlan(
   // POSITION.x）。现 fixture 无多类异画卡——阶梯参数已随 T2 材质入包（frame_recon colors/
   // floats），实现留待 fixture 触发（T3 口径）。
   const premiumRibbon = sc['m_premiumRibbon'] ?? -1;
-  if (sigActive && premiumRibbon >= 0 && cardMeshComp) {
+  if ((sigActive || goldenActive) && premiumRibbon >= 0 && cardMeshComp) {
     const ribbonSlot = cardMeshComp.material_slots?.find(s => s.slot === premiumRibbon);
     if (ribbonSlot) {
       ribbonSlot.material_override = {
@@ -1630,6 +1742,7 @@ export function compileFramePlan(
     components,
     input:        { dbf_id: String(fixture.dbfId), card_id: fixture.cardId },
     frame_center: frameCenter(base, keyByPath, slot, fixture.cardId, fixture.preset.premium, cardType),
+    portrait_direct_material_output: goldenPortraitAvailable,
     rarity_gem:   {
       // 签名帧抑制既有稀有度宝石公式（普通帧的宝石位/图集不适用：Evergreen 宝石在框环
       // 大宝石位、四变体网格 + 云纹滚动 + 底影 = 04/05 票范围；变体网格 forcedHidden，
@@ -1700,7 +1813,7 @@ function findFrameNodeWorld(
 // exporter FrameCamera 以主体网格世界包围盒中心取景，基准图随之带每帧型常数平移；TS 复刻该
 // 口径 = L2 逐位对齐的取景前提（量化/对账/根因：explore/2026-10-06-l2-offset/findings.md）。
 
-/** 适用面 = 手牌帧槽 ∧ normal 品质 ∧ 帧原生卡型。用户 2026-10-06 裁定先对齐五大
+/** 适用面 = 手牌帧槽 ∧ 帧原生卡型。用户 2026-10-06 裁定先对齐五大
  *  基本类别，2026-10-08 扩至异象/饰品/英雄技能三帧，2026-10-10 扩至佣兵技能帧
  *  （修正本文件旧注释「佣兵保持原点取景」的假设：TryGetActorFrameBounds 对**任意**
  *  enabled FrameMesh 锚定、无卡型门控，BigCard_LettuceAbility 有 enabled FrameMesh
@@ -1709,7 +1822,9 @@ function findFrameNodeWorld(
  *  导出（取景锚随网格不同）、宠物基准导出时对 FrameCamera 后处理偏移
  *  （ExporterController.cs:7379）——这两类不进本表。 */
 const MESH_ANCHORED_SLOTS = new Set([
-  'hand-minion', 'hand-spell', 'hand-hero', 'hand-weapon', 'hand-location',
+  'hand-minion', 'hand-minion-golden', 'hand-spell', 'hand-spell-golden',
+  'hand-hero', 'hand-hero-golden', 'hand-weapon', 'hand-weapon-golden',
+  'hand-location', 'hand-location-golden',
   'hand-heropower', 'hand-bg-anomaly', 'hand-bg-trinket',
   'hand-lettuce-ability', 'hand-lettuce-ability-minion',
   'hand-lettuce-equipment',
@@ -1755,11 +1870,11 @@ function frameCenter(
   premium: string,
   cardType: number,
 ): [number, number] | undefined {
-  // premium 门：异画签名帧放行（premium 基准 = 自家帧网格锚，见 MESH_ANCHORED_SLOTS 注）；
-  // GOLDEN/DIAMOND 与「SIGNATURE 回落普通帧」（未实现帧型）都不锚——回落卡保持原点取景
-  // 的既有回归基线，逐位不变。
+  // premium 门：金卡与异画签名帧只在各自帧槽上放行；其它 premium 回落普通帧时保持原点。
   if (!MESH_ANCHORED_SLOTS.has(slot)) return undefined;
-  if (premium !== 'NORMAL' && !(premium === 'SIGNATURE' && isSignatureSlot(slot))) return undefined;
+  if (premium !== 'NORMAL'
+    && !(premium === 'SIGNATURE' && isSignatureSlot(slot))
+    && !(premium === 'GOLDEN' && isGoldenSlot(slot))) return undefined;
   if (!SLOT_NATIVE_CARD_TYPES[slot]?.includes(cardType)) return undefined;
   if (ROOT_ANCHORED_CARDS.has(cardId)) return undefined;
 

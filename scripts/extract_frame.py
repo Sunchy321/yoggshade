@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["unitypy", "numpy", "pillow"]
 # ///
-"""extract_frame — 参数化手牌帧 recon（5 卡型）：actor prefab → 资产包 frames/{slot}/。
+"""extract_frame — 参数化手牌帧 recon：actor prefab → 资产包 frames/{slot}/。
 
 卡型 → actor（ActorNames.cs s_actorAssets，反编译出处见 data/actor_names.csv）：
   hand-minion  Card_Hand_Ally      （随从，现包基线，可重导校验）
@@ -10,6 +10,7 @@
   hand-weapon  Card_Hand_Weapon    （武器）
   hand-hero    Card_Hand_Hero      （英雄）
   hand-location Card_Hand_Location （地标）
+  hand-minion-golden Card_Hand_Ally_Premium（金卡随从，GOLDEN 阶段 B）
 
 签名帧槽位（SIG_SLOT_TO_FRAME，异画 SIGNATURE premium）：引用不经 actor_names.csv
 normal 档（那是 GetHandActor 普通链），走 SIGNATURE_FRAME DBF「名字:GUID 直指」——
@@ -85,6 +86,16 @@ SLOT_TO_ACTOR_KEY = {
     "hand-lettuce-ability-minion": "BIG_CARD_LETTUCE_ABILITY_MINION",
     "hand-lettuce-equipment": "BIG_CARD_LETTUCE_EQUIPMENT",
     "hand-mercenary": "HAND_MERCENARY",
+}
+
+# GOLDEN 帧使用 ActorNames.s_premiumActorAssets，而非普通 s_actorAssets
+# （ActorNames.cs:176-200, 833-898）。
+PREMIUM_SLOT_TO_ACTOR_KEY = {
+    "hand-minion-golden": "HAND_MINION",
+    "hand-spell-golden": "HAND_SPELL",
+    "hand-weapon-golden": "HAND_WEAPON",
+    "hand-hero-golden": "HAND_HERO",
+    "hand-location-golden": "HAND_LOCATION",
 }
 
 # 签名帧槽位 → SIGNATURE_FRAME frame id（spec 方案表
@@ -177,12 +188,15 @@ def list_actor_ref(slot: str) -> str:
         if frame_id not in refs:
             raise KeyError(f"SIGNATURE_FRAME 无 frame {frame_id} 的 m_handActorPrefab")
         return refs[frame_id]
-    key = SLOT_TO_ACTOR_KEY[slot]
+    quality = "golden" if slot in PREMIUM_SLOT_TO_ACTOR_KEY else "normal"
+    key = PREMIUM_SLOT_TO_ACTOR_KEY.get(slot, SLOT_TO_ACTOR_KEY.get(slot))
+    if key is None:
+        raise KeyError(f"无 actor 映射的帧槽: {slot}")
     with open(REPO / "data" / "actor_names.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            if r["quality"] == "normal" and r["actor_slot"] == key:
+            if r["quality"] == quality and r["actor_slot"] == key:
                 return f"{r['asset_name']}:{r['guid']}"
-    raise KeyError(f"actor_names.csv 无 normal/{key}")
+    raise KeyError(f"actor_names.csv 无 {quality}/{key}")
 
 
 class Recon:
@@ -206,9 +220,13 @@ class Recon:
         if key in self.tex_saved:
             return self.tex_saved[key]
         tree = t_reader.read_typetree()
+        settings = tree.get("m_TextureSettings") or {}
         info = {"name": tree.get("m_Name"), "bundle": bundle, "path_id": t_reader.path_id,
                 "width": tree.get("m_Width"), "height": tree.get("m_Height"),
-                "format": tree.get("m_TextureFormat")}
+                "format": tree.get("m_TextureFormat"),
+                "wrap_u": settings.get("m_WrapU", tree.get("m_WrapMode")),
+                "wrap_v": settings.get("m_WrapV", tree.get("m_WrapMode")),
+                "filter_mode": settings.get("m_FilterMode", tree.get("m_FilterMode"))}
         png = self.out / "textures" / f"{info['name']}.png"
         png.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -271,7 +289,10 @@ class Recon:
                     if t_reader.type.name == "Texture2D":
                         tinfo = self.save_texture(t_reader, tb)
                         slot["texture"] = {"name": tinfo["name"], "bundle": tb,
-                                           "file": tinfo.get("file")}
+                                           "file": tinfo.get("file"),
+                                           "wrap_u": tinfo.get("wrap_u"),
+                                           "wrap_v": tinfo.get("wrap_v"),
+                                           "filter_mode": tinfo.get("filter_mode")}
             info["tex"][first] = slot
         for first, sec in (pair(e) for e in saved.get("m_Colors", [])):
             info["colors"][first] = [sec["r"], sec["g"], sec["b"], sec["a"]]
@@ -287,9 +308,16 @@ class Recon:
             verts = np.array(h.m_Vertices, dtype=np.float64).reshape(-1, 3)
             uv0 = np.array(h.m_UV0, dtype=np.float64).reshape(-1, 2) if h.m_UV0 else np.zeros((len(verts), 2))
             uv1 = np.array(h.m_UV1, dtype=np.float64).reshape(-1, 2) if h.m_UV1 else uv0
+            # TIME_EVENT_999's selected UnlitTextureReflection VS reads Mesh NORMAL to form
+            # reflection UV. Unity's offline frame pack previously dropped that vertex stream,
+            # making an exact translation impossible; preserve the serialized normals when present.
+            normal_data = np.asarray(h.m_Normals, dtype=np.float64) if h.m_Normals else None
+            normals = (normal_data.reshape(len(verts), -1)[:, :3]
+                       if normal_data is not None and len(normal_data) == len(verts) else None)
             tris_per_sub = [np.array([t for t in sub if len(t) == 3], dtype=np.int32)
                             for sub in h.get_triangles()]
             return {"name": mesh.m_Name, "verts": verts, "uv0": uv0, "uv1": uv1,
+                    "normals": normals,
                     "uv1_present": bool(h.m_UV1),
                     "submeshes": tris_per_sub,
                     "bbox_min": verts.min(axis=0).tolist(), "bbox_max": verts.max(axis=0).tolist(),
@@ -536,15 +564,19 @@ def tris_json(mesh: dict) -> dict:
     # uv0×(5,5)+offset → 水印 5× 放大窗出现在 desc 框中部——2026-10-07 用户指认
     # AV_205 参照明确有水印、uv0 回退渲染与参照匹配，(0,0) 零填假设被参照证伪）。
     # portrait.json 不经此处，肖像网格恒有真 uv1。
-    return {"verts": mesh["verts"].tolist(), "uv0": mesh["uv0"].tolist(),
-            "uv1": mesh["uv1"].tolist(),
-            "subs": [t.tolist() for t in mesh["submeshes"]]}
+    result = {"verts": mesh["verts"].tolist(), "uv0": mesh["uv0"].tolist(),
+              "uv1": mesh["uv1"].tolist(),
+              "subs": [t.tolist() for t in mesh["submeshes"]]}
+    if mesh.get("normals") is not None:
+        result["normals"] = mesh["normals"].tolist()
+    return result
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--slot", default="hand-spell",
-                    choices=sorted([*SLOT_TO_ACTOR_KEY, *SIG_SLOT_TO_FRAME]))
+                    choices=sorted([*SLOT_TO_ACTOR_KEY, *PREMIUM_SLOT_TO_ACTOR_KEY,
+                                    *SIG_SLOT_TO_FRAME]))
     ap.add_argument("--all", action="store_true", help="全部常规帧（不含签名帧）")
     ap.add_argument("--sig", action="store_true",
                     help="全部签名帧（SIG_SLOT_TO_FRAME，引用来自 SIGNATURE_FRAME 表）")
@@ -559,6 +591,14 @@ def main() -> int:
         rc = extract_one(pack, slot)
         if rc != 0:
             return rc
+        if slot == "hand-weapon-golden":
+            # JAIL_450's DK class atlas also darkens the premium weapon's flowers because
+            # Actor.cs:6700-6708 assigns one texture to PortraitFrame_mesh slot 0; the offline
+            # plan has the same single-texture slot and cannot independently tint its subregions.
+            # Generate the UV-evidenced composite after extracting that atlas. The exact asset
+            # paths and A/B probe evidence are documented by compose_golden_dk_weapon_atlas.py.
+            from compose_golden_dk_weapon_atlas import compose
+            compose(pack)
     return 0
 
 

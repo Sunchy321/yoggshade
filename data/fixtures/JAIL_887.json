@@ -1,0 +1,60 @@
+{
+ "cardId": "JAIL_887",
+ "dbfId": 126497,
+ "preset": {
+  "label": "金卡地标基线",
+  "premium": "GOLDEN",
+  "template": "Normal",
+  "zone": "Hand",
+  "reason": "独立 cardId 的 GOLDEN 地标基线，用于验证 premium 地标帧及金卡原画材质。",
+  "signatureFrameId": 13
+ },
+ "textBuilderType": 28,
+ "watermarkTextureOverride": "",
+ "name": {
+  "enUS": "Zuramat's Prison",
+  "deDE": "Zuramats Gefängnis",
+  "esES": "Prisión de Zuramat",
+  "esMX": "Prisión de Zuramat",
+  "frFR": "Prison de Zuramat",
+  "itIT": "Prigione di Zuramat",
+  "jaJP": "ズラマットの監獄",
+  "koKR": "주라마트의 감옥",
+  "plPL": "Kazamaty Zuramata",
+  "ptBR": "Prisão de Zuramat",
+  "ruRU": "Темница Зурамата",
+  "thTH": "คุกขังซูรามัท",
+  "zhCN": "祖拉玛特的牢房",
+  "zhTW": "舒拉邁特的牢獄"
+ },
+ "textInHand": {
+  "enUS": "[x]Choose a card to discard\nto summon a 5/5 <b>Taunt</b>.\n<b>Deathrattle:</b> Free Zuramat\nwho plays one each turn!__",
+  "deDE": "Wählt eine Karte aus und werft sie ab, um einen Diener (5/5) mit <b>Spott</b> herbeizurufen. <b>Todesröcheln:</b> Befreit [x]Zuramat, der jeden Zug eine der\nabgeworfenen Karten ausspielt! ",
+  "esES": "Elige una carta que descartar para_invocar un esbirro 5/5 con <b>Provocar</b>. <b>Último aliento:</b> Libera a_Zuramat, ¡que juega una de las cartas descartadas cada turno! ",
+  "esMX": "Elige un carta para descartar e invoca un esbirro 5/5 con_<b>Provocación</b>. <b>Estertor:</b> ¡libera a Zuramat, que juega una carta_descartada_cada_turno!",
+  "frFR": "Choisissez une carte dont vous vous défaussez pour invoquer un serviteur_5/5 avec <b>Provocation</b>.\n<b>Râle d’agonie_:</b> libère Zuramat, qui joue une des cartes défaussées à chaque tour_! ",
+  "itIT": "Seleziona una carta da scartare per evocare un servitore 5/5 con <b>Provocazione</b>. <b>Rantolo di Morte:</b> libera Zuramat, che ne gioca una ogni turno! ",
+  "jaJP": "[x]破棄するカードを選択し\n5/5の<b>挑発</b>ミニオン\n1体を召喚する。\n<b>断末魔:</b>_毎ターン、それを\n使用するズラマットを解放する！ ",
+  "koKR": "[x]카드를 선택하고 버려서\n5/5 <b>도발</b> 하수인을 소환합니다.\n<b>죽음의 메아리:</b> 버린 카드를\n매 턴 하나 내는 주라마트를\n해방시킵니다! ",
+  "plPL": "Wybierz kartę do odrzucenia, by przyzwać stronnika_5/5 z_<b>Prowokacją</b>.\n<b>Agonia:</b> Uwolnij Zuramata, który_zagrywa co_turę jedną z_odrzuconych kart. ",
+  "ptBR": "Escolha um card para descartar e evocar um lacaio 5/5 com <b>Provocar</b>. <b>Último Suspiro:</b> Liberte Zuramat, que joga um dos cards descartados a cada turno! ",
+  "ruRU": "Вы сбрасываете карту и призываете темницу 5/5 с <b>«Провокацией»</b>. <b>Предсмертный хрип:</b> освобождает Зурамата, который разыгрывает эту_карту каждый ход! ",
+  "thTH": "เลือกทิ้งการ์ดหนึ่งใบเพื่อ[b]เรียกมินเนี่ยน_5/5_ที่มี_<b>ยั่วยุ</b> <b>เสียงสุดท้าย:</b>_ปลดปล่อยซูรามัท[b]ที่จะเล่นการ์ดที่เลือกทิ้งทุกเทิร์น!",
+  "zhCN": "选择一张牌并弃掉，以召唤一个5/5并具有<b>嘲讽</b>的虚空低语。<b>亡语：</b>放出祖拉玛特。祖拉玛特每回合会使用一张弃掉的牌！ ",
+  "zhTW": "選擇一張卡牌捨棄以召喚一個5/5的<b>嘲諷</b>手下\n<b>死亡之聲：</b>釋放舒拉邁特，它每回合都會\n打出一張"
+ },
+ "tags": {
+  "199": 12,
+  "48": 5,
+  "202": 39,
+  "203": 5,
+  "1508": 1,
+  "45": 3,
+  "321": 1,
+  "114": 1,
+  "217": 1,
+  "2589": 1,
+  "1078": 126499,
+  "1452": 126499
+ }
+}
