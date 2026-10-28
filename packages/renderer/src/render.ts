@@ -75,7 +75,23 @@ interface BucketTri {
   signature25Glass?:         Signature25GlassLayer;
   textureReflection?:        TextureReflectionLayer;
   triReflectionUv?:          number[][];
+  /** 像素公式必须按精确 shader 身份选择；见 multiplyFormForShader。 */
+  multiplyForm:               'tint' | 'add_vcolor' | 'alpha_fade';
   uber?:                     { material: FrameMaterial, textures: UberCardBackTextures };
+}
+
+/**
+ * 2026-10-28 — SC_754 frame11 的 Legendary 宝石阴影缺失：探针
+ * `assets/frames/hand-hero-sig11/frame_recon.json` 将其第二材质槽标为
+ * `Hero/Multiply/Multiply_AlphaFade`、`_Color.a=0.749`。离线仅按 multiply 混合族分类时曾将白色
+ * `_Color.rgb` 当作恒等因子，导致阴影消失；提取 shader `xlatMtlMain` 第 39–42 行明确计算
+ * `fma(_Color.a, tex - 1, 1)`。把 shader 公式类别随三角形传给 raster，阴影 A/B 恢复 767 个像素，
+ * ROI `[229,93]-[282,146]` MAE 29.857→28.975，SC_754 全卡 L2 39.622→39.482；详见 findings §15.7。
+ */
+function multiplyFormForShader(shader: string | null | undefined): BucketTri['multiplyForm'] {
+  if (shader === 'Hero/Multiply/Multiply') return 'add_vcolor';
+  if (shader === 'Hero/Multiply/Multiply_AlphaFade') return 'alpha_fade';
+  return 'tint';
 }
 
 /** 水印纹理裁决空串占位（引擎不换纹理 → _SecondTex 保持序列化占位、alpha=0；
@@ -317,6 +333,7 @@ export function rasterBucketZbuf(
           signature25Glass,
           textureReflection,
           triReflectionUv,
+          multiplyForm: multiplyFormForShader(mat.shader),
           uber,
         });
       }
@@ -333,7 +350,7 @@ export function rasterBucketZbuf(
         textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive, e.wrap,
         e.wm, e.triUv1, e.colorAsAlpha, e.premultiplied, e.skipDepthTest,
         e.diffuseAlphaMaskScroller, e.triCloudUv, e.signature25Glass, e.writeDepth,
-        e.textureReflection, e.triReflectionUv);
+        e.textureReflection, e.triReflectionUv, e.multiplyForm);
     }
   }
   return trisOut.length;
@@ -524,6 +541,7 @@ export function renderSpellOverlays(
             premultiplied: false,
             skipDepthTest: false,
             writeDepth:    true,
+            multiplyForm: multiplyFormForShader(mat.shader),
           });
         }
       }
@@ -532,7 +550,8 @@ export function renderSpellOverlays(
     for (const e of trisOut) {
       rasterZbuf(canvas, zbuf, W, H, e.tri2d, e.triZ, e.triUv,
         textures.get(e.texKey), e.tint, e.uvOffset, e.opaque, e.multiply, e.additive,
-        false, undefined, undefined, undefined, false, false);
+        false, undefined, undefined, undefined, false, false, undefined, undefined,
+        undefined, true, undefined, undefined, e.multiplyForm);
     }
   }
 }

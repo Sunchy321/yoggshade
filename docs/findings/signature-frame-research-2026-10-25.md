@@ -743,3 +743,47 @@ transparent 命令（`RenderCommandLists.cs:209-245`），随后先绘 opaque �
 SC_754 全卡 MAE 从 **40.184** 降至 **39.622**。修正规则限定在 SIGNATURE frame11 的可见护甲节点。
 重渲全部 50 张 fixture 后运行 49 张基准 L2：SC_754 **39.622**、CATA_190h **12.394**；两张护甲 ROI
 最终分别为 **+0.34 Y** 和 **−0.24 Y**。SC_754 修正并排图已生成，等待用户目视确认。
+
+### 15.7 SC_754 签名多职业标志遮挡与稀有度宝石阴影缺失
+
+2026-10-28 用户复核 SC_754 后指出两个问题：多职业标志被肖像画窗挡住一部分，Legendary 稀有度宝石
+没有投影阴影。
+
+**多职业标志遮挡。** UnityPy 探针 `assets/frames/hand-hero-sig11/frame_recon.json` 显示
+`RootObject/MulticlassRibbon/Ribbon_Root/Multiclass_Ribbon_Signature_mesh` 使用
+`Hero/Unlit/Unlit_Texture`，worldY=0.0972267；独立 `RootObject/Portrait_Mesh` worldY=0.0052267。
+离线 `renderPackToRgba8` 先绘整帧桶、再调用 `renderPortraitLayer`
+（`packages/renderer/src/render-card.ts:140-141`），因此肖像画窗会盖过本应处于更前方的主标志。
+游戏的 renderer 命令列表按 sortingOrder / material.renderQueue 收集
+（`RenderCommandLists.cs:70-76,209-245`），RT 再先绘 opaque 后绘 transparent
+（`RenderToTextureUtils.cs:111-138`）。只把可见主标志延到独立肖像之后；保留其 multiply 阴影原层序，
+因为将阴影一起延后会让徽标差异增大。相对仅修护甲的 p2，徽标 ROI `[195,590]-[320,680]` MAE
+从 **9.153** 降至 **7.376**。
+
+**稀有度宝石阴影。** 同一探针中的 `RarityGem_Legendary_Mesh` 有两个材质槽：宝石本体为
+`Hero/Diffuse/DiffuseAlphaMaskScroller`，阴影槽为 `Hero/Multiply/Multiply_AlphaFade`，其
+`_Color=(1,1,1,0.749)`。游戏 bundle 的 Metal fragment shader 已提取至
+`explore/2026-10-28-sc754-layer-diagnosis/evidence/Hero_Multiply_Multiply_AlphaFade_FS.metal`；
+`xlatMtlMain` 第 39–42 行计算 `fma(_Color.a, tex - 1, 1)`。旧离线链按 `_MainTex.rgb × _Color.rgb`
+处理所有 Multiply 子类；白色 RGB 在 DstColor/Zero 下成为恒等因子，阴影材质的 8 个三角形不改变任何
+像素。现在 `render.ts` 按精确 shader 名称传递公式种类，由 `raster.ts` 按 shader FS 输出计算，
+对应的 A/B 中阴影贡献 767 个像素。
+
+重渲全部 50 张 fixture 并运行 49 张基准 L2 后，SC_754 全卡 MAE 从仅修护甲候选的 **39.622** 降至
+**39.482**，CATA_190h 保持 **12.394**。稀有度阴影 ROI `[229,93]-[282,146]` MAE 从 **29.857**
+降至 **28.975**。这两个修复的并排图已生成，等待用户目视确认。
+
+**宝石本体轮廓复核。** 用户随后指出宝石形状略宽。基准 `reference/SC_754.png` 的橙色宝石像素 bbox
+为 x=242..272（366 像素）；修阴影前候选为 x=239..272（425 像素），证明轮廓差异早于阴影公式变更。
+UnityPy `frame_recon.json` 同时包含活动 Hero 与嵌套、失活的 Ally 子 prefab 中同名
+`RarityGem_Legendary_Mesh`。`prefab_report.json` 的 `Actor.m_gemMeshLegendary` 只绑定 Hero 路径；
+Hero 宝石 worldX=0.0148877，Ally 副本 worldX=0.0001877，而
+`Card_Hand_Ally_Signature_Evergreen.active_in_hierarchy=false`。离线变体选择曾仅按 basename 覆盖
+显隐，忽略父树状态，从而复活了 Actor 未绑定的 Ally 副本，并把左轮廓扩出约 2.8px。
+`Actor.cs:4934-4959,4992-5022` 只激活 Actor 引用的对应 rarity 子物体。现在选择仍允许覆盖变体自身
+序列化 inactive，但先检查父路径 `active_in_hierarchy`，避免点亮失活子 prefab。
+
+修正后 SC_754 橙色宝石 bbox 收敛至 x=242..272（363 个着色像素）；大宝石 ROI `[215,70]-[295,155]`
+MAE 从 **20.630** 降至 **17.082**。重新渲全部 50 张 fixture 并运行 49 张 L2，SC_754 全卡 MAE
+进一步从 **39.482** 降至 **39.311**；宝石与投影合并 ROI `[229,93]-[282,146]` MAE 从上一候选
+**28.975** 降至 **21.273**；CATA_190h 仍为 **12.394**。

@@ -66,7 +66,7 @@ export interface PlanSlot {
    *  Custom/Card/Unlit_Portrait（战棋饰画画窗）逐帧显式标记；其他帧的 _SecondTex
    *  材质未经基准验证不启用。 */
   second_tex_mask?: boolean;
-  /** 非默认混合：multiply = Hero/Multiply/*（dst.rgb *= 纹理色+_Color，只压暗）；
+  /** 非默认混合：multiply = Hero/Multiply/*（DstColor/Zero；像素公式由 shader 身份选择）；
    *  additive = Hero/Additive/*（dst.rgb += src·tint·src.a，星芒/辉光）；
    *  colorAsAlpha = Effects/FX_Transparent_ColorAsAlpha（黑影、亮度即透明度，见
    *  color_as_alpha 参数）。 */

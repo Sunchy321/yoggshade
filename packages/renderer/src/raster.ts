@@ -79,8 +79,17 @@ function sampleBilinearRepeat(tex: RGBAImage, u: number, v: number, out: Float64
  * 这些材质的 DXT5 alpha 是形状蒙版而非透明度（见 exporter docs/opaque-edge-alpha-repair-decompile.md）；
  * 离线链若照纹理 alpha 混合，会抠出透明洞让卡背平面透出来。
  *
- * multiply=true：乘法混合（Hero/Multiply/*，见 types.PlanSlot.blend）。FS 输出 rgb=_MainTex.rgb+COLOR0.rgb、
- * a=0；VS 的 COLOR0=顶点色×_Color（本仓网格无顶点色 → 白 → COLOR0=_Color）。
+ * multiply=true：DstColor/Zero 乘法混合（Hero/Multiply/*，见 types.PlanSlot.blend）。
+ * 合成式按 shader 身份分支：`Multiply` 为 rgb=_MainTex.rgb+COLOR0.rgb；
+ * `Multiply_AlphaFade` 为 rgb=1+_Color.a×(_MainTex.rgb−1)；其余走旧式 rgb=_MainTex.rgb×tint。
+ * 2026-10-28 — SC_754 frame11 的 Legendary 稀有度宝石缺少阴影。UnityPy 探针
+ * `assets/frames/hand-hero-sig11/frame_recon.json` 中 `RarityGem_Legendary_Mesh` 的第二材质槽
+ * 是 `Hero/Multiply/Multiply_AlphaFade`，`_Color.a=0.749`；离线曾把它并入 `tex×_Color.rgb`，
+ * 而该材质 RGB 全白使 DstColor/Zero 乘法因子恒为 1，8 个阴影三角形因此完全不可见。提取的
+ * `Hero_Multiply_Multiply_AlphaFade_FS.metal:xlatMtlMain` 第 39–42 行显示 fragment 输出
+ * `fma(_Color.a, tex−1, 1)`。本分支按该 shader 输出计算；A/B 中阴影贡献 767 个像素，
+ * 宝石阴影 ROI `[229,93]-[282,146]` MAE 从 29.857 降至 28.975，SC_754 全卡 L2 从
+ * 39.622 降至 39.482（与 `reference/SC_754.png` 对比）。研究记录见 signature-frame findings §15.7。
  *
  * colorAsAlpha 存在：卡影（Effects/FX_Transparent_ColorAsAlpha，types.PlanSlot.color_as_alpha）。
  * FS 反编译（Effects_FX_Transparent_ColorAsAlpha_FS.metal 逐指令）：
@@ -121,6 +130,7 @@ export function rasterZbuf(
   writeDepth = true,
   textureReflection?: TextureReflectionLayer,
   triReflectionUv?: number[][],
+  multiplyForm: 'tint' | 'add_vcolor' | 'alpha_fade' = 'tint',
 ): void {
   const x0s = tri2d[0][0], y0s = tri2d[0][1];
   const x1s = tri2d[1][0], y1s = tri2d[1][1];
@@ -309,21 +319,29 @@ export function rasterZbuf(
         continue;
       }
       if (multiply) {
-        // 乘法混合（Hero/Multiply/*）：dst.rgb *= 纹理色 + _Color。alpha 保持不变——乘法阴影只压暗，
-        // 不产生遮盖（游戏在屏幕帧缓冲里 a=0 无副作用；离线链若让它清 alpha 会把卡角抠空）。
-        // **不写深度**：该 shader 的 subshader tag 是 QUEUE=Transparent（ZWrite Off），阴影面片
-        // 又比肖像面片更靠前（世界 Y 更大）；写深度会把随后绘制的肖像层挡在 zbuf 之外——游戏里
-        // 异画/精英卡的卡图能透过银龙影显示（ETC_210/TLC_433 的画窗上缘），靠的就是这一点。
-        // alpha 门控（**必需的复刻修正**）：阴影贴图里**透明像素的 rgb 是脏值**——FlagShadow
-        // 的透明区 rgb≈0.5，无门控时 min(0.5+0.34,1)=0.84 会把整个 quad 压暗一档，横跨卡面
-        // 就是一条矩形水平线（用户 2026-10-10 目检「顶端有水平划线、上面更暗」；OvalShadow
-        // 的 quad 正是内建 Plane 矩形）。引擎语义 = 阴影强度随贴图 alpha 淡出：
-        //   dst × lerp(1, min(tex+tint,1), tex.a)
-        // 不透明阴影贴图（银龙影/符文影等 alpha=1）下 lerp 退化为原式 → 逐位不变。
-        const ma = scratch[3];
-        const fR = 1 + ma * (Math.min(scratch[0] + tr, 1) - 1);
-        const fG = 1 + ma * (Math.min(scratch[1] + tg, 1) - 1);
-        const fB = 1 + ma * (Math.min(scratch[2] + tb, 1) - 1);
+        // DstColor/Zero：阴影只改 RGB、不改交付 alpha，也不写深度（透明队列 ZWrite Off）。
+        // 两类像素公式由材质 shader 身份区分；通用 Hero/Multiply 前缀不足以判定 PS。
+        let fR: number, fG: number, fB: number;
+        if (multiplyForm === 'alpha_fade') {
+          // Hero/Multiply/Multiply_AlphaFade_FS.metal:xlatMtlMain（shader FS 第 39–42 行）：
+          // out = fma(_Color.a, tex - 1, 1)。普通 multiply tint 会因 _Color.rgb=1 抹掉 SC_754 宝石影。
+          fR = 1 + ta * (scratch[0] - 1);
+          fG = 1 + ta * (scratch[1] - 1);
+          fB = 1 + ta * (scratch[2] - 1);
+        } else if (multiplyForm === 'add_vcolor') {
+          // Hero/Multiply/Multiply：FS = tex + COLOR0；透明 atlas 边缘使用 alpha 淡出，
+          // 避免脏 RGB 把整个 quad 压暗（FlagShadow / OvalShadow 已由 L2 定位）。
+          const ma = scratch[3];
+          fR = 1 + ma * (Math.min(scratch[0] + tr, 1) - 1);
+          fG = 1 + ma * (Math.min(scratch[1] + tg, 1) - 1);
+          fB = 1 + ma * (Math.min(scratch[2] + tb, 1) - 1);
+        } else {
+          // 其它 multiply shader：FS tint 族 = tex × _Color。
+          // DstColor/Zero 不读取源 alpha，因此不以纹理 alpha 再做一次淡出。
+          fR = scratch[0] * tr;
+          fG = scratch[1] * tg;
+          fB = scratch[2] * tb;
+        }
         canvas[ci] = Math.max(Math.min(canvas[ci] * fR, 1), 0);
         canvas[ci + 1] = Math.max(Math.min(canvas[ci + 1] * fG, 1), 0);
         canvas[ci + 2] = Math.max(Math.min(canvas[ci + 2] * fB, 1), 0);

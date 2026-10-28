@@ -1256,13 +1256,20 @@ export function compileFramePlan(
     const isActive = active.get(node.path) ?? true;
     let visible = isActive && !STATIC_HIDDEN.has(name)
       && !(rules.forcedHidden ?? []).includes(name);
-    // Signature Evergreen 序列化 prefab 仅激活 Common；Actor.cs UpdateRarityComponent
-    // :4939-4959 调 SetRarityGemShape，:4992-5022 按 rarity 对四个子物体 SetActive。
-    // T3 曾强制隐藏全部变体，离线图因此缺宝石。重建运行时选择；网格和材质仍取自当前
-    // 节点（含 Legendary 自身 UV、云纹材质和阴影子网格）。
+    // 2026-10-28 — SC_754 Legendary 宝石轮廓比基准宽：橙色 ROI bbox 为 x=239..272、425 像素，
+    // 基准为 x=242..272、366 像素。frame_recon 同时包含 Hero 与嵌套 Ally 的同名变体；后者父树
+    // `Card_Hand_Ally_Signature_Evergreen` 的 active_in_hierarchy=false，且 prefab_report 的
+    // Actor.m_gemMeshLegendary 只绑定 Hero 路径。离线按 basename 选择时忽略了父树状态，把无绑定的
+    // Ally 副本也激活；其世界 X 比 Hero 网格左约 0.0147（约 2.8 px），正好扩大左轮廓。
+    // Actor.cs:4934-4959 / 4992-5022 只切换序列化引用的单个变体；因此保留变体自身运行时激活，
+    // 但要求其父级仍 active_in_hierarchy，匹配游戏只启用 Actor 绑定 Hero 网格的行为。修正后橙色
+    // bbox 对齐到基准 x=242..272（366→363 像素），宝石 ROI `[215,70]-[295,155]` MAE
+    // 20.630→17.082，SC_754 全卡 L2 39.482→39.311。
     if (sigActive && SIG_RARITY_VARIANTS.has(name)) {
       const variant = rarityName === 'INVALID' ? '' : `RarityGem_${rarityName}_Mesh`;
-      visible = rarityVisible && name === variant;
+      const parentPath = node.path.slice(0, node.path.lastIndexOf('/'));
+      const parentActive = active.get(parentPath) ?? true;
+      visible = parentActive && rarityVisible && name === variant;
     }
     // 战棋饰品帧例外：Shadow（CardShadow_Ally，Effects/FX_Transparent_ColorAsAlpha）序列化
     // 激活且 renderer 启用，基准图带整卡外圈投影（94k 半透明像素，2026-10-08 对账）；其余
@@ -1775,6 +1782,19 @@ export function compileFramePlan(
     lateNodes.push('Armor_Whole_mesh');
   }
 
+  // 2026-10-28 — SC_754 frame11 的签名多职业主标志有一部分落入肖像画窗。UnityPy 探针
+  // `assets/frames/hand-hero-sig11/frame_recon.json` 记录该 `Hero/Unlit/Unlit_Texture` 网格
+  // 位于 `RootObject/MulticlassRibbon`、worldY=0.0972267；独立 Portrait_Mesh 的 worldY=0.0052267。
+  // 离线帧桶先于 renderPortraitLayer 绘制，肖像画窗会覆盖较近的标志；游戏依据 Renderer 的
+  // sortingOrder / material.renderQueue 组织命令（RenderCommandLists.cs:70-76,209-245），
+  // 并先绘 opaque 再绘 transparent（RenderToTextureUtils.cs:111-138）。仅延后不透明主标志，
+  // 让它在独立肖像之后绘制，同时保留透明 multiply 阴影原顺序。相对仅修护甲的 p2，徽标 ROI
+  // `[195,590]-[320,680]` MAE 从 9.153 降到 7.376；SC_754 全卡 L2 MAE 从 39.622 降到 39.482。
+  if (sigActive && slot === 'hand-hero-sig11'
+    && components.some(c => c.node === 'Multiclass_Ribbon_Signature_mesh' && c.visible)) {
+    lateNodes.push('Multiclass_Ribbon_Signature_mesh');
+  }
+
   // 2026-10-26 — frame14 Deathwing's top multiclass orb overlaps the independent signature portrait.
   // `portrait_skip_depth_test` let the portrait redraw over that foreground orb (CATA_190h p0 crop
   // x=244..263/y=625..639: MAE 87.373, top-orb bright pixels 72 vs reference 151). UnityPy probe
@@ -2117,9 +2137,9 @@ function markOpaqueEdgeSlots(
         rep?.name,
         slot._MainTex_runtime?.file ?? rep?.textures?.['_MainTex']?.name,
       ) || undefined;
-      // 乘法混合材质（Hero/Multiply/*）：精英银龙影、符文底影、多职业绶带影、地标费用宝石投影。
-      // 游戏 FS 输出 rgb=_MainTex.rgb+COLOR0.rgb、a=0，VS 的 COLOR0=顶点色×_Color；离线链若按
-      // alpha-over 画会涂成不透明黑（TLC_433 右上角被银龙影啃掉一块）。
+      // 乘法混合材质族（Hero/Multiply/*）：精英银龙影、符文底影、多职业绶带影、地标费用宝石投影。
+      // 像素公式由具体 shader 决定（rasterZbuf 按 multiplyForm 分支）；将该族标为 DstColor/Zero，
+      // 否则按 alpha-over 会涂成不透明黑（TLC_433 右上角曾被银龙影啃掉一块）。
       if (typeof rep?.shader === 'string' && rep.shader.startsWith('Hero/Multiply/')) {
         slot.blend = 'multiply';
       }
