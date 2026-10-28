@@ -1762,6 +1762,19 @@ export function compileFramePlan(
   // ---- 手牌横幅：可交易/锻造/准备 + 阵营 + 多职业绶带（须在标记后：激活态才判 tint/材质覆写）----
   compileBanners(components, tags, tables, base.frameRecon.hierarchy);
 
+  // 2026-10-28 — SC_754's frame11 armor badge darkened where Armor_Whole_mesh overlaps the portrait.
+  // UnityPy probe `assets/frames/hand-hero-sig11/frame_recon.json` records Armor_Whole_mesh as a
+  // separate `Hero/Unlit/Unlit_Texture` renderer using `textures/Armor_D.png`, apart from Portrait_Mesh.
+  // Offline `renderPackToRgba8` draws the frame bucket before `renderPortraitLayer` (`render-card.ts:140-141`);
+  // the game RTT partitions render commands by material queue, then draws opaque before transparent
+  // (`RenderCommandLists.cs:209-245`, `RenderToTextureUtils.cs:134-140`). Deferring only this node moved
+  // the regenerated-reference ROI `[382,580]-[433,608]` from mean ΔY=-45.29 to +0.34 in full p2;
+  // SC_754 full-card MAE improved 40.184→39.622. Keep the visible frame11 armor in the late pass.
+  if (sigActive && slot === 'hand-hero-sig11'
+    && components.some(c => c.node === 'Armor_Whole_mesh' && c.visible)) {
+    lateNodes.push('Armor_Whole_mesh');
+  }
+
   // 2026-10-26 — frame14 Deathwing's top multiclass orb overlaps the independent signature portrait.
   // `portrait_skip_depth_test` let the portrait redraw over that foreground orb (CATA_190h p0 crop
   // x=244..263/y=625..639: MAE 87.373, top-orb bright pixels 72 vs reference 151). UnityPy probe
@@ -1779,6 +1792,21 @@ export function compileFramePlan(
     const body = components.find(c => c.path === `${base.frameRecon.frame_root}/RootObject/Mesh`);
     if (!body) throw new Error(`${fixture.cardId}: frame14 backing mesh component missing`);
     for (const materialSlot of body.material_slots ?? []) materialSlot.write_depth = false;
+
+    // 2026-10-27 — CATA_190h's Armor_Whole_mesh darkened where its badge overlaps the signature portrait.
+    // The UnityPy probe `assets/frames/hand-hero-sig14/frame_recon.json` records Armor_Whole_mesh as
+    // a separate `Hero/Unlit/Unlit_Texture` renderer using `textures/Armor_D.png`; Portrait_Mesh is
+    // a separate renderer. Offline `renderPackToRgba8` draws the frame bucket before
+    // `renderPortraitLayer` (`render-card.ts:140-141`), while the in-game RTT separates render
+    // commands by material queue and draws the transparent list after the opaque list
+    // (`RenderCommandLists.cs:209-245`, `RenderToTextureUtils.cs:134-140`). A one-variable pass-order
+    // probe moved only Armor_Whole_mesh after the portrait: the upper armor-overlap ROI
+    // `[382,580]-[433,608]` changed from mean ΔY=-45.38 to +2.91 against the regenerated reference;
+    // full CATA_190h MAE improved 12.891→12.394. Keep the armor as a late node so its overlap is
+    // composited in the same order as the game capture.
+    if (components.some(c => c.node === 'Armor_Whole_mesh' && c.visible)) {
+      lateNodes.push('Armor_Whole_mesh');
+    }
   }
 
   // ---- 稀有度宝石材质序列化值（图集文件/滚动速度/缩放/强度）----

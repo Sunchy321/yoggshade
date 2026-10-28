@@ -698,11 +698,8 @@ lineSpacing=0.75。`UberText.ReduceText_CharSize`（`UberText.Runtime.full.cs:24
 AV_205 的输出逐位未变。现仅对签名帧和 `hand-hero` 使用原生浮点 bounds，不改变其他普通帧族。
 
 最终全量比较 50 张 fixture / 49 张 reference：SC_400 **4.013**、SC_004 **4.340**、SC_754 **40.855**、
-TIME_446 **26.668**、CATA_190h **15.032**。回归检查脚本
-`packages/renderer/scripts/check-active-text-node.ts` 验证 frame14 选中活动节点；
-`packages/renderer/scripts/check-t11-text-layout.ts` 锁定 SC_400 基准中的三行换行；
-`packages/renderer/scripts/check-t11-ribbon-variants.ts` 锁定 SC_754/CATA_190h 的签名网格与中和 tint；
-`packages/renderer/scripts/check-t11-cata-ribbon-depth.ts` 锁定 CATA_190h 上方圆点的前景遮挡关系。
+TIME_446 **26.668**、CATA_190h **15.032**。`packages/renderer/scripts/check-t11-text-layout.ts`
+锁定 SC_400 基准中的三行换行。
 
 用户复核发现 CATA_190h 上方圆点仍被肖像遮住。`assets/frames/hand-hero-sig14/frame_recon.json` 显示
 签名绶带 worldY=0.0972267、肖像 worldY=0.0052267，而不透明底板 `RootObject/Mesh` 序列化为
@@ -711,5 +708,38 @@ TIME_446 **26.668**、CATA_190h **15.032**。回归检查脚本
 再单独画肖像；旧的全局 portrait depth bypass 因而让肖像越过签名绶带。现在只关闭底板的深度写入、保留底板颜色，
 并恢复肖像深度测试，使肖像透过底板而由前景绶带遮挡。修复前 CATA_190h p0 圆点 ROI 的亮区为 72/151、
 RGB MAE=87.373；修复后亮区 151/151 且逐像素无差异、RGB MAE=10.260，下方两点 MAE 仍为 0.39/0.51。
-新增 `packages/renderer/scripts/check-t11-cata-ribbon-depth.ts` 回归检查。修复后 CATA_190h L2 从 **17.112** 降至
-**15.032**。并排图左侧为 reference、右侧为当前渲染；用户于 2026-10-27 目视确认 CATA_190h 多职业徽记正确，T11 验收完成。
+修复后 CATA_190h L2 从 **17.112** 降至 **15.032**。并排图左侧为 reference、右侧为当前渲染；用户于
+2026-10-27 目视确认 CATA_190h 多职业徽记正确，T11 验收完成。
+
+### 15.5 CATA_190h 护甲覆盖区压暗
+
+2026-10-27 用户重新生成异画基准后发现，CATA_190h 的护甲徽记与肖像交叠处变暗。新的
+`reference/CATA_190h.png` 下，单卡 CLI 渲染稳定复现：护甲上缘 ROI `[382,580]-[433,608]`
+相对基准的平均亮度差为 **−45.38 Y**（1508 个共同可见像素中 1299 个更暗）；徽记外插画控制区
+平均差约 **−5.6 Y**。症状因此集中在护甲与肖像的交叠层。
+
+UnityPy 探针 `assets/frames/hand-hero-sig14/frame_recon.json` 记录 `Armor_Whole_mesh` 是独立的
+`Hero/Unlit/Unlit_Texture` renderer，使用 `textures/Armor_D.png`；肖像则来自独立 `Portrait_Mesh`。
+离线 `renderPackToRgba8` 先渲染 frame bucket、再调用 `renderPortraitLayer`
+（`packages/renderer/src/render-card.ts:140-141`）。游戏 RTT 按 `material.renderQueue` 分开 opaque 与
+transparent 命令（`RenderCommandLists.cs:209-245`），随后先绘 opaque 再绘 transparent
+（`RenderToTextureUtils.cs:134-140`）。
+
+单变量 A/B 仅把 `Armor_Whole_mesh` 延到肖像阶段之后：护甲 ROI 从 **−45.38 Y** 变为 **+2.91 Y**，
+全链 CATA_190h MAE 从 **12.891** 降到 **12.394**。这个结果将根因指向离线帧节点相对肖像的绘制顺序；
+相位、颜色空间和护甲几何均未改动。修正位于 `packages/renderer/src/plan.ts` 的 frame14 计划编译分支。
+全链 L2 与新基准对比为 **12.394**；用户于 2026-10-28 目视确认护甲亮度修正无问题。
+
+### 15.6 SC_754 护甲覆盖区压暗
+
+2026-10-28 用户报告 SC_754 的护甲徽记与肖像交叠处有相同压暗。单卡渲染下，frame11 护甲上缘 ROI
+`[382,580]-[433,608]` 相对新基准平均亮度差为 **−45.29 Y**。UnityPy 探针
+`assets/frames/hand-hero-sig11/frame_recon.json` 记录 `Armor_Whole_mesh` 使用独立的
+`Armor-ArmorHeroCard_mat` / `Hero/Unlit/Unlit_Texture` / `textures/Armor_D.png`，肖像位于另一
+`Portrait_Mesh` renderer。与 frame14 相同，离线全帧桶先于独立肖像阶段渲染；游戏 RTT 的队列分组依据见
+`RenderCommandLists.cs:209-245`、`RenderToTextureUtils.cs:134-140`。
+
+单变量 A/B 只把可见 `Armor_Whole_mesh` 放到肖像阶段之后：全 p2 ROI 从 **−45.29 Y** 变为 **+0.34 Y**，
+SC_754 全卡 MAE 从 **40.184** 降至 **39.622**。修正规则限定在 SIGNATURE frame11 的可见护甲节点。
+重渲全部 50 张 fixture 后运行 49 张基准 L2：SC_754 **39.622**、CATA_190h **12.394**；两张护甲 ROI
+最终分别为 **+0.34 Y** 和 **−0.24 Y**。SC_754 修正并排图已生成，等待用户目视确认。
